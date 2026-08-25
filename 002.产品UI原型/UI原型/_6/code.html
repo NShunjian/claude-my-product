@@ -1,0 +1,334 @@
+<!DOCTYPE html><html class="dark" lang="zh-CN"><head>
+<meta charset="utf-8">
+<meta content="width=device-width, initial-scale=1.0" name="viewport">
+<title>轻账 - 快速记账</title>
+<script src="https://cdn.tailwindcss.com?plugins=forms,container-queries"></script>
+<script id="tailwind-config">
+        tailwind.config = {
+          darkMode: "class",
+          theme: {
+            extend: {
+              "colors": {
+                      "inverse-surface": "#223144",
+                      "tertiary-fixed-dim": "#ffb3ad",
+                      "cat-purple": "#805AD5",
+                      "tertiary-fixed": "#ffdad7",
+                      "surface-dim": "#ccdbf4",
+                      "primary": "#005394",
+                      "on-tertiary-fixed-variant": "#930013",
+                      "primary-fixed": "#d3e4ff",
+                      "on-surface-variant": "#414750",
+                      "on-secondary-fixed": "#002110",
+                      "on-background": "#0d1c2e",
+                      "on-secondary-fixed-variant": "#00522f",
+                      "error-container": "#ffdad6",
+                      "secondary": "#006d40",
+                      "on-surface": "#0d1c2e",
+                      "surface-container": "#e5eeff",
+                      "primary-container": "#2b6cb0",
+                      "on-tertiary-container": "#ffe6e3",
+                      "tertiary": "#a70819",
+                      "text-primary": "#1A202C",
+                      "divider": "#E2E8F0",
+                      "outline": "#727782",
+                      "on-tertiary": "#ffffff",
+                      "secondary-fixed-dim": "#74db9d",
+                      "inverse-primary": "#a2c9ff",
+                      "bg-card": "#FFFFFF",
+                      "error": "#ba1a1a",
+                      "cat-pink": "#ED64A6",
+                      "warning-orange": "#ED8936",
+                      "background": "#f8f9ff",
+                      "on-error": "#ffffff",
+                      "tertiary-container": "#ca2a2e",
+                      "secondary-fixed": "#91f8b8",
+                      "surface-container-low": "#eff4ff",
+                      "primary-fixed-dim": "#a2c9ff",
+                      "primary-light": "#EBF4FF",
+                      "surface": "#f8f9ff",
+                      "secondary-container": "#8ef5b5",
+                      "outline-variant": "#c1c7d2",
+                      "on-error-container": "#93000a",
+                      "surface-tint": "#1960a3",
+                      "on-primary-fixed-variant": "#004881",
+                      "surface-container-high": "#dce9ff",
+                      "cat-teal": "#319795",
+                      "cat-blue": "#4299E1",
+                      "surface-variant": "#d4e4fc",
+                      "cat-brown": "#8B6E4E",
+                      "on-secondary-container": "#007243",
+                      "surface-container-highest": "#d4e4fc",
+                      "bg-page": "#F7FAFC",
+                      "on-secondary": "#ffffff",
+                      "surface-container-lowest": "#ffffff",
+                      "on-primary-fixed": "#001c38",
+                      "surface-bright": "#f8f9ff",
+                      "on-primary": "#ffffff",
+                      "on-primary-container": "#e1ecff",
+                      "inverse-on-surface": "#eaf1ff",
+                      "on-tertiary-fixed": "#410004"
+              },
+              "borderRadius": {
+                      "DEFAULT": "0.25rem",
+                      "lg": "0.5rem",
+                      "xl": "0.75rem",
+                      "full": "9999px"
+              },
+              "spacing": {
+                      "unit": "4px",
+                      "gutter": "16px",
+                      "sm": "8px",
+                      "md": "16px",
+                      "xs": "4px",
+                      "xl": "32px",
+                      "lg": "24px",
+                      "margin-mobile": "16px",
+                      "margin-desktop": "40px"
+              },
+              "fontFamily": {
+                      "caption-sm": [
+                              "Inter"
+                      ],
+                      "headline-md": [
+                              "Inter"
+                      ],
+                      "display-lg-mobile": [
+                              "Inter"
+                      ],
+                      "label-mono": [
+                              "JetBrains Mono"
+                      ],
+                      "body-md": [
+                              "Inter"
+                      ],
+                      "display-lg": [
+                              "Inter"
+                      ]
+              },
+              "fontSize": {
+                      "caption-sm": [
+                              "12px",
+                              {
+                                      "lineHeight": "16px",
+                                      "fontWeight": "400"
+                              }
+                      ],
+                      "headline-md": [
+                              "18px",
+                              {
+                                      "lineHeight": "24px",
+                                      "fontWeight": "600"
+                              }
+                      ],
+                      "display-lg-mobile": [
+                              "20px",
+                              {
+                                      "lineHeight": "28px",
+                                      "fontWeight": "700"
+                              }
+                      ],
+                      "label-mono": [
+                              "20px",
+                              {
+                                      "lineHeight": "24px",
+                                      "fontWeight": "700"
+                              }
+                      ],
+                      "body-md": [
+                              "14px",
+                              {
+                                      "lineHeight": "20px",
+                                      "fontWeight": "400"
+                              }
+                      ],
+                      "display-lg": [
+                              "24px",
+                              {
+                                      "lineHeight": "32px",
+                                      "letterSpacing": "-0.02em",
+                                      "fontWeight": "700"
+                              }
+                      ]
+              }
+            }
+          }
+        }
+    </script>
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet">
+<link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@700&amp;display=swap" rel="stylesheet">
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet">
+<style>
+        .material-symbols-outlined {
+          font-variation-settings:
+          'FILL' 0,
+          'wght' 400,
+          'GRAD' 0,
+          'opsz' 24
+        }
+        .material-symbols-outlined.fill {
+            font-variation-settings:
+            'FILL' 1,
+            'wght' 400,
+            'GRAD' 0,
+            'opsz' 24
+        }
+        /* Disable scroll on body when modal is open */
+        body { overflow: hidden; }
+        
+        /* Keypad button press animation */
+        .keypad-btn:active {
+            transform: scale(0.95);
+        }
+    </style>
+</head>
+<body class="bg-surface text-on-surface font-body-md antialiased relative min-h-screen">
+<!-- Background Context: Simulated Dashboard -->
+<div class="fixed inset-0 z-0 bg-page opacity-50 blur-sm flex flex-col items-center pt-24" style="background-image: url('https://lh3.googleusercontent.com/aida-public/AB6AXuBuKle-YQR5pFq0cYpbLwjSXBgqg-1mmC_VFpbLjdTB9sRq7ForrqIPtL_adXAmf8ctJczSH43YBJWaUVT8fLKdsgzjvelOO8jqlK98XO7d4x8_p50NvqQEWeshDlTRGLCDS17azGL_u7j0X7YuypV32WoIhYXgFS2P26syMjJJ1tfyzxWmCcZSHRkupoSAHiP2GqVdYmbesYx5Q2-Z8GNUZUYZjZq8gS22QFkdVNPJoUteBxKiY4Z5'); background-size: cover; background-position: center;">
+<!-- Faux content to imply background -->
+<div class="w-full max-w-3xl px-6 opacity-30">
+<h1 class="font-display-lg text-display-lg text-primary mb-8">Dashboard</h1>
+<div class="bg-bg-card rounded-xl shadow-sm p-6 mb-4 h-32 border border-divider"></div>
+<div class="bg-bg-card rounded-xl shadow-sm p-6 h-64 border border-divider"></div>
+</div>
+</div>
+<!-- Modal Overlay -->
+<div class="fixed inset-0 z-10 bg-on-background/60 backdrop-blur-sm transition-opacity duration-300"></div>
+<!-- Quick Record Bottom Sheet / Panel -->
+<!-- On mobile it slides up from bottom, on desktop it centers like a modal -->
+<div class="fixed inset-x-0 bottom-0 md:inset-0 z-20 flex flex-col justify-end md:justify-center items-center pointer-events-none p-0 md:p-6 h-full">
+<div class="w-full max-w-md bg-bg-card rounded-t-[24px] md:rounded-xl shadow-2xl pointer-events-auto flex flex-col max-h-[921px] md:max-h-[800px] overflow-hidden transform transition-transform duration-300 translate-y-0 relative border border-divider">
+<!-- Handle for mobile swipe-down (visual only for this demo) -->
+<div class="w-full flex justify-center pt-3 pb-1 md:hidden">
+<div class="w-12 h-1.5 bg-outline-variant rounded-full opacity-50"></div>
+</div>
+<!-- Header: Tabs -->
+<div class="px-6 pt-4 pb-2 flex justify-between items-center border-b border-divider">
+<button aria-label="Cancel" class="text-on-surface-variant hover:text-on-surface transition-colors p-2">
+<span class="material-symbols-outlined">close</span>
+</button>
+<div class="flex bg-surface-variant rounded-lg p-1">
+<button class="px-6 py-1.5 rounded-md bg-bg-card shadow-sm font-headline-md text-headline-md text-primary transition-all">
+                        支出
+                    </button>
+<button class="px-6 py-1.5 rounded-md text-on-surface-variant font-body-md text-body-md hover:text-on-surface transition-all">
+                        收入
+                    </button>
+</div>
+<div class="w-10"></div> <!-- Spacer to balance flex layout -->
+</div>
+<!-- Amount Input Display -->
+<div class="px-6 py-8 flex flex-col items-center bg-surface-bright border-b border-divider">
+<span class="font-caption-sm text-caption-sm text-on-surface-variant mb-2">输入金额</span>
+<div class="flex items-baseline justify-center w-full group">
+<span class="font-display-lg text-display-lg text-on-surface mr-2 opacity-50">¥</span>
+<!-- Simulated input -->
+<div class="font-label-mono text-[48px] leading-[1.2] font-bold text-on-surface tracking-tight flex items-center border-b-2 border-transparent group-hover:border-primary transition-colors">
+                        0.00
+                        <span class="w-0.5 h-10 bg-primary ml-1 animate-pulse"></span>
+</div>
+</div>
+</div>
+<!-- Category Grid (8 Grid) -->
+<div class="px-6 py-6 border-b border-divider overflow-y-auto">
+<div class="grid grid-cols-4 gap-y-6 gap-x-4">
+<!-- Dining (Active state example) -->
+<button class="flex flex-col items-center gap-2 group">
+<div class="w-12 h-12 rounded-full bg-primary-light flex items-center justify-center border-2 border-primary transition-all">
+<span class="material-symbols-outlined fill text-primary">restaurant</span>
+</div>
+<span class="font-caption-sm text-caption-sm text-primary font-medium">餐饮</span>
+</button>
+<!-- Transport -->
+<button class="flex flex-col items-center gap-2 group">
+<div class="w-12 h-12 rounded-full bg-surface-container hover:bg-surface-container-high flex items-center justify-center border border-transparent transition-all">
+<span class="material-symbols-outlined text-cat-blue">directions_bus</span>
+</div>
+<span class="font-caption-sm text-caption-sm text-on-surface-variant">交通</span>
+</button>
+<!-- Shopping -->
+<button class="flex flex-col items-center gap-2 group">
+<div class="w-12 h-12 rounded-full bg-surface-container hover:bg-surface-container-high flex items-center justify-center border border-transparent transition-all">
+<span class="material-symbols-outlined text-cat-pink">shopping_bag</span>
+</div>
+<span class="font-caption-sm text-caption-sm text-on-surface-variant">购物</span>
+</button>
+<!-- Entertainment -->
+<button class="flex flex-col items-center gap-2 group">
+<div class="w-12 h-12 rounded-full bg-surface-container hover:bg-surface-container-high flex items-center justify-center border border-transparent transition-all">
+<span class="material-symbols-outlined text-cat-purple">sports_esports</span>
+</div>
+<span class="font-caption-sm text-caption-sm text-on-surface-variant">娱乐</span>
+</button>
+<!-- Housing -->
+<button class="flex flex-col items-center gap-2 group">
+<div class="w-12 h-12 rounded-full bg-surface-container hover:bg-surface-container-high flex items-center justify-center border border-transparent transition-all">
+<span class="material-symbols-outlined text-cat-brown">home</span>
+</div>
+<span class="font-caption-sm text-caption-sm text-on-surface-variant">居住</span>
+</button>
+<!-- Medical -->
+<button class="flex flex-col items-center gap-2 group">
+<div class="w-12 h-12 rounded-full bg-surface-container hover:bg-surface-container-high flex items-center justify-center border border-transparent transition-all">
+<span class="material-symbols-outlined text-cat-teal">local_hospital</span>
+</div>
+<span class="font-caption-sm text-caption-sm text-on-surface-variant">医疗</span>
+</button>
+<!-- Education -->
+<button class="flex flex-col items-center gap-2 group">
+<div class="w-12 h-12 rounded-full bg-surface-container hover:bg-surface-container-high flex items-center justify-center border border-transparent transition-all">
+<span class="material-symbols-outlined text-secondary">school</span>
+</div>
+<span class="font-caption-sm text-caption-sm text-on-surface-variant">教育</span>
+</button>
+<!-- Comm -->
+<button class="flex flex-col items-center gap-2 group">
+<div class="w-12 h-12 rounded-full bg-surface-container hover:bg-surface-container-high flex items-center justify-center border border-transparent transition-all">
+<span class="material-symbols-outlined text-outline">smartphone</span>
+</div>
+<span class="font-caption-sm text-caption-sm text-on-surface-variant">通讯</span>
+</button>
+</div>
+</div>
+<!-- Additional Fields (Date & Note) -->
+<div class="px-6 py-4 flex gap-4 bg-bg-card border-b border-divider">
+<button class="flex items-center gap-2 px-3 py-1.5 bg-surface rounded-lg text-on-surface-variant hover:bg-surface-container transition-colors font-caption-sm text-caption-sm border border-divider">
+<span class="material-symbols-outlined" style="font-size: 18px;">calendar_today</span>
+                    今天
+                </button>
+<button class="flex items-center gap-2 px-3 py-1.5 bg-surface rounded-lg text-on-surface-variant hover:bg-surface-container transition-colors font-caption-sm text-caption-sm flex-1 border border-divider text-left">
+<span class="material-symbols-outlined" style="font-size: 18px;">edit_note</span>
+<span class="truncate opacity-70">添加备注...</span>
+</button>
+</div>
+<!-- Custom Keypad & Actions -->
+<div class="bg-surface-bright flex-1 p-2">
+<div class="grid grid-cols-4 gap-2 h-full">
+<!-- Row 1 -->
+<button class="keypad-btn bg-bg-card hover:bg-surface-container rounded-lg py-4 font-headline-md text-headline-md text-on-surface shadow-sm border border-divider transition-all">1</button>
+<button class="keypad-btn bg-bg-card hover:bg-surface-container rounded-lg py-4 font-headline-md text-headline-md text-on-surface shadow-sm border border-divider transition-all">2</button>
+<button class="keypad-btn bg-bg-card hover:bg-surface-container rounded-lg py-4 font-headline-md text-headline-md text-on-surface shadow-sm border border-divider transition-all">3</button>
+<button aria-label="Delete" class="keypad-btn bg-surface-variant hover:bg-outline-variant/20 rounded-lg py-4 flex items-center justify-center text-on-surface shadow-sm border border-divider transition-all">
+<span class="material-symbols-outlined">backspace</span>
+</button>
+<!-- Row 2 -->
+<button class="keypad-btn bg-bg-card hover:bg-surface-container rounded-lg py-4 font-headline-md text-headline-md text-on-surface shadow-sm border border-divider transition-all">4</button>
+<button class="keypad-btn bg-bg-card hover:bg-surface-container rounded-lg py-4 font-headline-md text-headline-md text-on-surface shadow-sm border border-divider transition-all">5</button>
+<button class="keypad-btn bg-bg-card hover:bg-surface-container rounded-lg py-4 font-headline-md text-headline-md text-on-surface shadow-sm border border-divider transition-all">6</button>
+<button class="keypad-btn bg-bg-card hover:bg-surface-container rounded-lg py-4 font-headline-md text-headline-md text-on-surface shadow-sm border border-divider transition-all">+</button>
+<!-- Row 3 -->
+<button class="keypad-btn bg-bg-card hover:bg-surface-container rounded-lg py-4 font-headline-md text-headline-md text-on-surface shadow-sm border border-divider transition-all">7</button>
+<button class="keypad-btn bg-bg-card hover:bg-surface-container rounded-lg py-4 font-headline-md text-headline-md text-on-surface shadow-sm border border-divider transition-all">8</button>
+<button class="keypad-btn bg-bg-card hover:bg-surface-container rounded-lg py-4 font-headline-md text-headline-md text-on-surface shadow-sm border border-divider transition-all">9</button>
+<button class="keypad-btn bg-bg-card hover:bg-surface-container rounded-lg py-4 font-headline-md text-headline-md text-on-surface shadow-sm border border-divider transition-all">-</button>
+<!-- Row 4 -->
+<button class="keypad-btn bg-bg-card hover:bg-surface-container rounded-lg py-4 font-headline-md text-headline-md text-on-surface shadow-sm border border-divider transition-all col-span-2">0</button>
+<button class="keypad-btn bg-bg-card hover:bg-surface-container rounded-lg py-4 font-headline-md text-headline-md text-on-surface shadow-sm border border-divider transition-all">.</button>
+<!-- Done Button -->
+<button class="keypad-btn bg-primary hover:bg-primary-container rounded-lg py-4 flex items-center justify-center shadow-md transition-all active:scale-95 text-on-primary">
+<span class="material-symbols-outlined font-bold">check</span>
+</button>
+</div>
+</div>
+</div>
+</div>
+</body></html>

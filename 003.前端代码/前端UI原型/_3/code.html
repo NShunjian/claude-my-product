@@ -1,0 +1,562 @@
+<!DOCTYPE html><html lang="en"><head>
+<meta charset="utf-8">
+<meta content="width=device-width, initial-scale=1.0" name="viewport">
+<title>QingZhang - Reports &amp; Analytics</title>
+<script src="https://cdn.tailwindcss.com?plugins=forms,container-queries"></script>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700&amp;family=JetBrains+Mono:wght@700&amp;display=swap" rel="stylesheet">
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet">
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet">
+<script id="tailwind-config">
+        tailwind.config = {
+          darkMode: "class",
+          theme: {
+            extend: {
+              "colors": {
+                      "inverse-surface": "#223144",
+                      "on-tertiary-fixed": "#410004",
+                      "on-error-container": "#93000a",
+                      "surface-bright": "#f8f9ff",
+                      "tertiary-fixed-dim": "#ffb3ad",
+                      "bg-page": "#F7FAFC",
+                      "surface-container-low": "#eff4ff",
+                      "on-secondary": "#ffffff",
+                      "tertiary-container": "#ca2a2e",
+                      "on-tertiary-container": "#ffe6e3",
+                      "cat-pink": "#ED64A6",
+                      "surface-variant": "#d4e4fc",
+                      "on-error": "#ffffff",
+                      "on-tertiary-fixed-variant": "#930013",
+                      "tertiary": "#a70819",
+                      "cat-purple": "#805AD5",
+                      "secondary-fixed-dim": "#74db9d",
+                      "error": "#ba1a1a",
+                      "surface-container-lowest": "#ffffff",
+                      "warning-orange": "#ED8936",
+                      "on-surface": "#0d1c2e",
+                      "secondary": "#006d40",
+                      "on-primary-container": "#e1ecff",
+                      "secondary-fixed": "#91f8b8",
+                      "surface-container-highest": "#d4e4fc",
+                      "outline-variant": "#c1c7d2",
+                      "error-container": "#ffdad6",
+                      "on-primary": "#ffffff",
+                      "tertiary-fixed": "#ffdad7",
+                      "on-surface-variant": "#414750",
+                      "surface-dim": "#ccdbf4",
+                      "secondary-container": "#8ef5b5",
+                      "on-tertiary": "#ffffff",
+                      "on-secondary-container": "#007243",
+                      "primary-fixed-dim": "#a2c9ff",
+                      "inverse-primary": "#a2c9ff",
+                      "on-primary-fixed-variant": "#004881",
+                      "inverse-on-surface": "#eaf1ff",
+                      "background": "#f8f9ff",
+                      "text-primary": "#1A202C",
+                      "on-primary-fixed": "#001c38",
+                      "divider": "#E2E8F0",
+                      "primary-fixed": "#d3e4ff",
+                      "on-secondary-fixed-variant": "#00522f",
+                      "surface": "#f8f9ff",
+                      "surface-container": "#e5eeff",
+                      "cat-blue": "#4299E1",
+                      "surface-tint": "#1960a3",
+                      "primary-container": "#2b6cb0",
+                      "cat-brown": "#8B6E4E",
+                      "primary": "#005394",
+                      "bg-card": "#FFFFFF",
+                      "on-secondary-fixed": "#002110",
+                      "outline": "#727782",
+                      "on-background": "#0d1c2e",
+                      "cat-teal": "#319795",
+                      "primary-light": "#EBF4FF",
+                      "surface-container-high": "#dce9ff"
+              },
+              "borderRadius": {
+                      "DEFAULT": "0.25rem",
+                      "lg": "0.5rem",
+                      "xl": "0.75rem",
+                      "full": "9999px"
+              },
+              "spacing": {
+                      "gutter": "16px",
+                      "margin-desktop": "40px",
+                      "lg": "24px",
+                      "md": "16px",
+                      "unit": "4px",
+                      "margin-mobile": "16px",
+                      "xs": "4px",
+                      "xl": "32px",
+                      "sm": "8px"
+              },
+              "fontFamily": {
+                      "caption-sm": [
+                              "Inter"
+                      ],
+                      "label-mono": [
+                              "JetBrains Mono"
+                      ],
+                      "headline-md": [
+                              "Inter"
+                      ],
+                      "display-lg": [
+                              "Inter"
+                      ],
+                      "body-md": [
+                              "Inter"
+                      ],
+                      "display-lg-mobile": [
+                              "Inter"
+                      ]
+              },
+              "fontSize": {
+                      "caption-sm": [
+                              "12px",
+                              {
+                                      "lineHeight": "16px",
+                                      "fontWeight": "400"
+                              }
+                      ],
+                      "label-mono": [
+                              "20px",
+                              {
+                                      "lineHeight": "24px",
+                                      "fontWeight": "700"
+                              }
+                      ],
+                      "headline-md": [
+                              "18px",
+                              {
+                                      "lineHeight": "24px",
+                                      "fontWeight": "600"
+                              }
+                      ],
+                      "display-lg": [
+                              "24px",
+                              {
+                                      "lineHeight": "32px",
+                                      "letterSpacing": "-0.02em",
+                                      "fontWeight": "700"
+                              }
+                      ],
+                      "body-md": [
+                              "14px",
+                              {
+                                      "lineHeight": "20px",
+                                      "fontWeight": "400"
+                              }
+                      ],
+                      "display-lg-mobile": [
+                              "20px",
+                              {
+                                      "lineHeight": "28px",
+                                      "fontWeight": "700"
+                              }
+                      ]
+              }
+      },
+          },
+        }
+    </script>
+<style>
+        .material-symbols-outlined {
+            font-variation-settings: 'FILL' 0;
+        }
+        .filled-icon {
+            font-variation-settings: 'FILL' 1;
+        }
+        
+        .bento-grid {
+            display: grid;
+            grid-template-columns: repeat(12, 1fr);
+            gap: 24px;
+        }
+        .bento-item {
+            background-color: theme('colors.bg-card');
+            border-radius: theme('borderRadius.xl');
+            padding: theme('spacing.lg');
+            box-shadow: 0 4px 12px rgba(0, 0, 0, 0.04);
+            border: 1px solid theme('colors.divider');
+        }
+        
+        @media (max-width: 768px) {
+            .bento-grid {
+                grid-template-columns: 1fr;
+                gap: 16px;
+            }
+        }
+    </style>
+<script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+</head>
+<body class="bg-bg-page font-body-md text-body-md text-text-primary antialiased">
+<!-- TopNavBar -->
+<nav class="bg-page dark:bg-background docked full-width top-0 sticky flex justify-between items-center h-16 md:ml-64 px-8 max-w-full z-50">
+<div class="flex items-center">
+<span class="font-display-lg text-display-lg text-primary dark:text-primary-fixed md:hidden mr-4">轻账</span>
+<span class="font-headline-md text-headline-md text-primary dark:text-primary-fixed">报表</span>
+</div>
+<div class="flex items-center gap-4">
+<button class="text-on-surface-variant opacity-80 hover:opacity-100 transition-colors">
+<span class="material-symbols-outlined">search</span>
+</button>
+<button class="text-on-surface-variant opacity-80 hover:opacity-100 transition-colors">
+<span class="material-symbols-outlined">notifications</span>
+</button>
+<button class="text-on-surface-variant opacity-80 hover:opacity-100 transition-colors hidden md:block">
+<span class="material-symbols-outlined">help</span>
+</button>
+<button class="text-on-surface-variant opacity-80 hover:opacity-100 transition-colors hidden md:block font-body-md">
+                帮助
+            </button>
+<div class="h-8 w-8 rounded-full bg-surface-variant border border-divider overflow-hidden ml-2">
+<img alt="User Profile" class="w-full h-full object-cover" src="https://lh3.googleusercontent.com/aida-public/AB6AXuDOrLA9KMHp-07aR1KCenCV1rt5S37Bog-Og8c0q1MD33_DHn2d6uAXzSCpwn8v6drmlJ4WkGVpJP1Bp8e8wbnZ4gost832_mASS3r761khxp3W0y12MYB5_6T0yPy8T5xXV3r24cLssbLWSre-M-xBXWbQdWatHvILPJ9d38dHnv1zZojR53kIleAhswi9nScX020Tkj8zSMg5SkgG0PjGHlRWD1vy8Gn-fa7rqdLWUThUXoSq4CXo">
+</div>
+</div>
+</nav>
+<!-- SideNavBar (Desktop) -->
+<aside class="hidden md:flex bg-surface dark:bg-inverse-surface h-screen w-64 fixed left-0 top-0 bg-surface-bright dark:bg-inverse-surface border-r border-divider dark:border-outline-variant flex-col p-4 z-40">
+<div class="mb-8 px-4 flex items-center gap-3">
+<div class="h-10 w-10 rounded-lg bg-primary flex items-center justify-center text-on-primary font-display-lg">
+<span class="material-symbols-outlined">account_balance_wallet</span>
+</div>
+<div>
+<h1 class="font-display-lg text-display-lg font-bold text-primary dark:text-primary-fixed">轻账</h1>
+<p class="font-caption-sm text-caption-sm text-on-surface-variant">Financial Clarity</p>
+</div>
+</div>
+<nav class="flex-1 space-y-2">
+<a class="text-on-surface-variant dark:text-surface-variant px-4 py-3 flex items-center gap-3 hover:bg-surface-container dark:hover:bg-surface-container-highest transition-colors rounded-lg" href="#">
+<span class="material-symbols-outlined">dashboard</span>
+                首页
+            </a>
+<a class="text-primary dark:text-primary-fixed font-bold bg-primary-light dark:bg-primary-container rounded-lg px-4 py-3 flex items-center gap-3 active:scale-95 duration-150" href="#">
+<span class="material-symbols-outlined filled-icon">bar_chart</span>
+                报表
+            </a>
+<a class="text-on-surface-variant dark:text-surface-variant px-4 py-3 flex items-center gap-3 hover:bg-surface-container dark:hover:bg-surface-container-highest transition-colors rounded-lg" href="#">
+<span class="material-symbols-outlined">account_balance_wallet</span>
+                账户
+            </a>
+<a class="text-on-surface-variant dark:text-surface-variant px-4 py-3 flex items-center gap-3 hover:bg-surface-container dark:hover:bg-surface-container-highest transition-colors rounded-lg" href="#">
+<span class="material-symbols-outlined">settings</span>
+                设置
+            </a>
+</nav>
+<div class="mt-auto pt-4 border-t border-divider space-y-4">
+<button class="w-full bg-primary text-on-primary py-3 rounded-lg font-headline-md text-headline-md hover:opacity-90 transition-opacity active:scale-95 duration-150 flex items-center justify-center gap-2" onclick="window.location.href='{{DATA:SCREEN:SCREEN_3}}'">
+<span class="material-symbols-outlined">add</span>
+                 快速记账
+             </button>
+<a class="text-on-surface-variant dark:text-surface-variant px-4 py-3 flex items-center gap-3 hover:bg-surface-container dark:hover:bg-surface-container-highest transition-colors rounded-lg" href="#">
+<span class="material-symbols-outlined">logout</span>
+                退出
+            </a>
+</div>
+</aside>
+<!-- Main Content Canvas -->
+<main class="md:ml-64 p-margin-mobile md:p-margin-desktop max-w-[1440px] mx-auto min-h-screen">
+<div class="mb-8 flex justify-between items-end">
+<div>
+<h2 class="font-display-lg text-display-lg md:font-display-lg md:text-display-lg font-bold text-text-primary mb-1">月度统计</h2>
+<p class="font-body-md text-body-md text-on-surface-variant">November 2023</p>
+</div><div class="flex items-center gap-3 mt-4 bg-surface-container-low p-2 rounded-lg border border-divider w-fit">
+  <button class="w-8 h-8 flex items-center justify-center rounded-md hover:bg-surface-variant text-primary transition-colors">
+    <span class="material-symbols-outlined">chevron_left</span>
+  </button>
+  <div class="flex items-center gap-2 px-2">
+    <span class="material-symbols-outlined text-primary">calendar_month</span>
+    <span class="font-headline-md text-headline-md text-text-primary">2023年11月</span>
+  </div>
+  <button class="w-8 h-8 flex items-center justify-center rounded-md hover:bg-surface-variant text-primary transition-colors">
+    <span class="material-symbols-outlined">chevron_right</span>
+  </button>
+</div>
+<div class="flex bg-surface-variant rounded-lg p-1 border border-divider">
+<button class="px-4 py-2 rounded-md bg-bg-card text-primary font-headline-md text-headline-md shadow-sm">按月</button>
+<button class="px-4 py-2 rounded-md text-on-surface-variant font-body-md hover:bg-surface-container transition-colors" onclick="window.location.href='{{DATA:SCREEN:SCREEN_59}}'">按年</button>
+</div>
+</div>
+<div class="bento-grid">
+<!-- Overview Cards -->
+<div class="bento-item col-span-12 md:col-span-4 flex flex-col justify-between">
+<div>
+<div class="flex items-center gap-2 mb-2 text-on-surface-variant">
+<span class="material-symbols-outlined text-[18px]">account_balance</span>
+<span class="font-headline-md text-headline-md">结余</span>
+</div>
+<div class="font-label-mono text-label-mono text-3xl md:text-4xl text-text-primary mt-4">
+                        $3,240.50
+                    </div>
+</div>
+<div class="mt-6 flex justify-between items-center text-sm">
+<span class="text-secondary flex items-center gap-1 bg-secondary-container px-2 py-1 rounded-full text-on-secondary-container">
+<span class="material-symbols-outlined text-[14px]">arrow_upward</span> +12.5%
+                    </span>
+<span class="text-on-surface-variant font-caption-sm text-caption-sm">vs last month</span>
+</div>
+</div>
+<div class="bento-item col-span-12 md:col-span-4 bg-primary-light border-primary-container/20">
+<div class="flex items-center gap-2 mb-2 text-primary">
+<span class="material-symbols-outlined text-[18px]">arrow_downward</span>
+<span class="font-headline-md text-headline-md">总收入</span>
+</div>
+<div class="font-label-mono text-label-mono text-2xl md:text-3xl text-primary mt-4">
+                    $8,500.00
+                </div>
+<div class="mt-4 pt-4 border-t border-primary/10">
+<div class="flex justify-between items-center mb-1">
+<span class="font-caption-sm text-caption-sm text-on-surface-variant">Salary</span>
+<span class="font-caption-sm text-caption-sm font-semibold">$8,000</span>
+</div>
+<div class="flex justify-between items-center">
+<span class="font-caption-sm text-caption-sm text-on-surface-variant">Other</span>
+<span class="font-caption-sm text-caption-sm font-semibold">$500</span>
+</div>
+</div>
+</div>
+<div class="bento-item col-span-12 md:col-span-4 bg-[#FFF5F5] border-tertiary/20">
+<div class="flex items-center gap-2 mb-2 text-tertiary">
+<span class="material-symbols-outlined text-[18px]">arrow_upward</span>
+<span class="font-headline-md text-headline-md">总支出</span>
+</div>
+<div class="font-label-mono text-label-mono text-2xl md:text-3xl text-tertiary mt-4">
+                    $5,259.50
+                </div>
+<div class="mt-4 pt-4 border-t border-tertiary/10">
+<p class="font-caption-sm text-caption-sm text-on-surface-variant">Top category: 居住 ($2,000)</p>
+</div>
+</div>
+<!-- Trend Chart -->
+<div class="bento-item col-span-12 md:col-span-8 min-h-[300px] flex flex-col">
+<div class="flex justify-between items-center mb-6">
+<h3 class="font-headline-md text-headline-md text-text-primary">每日收支趋势</h3>
+<div class="flex gap-4 font-caption-sm text-caption-sm">
+<div class="flex items-center gap-2"><span class="w-3 h-3 rounded-full bg-primary"></span> 收入</div>
+<div class="flex items-center gap-2"><span class="w-3 h-3 rounded-full bg-tertiary"></span> 支出</div>
+</div>
+</div>
+<div class="flex-1 relative">
+<canvas id="trendChart" width="1242" height="600" style="display: block; box-sizing: border-box; height: 300px; width: 621.3px;"></canvas>
+</div>
+</div>
+<!-- Category Circle Chart -->
+<div class="bento-item col-span-12 md:col-span-4 min-h-[300px] flex flex-col">
+<h3 class="font-headline-md text-headline-md text-text-primary mb-6">支出占比</h3>
+<div class="flex-1 relative flex items-center justify-center">
+<canvas id="doughnutChart" width="597" height="600" style="display: block; box-sizing: border-box; height: 300px; width: 298.7px;"></canvas>
+<div class="absolute inset-0 flex flex-col items-center justify-center pointer-events-none">
+<span class="font-caption-sm text-caption-sm text-on-surface-variant">总计</span>
+<span class="font-label-mono text-label-mono text-text-primary">$5,259</span>
+</div>
+</div>
+</div>
+<!-- Category Ranking -->
+<div class="bento-item col-span-12">
+<h3 class="font-headline-md text-headline-md text-text-primary mb-6">支出排行</h3>
+<div class="space-y-6">
+<!-- Item 1 -->
+<div>
+<div class="flex justify-between mb-2">
+<div class="flex items-center gap-3">
+<div class="w-8 h-8 rounded-full bg-cat-blue/10 flex items-center justify-center text-cat-blue">
+<span class="material-symbols-outlined text-[16px]">home</span>
+</div>
+<span class="font-body-md text-body-md">居住</span>
+</div>
+<div class="text-right">
+<span class="font-label-mono text-label-mono text-[16px] block">$2,000.00</span>
+<span class="font-caption-sm text-caption-sm text-on-surface-variant">38%</span>
+</div>
+</div>
+<div class="w-full bg-surface-variant rounded-full h-2 overflow-hidden">
+<div class="bg-cat-blue h-2 rounded-full" style="width: 38%"></div>
+</div>
+</div>
+<!-- Item 2 -->
+<div>
+<div class="flex justify-between mb-2">
+<div class="flex items-center gap-3">
+<div class="w-8 h-8 rounded-full bg-cat-orange/10 flex items-center justify-center text-warning-orange">
+<span class="material-symbols-outlined text-[16px]">restaurant</span>
+</div>
+<span class="font-body-md text-body-md">餐饮</span>
+</div>
+<div class="text-right">
+<span class="font-label-mono text-label-mono text-[16px] block">$1,200.00</span>
+<span class="font-caption-sm text-caption-sm text-on-surface-variant">23%</span>
+</div>
+</div>
+<div class="w-full bg-surface-variant rounded-full h-2 overflow-hidden">
+<div class="bg-warning-orange h-2 rounded-full" style="width: 23%"></div>
+</div>
+</div>
+<!-- Item 3 -->
+<div>
+<div class="flex justify-between mb-2">
+<div class="flex items-center gap-3">
+<div class="w-8 h-8 rounded-full bg-cat-purple/10 flex items-center justify-center text-cat-purple">
+<span class="material-symbols-outlined text-[16px]">directions_car</span>
+</div>
+<span class="font-body-md text-body-md">交通</span>
+</div>
+<div class="text-right">
+<span class="font-label-mono text-label-mono text-[16px] block">$600.00</span>
+<span class="font-caption-sm text-caption-sm text-on-surface-variant">11%</span>
+</div>
+</div>
+<div class="w-full bg-surface-variant rounded-full h-2 overflow-hidden">
+<div class="bg-cat-purple h-2 rounded-full" style="width: 11%"></div>
+</div>
+</div>
+</div>
+</div>
+</div>
+</main>
+<!-- BottomNavBar (Mobile) -->
+<nav class="md:hidden fixed bottom-0 left-0 w-full bg-bg-card border-t border-divider flex justify-around items-center h-16 pb-safe z-50">
+<a class="flex flex-col items-center justify-center w-full h-full text-on-surface-variant opacity-70" href="#">
+<span class="material-symbols-outlined mb-1">dashboard</span>
+<span class="text-[10px] font-caption-sm">首页</span>
+</a>
+<a class="flex flex-col items-center justify-center w-full h-full text-primary font-bold" href="#">
+<span class="material-symbols-outlined mb-1 filled-icon">bar_chart</span>
+<span class="text-[10px] font-caption-sm">报表</span>
+</a>
+<div class="relative w-full h-full flex justify-center -top-6">
+<button class="absolute w-14 h-14 bg-primary text-on-primary rounded-full flex items-center justify-center shadow-lg hover:scale-105 active:scale-95 transition-transform" onclick="window.location.href='{{DATA:SCREEN:SCREEN_3}}'">
+<span class="material-symbols-outlined text-2xl">add</span>
+</button>
+</div>
+<a class="flex flex-col items-center justify-center w-full h-full text-on-surface-variant opacity-70" href="#">
+<span class="material-symbols-outlined mb-1">account_balance_wallet</span>
+<span class="text-[10px] font-caption-sm">账户</span>
+</a>
+<a class="flex flex-col items-center justify-center w-full h-full text-on-surface-variant opacity-70" href="#">
+<span class="material-symbols-outlined mb-1">person</span>
+<span class="text-[10px] font-caption-sm">设置</span>
+</a>
+</nav>
+<script>
+        // Chart.js initialization
+        document.addEventListener('DOMContentLoaded', function() {
+            // Common Chart options
+            Chart.defaults.font.family = 'Inter';
+            Chart.defaults.color = '#727782';
+            
+            // Trend Line Chart
+            const ctxTrend = document.getElementById('trendChart').getContext('2d');
+            new Chart(ctxTrend, {
+                type: 'line',
+                data: {
+                    labels: ['1', '5', '10', '15', '20', '25', '30'],
+                    datasets: [
+                        {
+                            label: '收入',
+                            data: [0, 4000, 200, 0, 4000, 300, 0],
+                            borderColor: '#005394', // primary
+                            backgroundColor: 'rgba(0, 83, 148, 0.1)',
+                            borderWidth: 2,
+                            tension: 0.4,
+                            fill: true,
+                            pointRadius: 0,
+                            pointHoverRadius: 6
+                        },
+                        {
+                            label: '支出',
+                            data: [200, 500, 1500, 800, 600, 1200, 459.5],
+                            borderColor: '#a70819', // tertiary
+                            backgroundColor: 'transparent',
+                            borderWidth: 2,
+                            tension: 0.4,
+                            pointRadius: 0,
+                            pointHoverRadius: 6
+                        }
+                    ]
+                },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    plugins: {
+                        legend: { display: false },
+                        tooltip: {
+                            mode: 'index',
+                            intersect: false,
+                            backgroundColor: '#FFFFFF',
+                            titleColor: '#1A202C',
+                            bodyColor: '#414750',
+                            borderColor: '#E2E8F0',
+                            borderWidth: 1,
+                            padding: 12,
+                            boxPadding: 6
+                        }
+                    },
+                    scales: {
+                        y: {
+                            beginAtZero: true,
+                            grid: {
+                                color: '#f8f9ff',
+                                drawBorder: false
+                            },
+                            border: { display: false }
+                        },
+                        x: {
+                            grid: { display: false },
+                            border: { display: false }
+                        }
+                    },
+                    interaction: {
+                        mode: 'nearest',
+                        axis: 'x',
+                        intersect: false
+                    }
+                }
+            });
+
+            // Doughnut Chart
+            const ctxDoughnut = document.getElementById('doughnutChart').getContext('2d');
+            new Chart(ctxDoughnut, {
+                type: 'doughnut',
+                data: {
+                    labels: ['居住', '餐饮', '交通', 'Shopping', 'Other'],
+                    datasets: [{
+                        data: [38, 23, 11, 15, 13],
+                        backgroundColor: [
+                            '#4299E1', // cat-blue
+                            '#ED8936', // warning-orange
+                            '#805AD5', // cat-purple
+                            '#ED64A6', // cat-pink
+                            '#c1c7d2'  // outline-variant
+                        ],
+                        borderWidth: 0,
+                        hoverOffset: 4
+                    }]
+                },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    cutout: '75%',
+                    plugins: {
+                        legend: { display: false },
+                        tooltip: {
+                            backgroundColor: '#FFFFFF',
+                            titleColor: '#1A202C',
+                            bodyColor: '#414750',
+                            borderColor: '#E2E8F0',
+                            borderWidth: 1,
+                            callbacks: {
+                                label: function(context) {
+                                    return ' ' + context.label + ': ' + context.parsed + '%';
+                                }
+                            }
+                        }
+                    }
+                }
+            });
+        });
+    </script>
+
+
+
+
+
+
+</body></html>

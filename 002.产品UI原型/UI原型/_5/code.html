@@ -1,0 +1,169 @@
+<!DOCTYPE html>
+
+<html lang="zh-CN"><head>
+<meta charset="utf-8"/>
+<meta content="width=device-width, initial-scale=1.0" name="viewport"/>
+<title>轻账 登录</title>
+<script src="https://cdn.tailwindcss.com?plugins=forms,container-queries"></script>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700&amp;family=JetBrains+Mono:wght@700&amp;display=swap" rel="stylesheet"/>
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet"/>
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet"/>
+<script id="tailwind-config">
+        tailwind.config = {
+            darkMode: "class",
+            theme: {
+                extend: {
+                    "colors": {
+                        "inverse-surface": "#223144",
+                        "on-tertiary-fixed": "#410004",
+                        "on-error-container": "#93000a",
+                        "surface-bright": "#f8f9ff",
+                        "tertiary-fixed-dim": "#ffb3ad",
+                        "bg-page": "#F7FAFC",
+                        "surface-container-low": "#eff4ff",
+                        "on-secondary": "#ffffff",
+                        "tertiary-container": "#ca2a2e",
+                        "on-tertiary-container": "#ffe6e3",
+                        "cat-pink": "#ED64A6",
+                        "surface-variant": "#d4e4fc",
+                        "on-error": "#ffffff",
+                        "on-tertiary-fixed-variant": "#930013",
+                        "tertiary": "#a70819",
+                        "cat-purple": "#805AD5",
+                        "secondary-fixed-dim": "#74db9d",
+                        "error": "#ba1a1a",
+                        "surface-container-lowest": "#ffffff",
+                        "warning-orange": "#ED8936",
+                        "on-surface": "#0d1c2e",
+                        "secondary": "#006d40",
+                        "on-primary-container": "#e1ecff",
+                        "secondary-fixed": "#91f8b8",
+                        "surface-container-highest": "#d4e4fc",
+                        "outline-variant": "#c1c7d2",
+                        "error-container": "#ffdad6",
+                        "on-primary": "#ffffff",
+                        "tertiary-fixed": "#ffdad7",
+                        "on-surface-variant": "#414750",
+                        "surface-dim": "#ccdbf4",
+                        "secondary-container": "#8ef5b5",
+                        "on-tertiary": "#ffffff",
+                        "on-secondary-container": "#007243",
+                        "primary-fixed-dim": "#a2c9ff",
+                        "inverse-primary": "#a2c9ff",
+                        "on-primary-fixed-variant": "#004881",
+                        "inverse-on-surface": "#eaf1ff",
+                        "background": "#f8f9ff",
+                        "text-primary": "#1A202C",
+                        "on-primary-fixed": "#001c38",
+                        "divider": "#E2E8F0",
+                        "primary-fixed": "#d3e4ff",
+                        "on-secondary-fixed-variant": "#00522f",
+                        "surface": "#f8f9ff",
+                        "surface-container": "#e5eeff",
+                        "cat-blue": "#4299E1",
+                        "surface-tint": "#1960a3",
+                        "primary-container": "#2b6cb0",
+                        "cat-brown": "#8B6E4E",
+                        "primary": "#005394",
+                        "bg-card": "#FFFFFF",
+                        "on-secondary-fixed": "#002110",
+                        "outline": "#727782",
+                        "on-background": "#0d1c2e",
+                        "cat-teal": "#319795",
+                        "primary-light": "#EBF4FF",
+                        "surface-container-high": "#dce9ff"
+                    },
+                    "borderRadius": {
+                        "DEFAULT": "0.25rem",
+                        "lg": "0.5rem",
+                        "xl": "0.75rem",
+                        "full": "9999px"
+                    },
+                    "spacing": {
+                        "gutter": "16px",
+                        "margin-desktop": "40px",
+                        "lg": "24px",
+                        "md": "16px",
+                        "unit": "4px",
+                        "margin-mobile": "16px",
+                        "xs": "4px",
+                        "xl": "32px",
+                        "sm": "8px"
+                    },
+                    "fontFamily": {
+                        "caption-sm": ["Inter"],
+                        "label-mono": ["JetBrains Mono"],
+                        "headline-md": ["Inter"],
+                        "display-lg": ["Inter"],
+                        "body-md": ["Inter"],
+                        "display-lg-mobile": ["Inter"]
+                    },
+                    "fontSize": {
+                        "caption-sm": ["12px", { "lineHeight": "16px", "fontWeight": "400" }],
+                        "label-mono": ["20px", { "lineHeight": "24px", "fontWeight": "700" }],
+                        "headline-md": ["18px", { "lineHeight": "24px", "fontWeight": "600" }],
+                        "display-lg": ["24px", { "lineHeight": "32px", "letterSpacing": "-0.02em", "fontWeight": "700" }],
+                        "body-md": ["14px", { "lineHeight": "20px", "fontWeight": "400" }],
+                        "display-lg-mobile": ["20px", { "lineHeight": "28px", "fontWeight": "700" }]
+                    }
+                }
+            }
+        }
+    </script>
+<style>
+        .glass-card {
+            background: rgba(255, 255, 255, 0.95);
+            backdrop-filter: blur(16px);
+            -webkit-backdrop-filter: blur(16px);
+            border: 1px solid rgba(226, 232, 240, 0.8);
+            box-shadow: 0 4px 12px rgba(0, 0, 0, 0.04);
+        }
+    </style>
+</head>
+<body class="bg-bg-page text-text-primary min-h-screen flex items-center justify-center font-body-md text-body-md p-gutter">
+<div class="glass-card rounded-xl p-lg w-full max-w-md relative overflow-hidden">
+<div class="absolute -top-16 -right-16 w-32 h-32 bg-primary-light rounded-full mix-blend-multiply filter blur-2xl opacity-50"></div>
+<div class="absolute -bottom-16 -left-16 w-32 h-32 bg-surface-variant rounded-full mix-blend-multiply filter blur-2xl opacity-50"></div>
+<div class="text-center mb-xl relative z-10">
+<div class="inline-flex items-center justify-center w-16 h-16 rounded-full bg-primary-light text-primary mb-md">
+<span class="material-symbols-outlined text-xl" style="font-size: 32px;">currency_yuan</span>
+</div>
+<h1 class="font-display-lg text-display-lg text-primary mb-xs">轻账</h1>
+<p class="text-on-surface-variant font-caption-sm text-caption-sm">记账，轻轻松松</p>
+</div>
+<div class="flex border-b border-divider mb-lg relative z-10">
+<button class="flex-1 pb-sm border-b-2 border-transparent text-on-surface-variant hover:text-text-primary transition-colors font-headline-md text-headline-md">
+                登录 ○
+            </button>
+<button class="flex-1 pb-sm border-b-2 border-primary text-primary font-headline-md text-headline-md">
+                注册 ◉
+            </button>
+</div>
+<form class="space-y-md relative z-10">
+<div>
+<label class="sr-only" for="username">用户名</label>
+<div class="relative">
+<span class="material-symbols-outlined absolute left-sm top-1/2 -translate-y-1/2 text-outline">person</span>
+<input class="w-full pl-xl pr-md py-sm bg-surface-bright border-b border-divider focus:border-primary focus:ring-0 transition-colors bg-transparent text-text-primary placeholder-outline font-body-md text-body-md outline-none" id="username" placeholder="用户名" type="text"/>
+</div>
+</div>
+<div>
+<label class="sr-only" for="password">密码</label>
+<div class="relative">
+<span class="material-symbols-outlined absolute left-sm top-1/2 -translate-y-1/2 text-outline">lock</span>
+<input class="w-full pl-xl pr-md py-sm bg-surface-bright border-b border-divider focus:border-primary focus:ring-0 transition-colors bg-transparent text-text-primary placeholder-outline font-body-md text-body-md outline-none" id="password" placeholder="密码" type="password"/>
+</div>
+</div>
+<button class="w-full bg-primary text-on-primary py-sm rounded-lg font-headline-md text-headline-md hover:bg-primary-container transition-colors shadow-sm mt-md flex justify-center items-center gap-sm" type="button">
+                注册
+                <span class="material-symbols-outlined text-sm">person_add</span>
+</button>
+</form>
+<div class="mt-xl text-center relative z-10">
+<p class="font-caption-sm text-caption-sm text-outline flex items-center justify-center gap-xs">
+<span class="material-symbols-outlined text-[14px]">info</span>
+                数据仅保存在本地浏览器，请勿在公共设备使用
+            </p>
+</div>
+</div>
+</body></html>

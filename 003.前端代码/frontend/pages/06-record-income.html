@@ -203,17 +203,10 @@
 </div>
 <!-- Header: Tabs -->
 <div class="px-6 pt-4 pb-2 flex justify-between items-center border-b border-divider">
-<button aria-label="Cancel" class="text-on-surface-variant hover:text-on-surface transition-colors p-2">
+<button onclick="window.location.href='./03-home.html'" aria-label="Cancel" class="text-on-surface-variant hover:text-on-surface transition-colors p-2">
 <span class="material-symbols-outlined">close</span>
 </button>
-<div class="flex bg-surface-variant rounded-lg p-1">
-<button class="px-6 py-1.5 rounded-md bg-bg-card shadow-sm font-headline-md text-headline-md text-primary transition-all">
-                        支出
-                    </button>
-<button class="px-6 py-1.5 rounded-md text-on-surface-variant font-body-md text-body-md hover:text-on-surface transition-all">
-                        收入
-                    </button>
-</div>
+<div class="flex bg-surface-variant rounded-lg p-1"><button onclick="window.location.href='./05-record-expense.html'" class="px-6 py-1.5 rounded-md text-on-surface-variant font-body-md text-body-md hover:text-on-surface transition-all">支出</button><button class="px-6 py-1.5 rounded-md bg-bg-card shadow-sm font-headline-md text-headline-md text-secondary transition-all">收入</button></div>
 <div class="w-10"></div> <!-- Spacer to balance flex layout -->
 </div>
 <!-- Amount Input Display -->
@@ -224,70 +217,13 @@
 <!-- Simulated input -->
 <div class="font-label-mono text-[48px] leading-[1.2] font-bold text-on-surface tracking-tight flex items-center border-b-2 border-transparent group-hover:border-primary transition-colors">
                         0.00
-                        <span class="w-0.5 h-10 bg-primary ml-1 animate-pulse"></span>
+                        <span class="w-0.5 h-10 bg-secondary ml-1 animate-pulse"></span>
 </div>
 </div>
 </div>
 <!-- Category Grid (8 Grid) -->
 <div class="px-6 py-6 border-b border-divider overflow-y-auto">
-<div class="grid grid-cols-4 gap-y-6 gap-x-4">
-<!-- Dining (Active state example) -->
-<button class="flex flex-col items-center gap-2 group">
-<div class="w-12 h-12 rounded-full bg-primary-light flex items-center justify-center border-2 border-primary transition-all">
-<span class="material-symbols-outlined fill text-primary">restaurant</span>
-</div>
-<span class="font-caption-sm text-caption-sm text-primary font-medium">餐饮</span>
-</button>
-<!-- Transport -->
-<button class="flex flex-col items-center gap-2 group">
-<div class="w-12 h-12 rounded-full bg-surface-container hover:bg-surface-container-high flex items-center justify-center border border-transparent transition-all">
-<span class="material-symbols-outlined text-cat-blue">directions_bus</span>
-</div>
-<span class="font-caption-sm text-caption-sm text-on-surface-variant">交通</span>
-</button>
-<!-- Shopping -->
-<button class="flex flex-col items-center gap-2 group">
-<div class="w-12 h-12 rounded-full bg-surface-container hover:bg-surface-container-high flex items-center justify-center border border-transparent transition-all">
-<span class="material-symbols-outlined text-cat-pink">shopping_bag</span>
-</div>
-<span class="font-caption-sm text-caption-sm text-on-surface-variant">购物</span>
-</button>
-<!-- Entertainment -->
-<button class="flex flex-col items-center gap-2 group">
-<div class="w-12 h-12 rounded-full bg-surface-container hover:bg-surface-container-high flex items-center justify-center border border-transparent transition-all">
-<span class="material-symbols-outlined text-cat-purple">sports_esports</span>
-</div>
-<span class="font-caption-sm text-caption-sm text-on-surface-variant">娱乐</span>
-</button>
-<!-- Housing -->
-<button class="flex flex-col items-center gap-2 group">
-<div class="w-12 h-12 rounded-full bg-surface-container hover:bg-surface-container-high flex items-center justify-center border border-transparent transition-all">
-<span class="material-symbols-outlined text-cat-brown">home</span>
-</div>
-<span class="font-caption-sm text-caption-sm text-on-surface-variant">居住</span>
-</button>
-<!-- Medical -->
-<button class="flex flex-col items-center gap-2 group">
-<div class="w-12 h-12 rounded-full bg-surface-container hover:bg-surface-container-high flex items-center justify-center border border-transparent transition-all">
-<span class="material-symbols-outlined text-cat-teal">local_hospital</span>
-</div>
-<span class="font-caption-sm text-caption-sm text-on-surface-variant">医疗</span>
-</button>
-<!-- Education -->
-<button class="flex flex-col items-center gap-2 group">
-<div class="w-12 h-12 rounded-full bg-surface-container hover:bg-surface-container-high flex items-center justify-center border border-transparent transition-all">
-<span class="material-symbols-outlined text-secondary">school</span>
-</div>
-<span class="font-caption-sm text-caption-sm text-on-surface-variant">教育</span>
-</button>
-<!-- Comm -->
-<button class="flex flex-col items-center gap-2 group">
-<div class="w-12 h-12 rounded-full bg-surface-container hover:bg-surface-container-high flex items-center justify-center border border-transparent transition-all">
-<span class="material-symbols-outlined text-outline">smartphone</span>
-</div>
-<span class="font-caption-sm text-caption-sm text-on-surface-variant">通讯</span>
-</button>
-</div>
+<div class="grid grid-cols-4 gap-y-6 gap-x-4"><button class="flex flex-col items-center gap-2 group"><div class="w-12 h-12 rounded-full bg-secondary-container flex items-center justify-center border-2 border-secondary transition-all"><span class="material-symbols-outlined fill text-secondary">payments</span></div><span class="font-caption-sm text-caption-sm text-secondary font-medium">工资</span></button><button class="flex flex-col items-center gap-2 group"><div class="w-12 h-12 rounded-full bg-surface-container hover:bg-surface-container-high flex items-center justify-center border border-transparent transition-all"><span class="material-symbols-outlined text-cat-teal">work</span></div><span class="font-caption-sm text-caption-sm text-on-surface-variant">兼职</span></button><button class="flex flex-col items-center gap-2 group"><div class="w-12 h-12 rounded-full bg-surface-container hover:bg-surface-container-high flex items-center justify-center border border-transparent transition-all"><span class="material-symbols-outlined text-cat-blue">trending_up</span></div><span class="font-caption-sm text-caption-sm text-on-surface-variant">理财</span></button><button class="flex flex-col items-center gap-2 group"><div class="w-12 h-12 rounded-full bg-surface-container hover:bg-surface-container-high flex items-center justify-center border border-transparent transition-all"><span class="material-symbols-outlined text-cat-pink">redeem</span></div><span class="font-caption-sm text-caption-sm text-on-surface-variant">红包</span></button><button class="flex flex-col items-center gap-2 group"><div class="w-12 h-12 rounded-full bg-surface-container hover:bg-surface-container-high flex items-center justify-center border border-transparent transition-all"><span class="material-symbols-outlined text-outline">more_horiz</span></div><span class="font-caption-sm text-caption-sm text-on-surface-variant">其他</span></button></div>
 </div>
 <!-- Additional Fields (Date & Note) -->
 <div class="px-6 py-4 flex gap-4 bg-bg-card border-b border-divider">
@@ -324,7 +260,7 @@
 <button class="keypad-btn bg-bg-card hover:bg-surface-container rounded-lg py-4 font-headline-md text-headline-md text-on-surface shadow-sm border border-divider transition-all col-span-2">0</button>
 <button class="keypad-btn bg-bg-card hover:bg-surface-container rounded-lg py-4 font-headline-md text-headline-md text-on-surface shadow-sm border border-divider transition-all">.</button>
 <!-- Done Button -->
-<button class="keypad-btn bg-primary hover:bg-primary-container rounded-lg py-4 flex items-center justify-center shadow-md transition-all active:scale-95 text-on-primary">
+<button onclick="window.location.href='./03-home.html'" class="keypad-btn bg-secondary hover:bg-secondary-container rounded-lg py-4 flex items-center justify-center shadow-md transition-all active:scale-95 text-on-primary">
 <span class="material-symbols-outlined font-bold">check</span>
 </button>
 </div>

@@ -1,0 +1,200 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="utf-8"/>
+    <meta content="width=device-width, initial-scale=1.0" name="viewport"/>
+    <title>轻账 · 原型导航</title>
+    <script src="https://cdn.tailwindcss.com?plugins=forms,container-queries"></script>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&amp;display=swap" rel="stylesheet"/>
+    <link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet"/>
+    <script id="tailwind-config">
+        tailwind.config = {
+            theme: {
+                extend: {
+                    colors: {
+                        primary: "#005394",
+                        "primary-light": "#EBF4FF",
+                        "primary-container": "#2b6cb0",
+                        "on-primary": "#ffffff",
+                        "bg-page": "#F7FAFC",
+                        "bg-card": "#FFFFFF",
+                        "text-primary": "#1A202C",
+                        "on-surface": "#0d1c2e",
+                        "on-surface-variant": "#414750",
+                        divider: "#E2E8F0",
+                        surface: "#f8f9ff",
+                        "surface-container": "#e5eeff",
+                        secondary: "#006d40",
+                        "cat-blue": "#4299E1",
+                        "cat-pink": "#ED64A6",
+                        "cat-purple": "#805AD5",
+                        "cat-teal": "#319795"
+                    },
+                    fontFamily: { sans: ["Inter", "system-ui"] }
+                }
+            }
+        }
+    </script>
+    <style>
+        .card:hover { transform: translateY(-4px); box-shadow: 0 12px 24px rgba(0,0,0,.08); }
+        .card { transition: transform .2s ease, box-shadow .2s ease; }
+    </style>
+</head>
+<body class="bg-bg-page text-text-primary min-h-screen p-6 md:p-10">
+    <div class="max-w-6xl mx-auto">
+        <header class="mb-10">
+            <div class="flex items-center gap-3 mb-2">
+                <div class="w-12 h-12 rounded-xl bg-primary-light text-primary flex items-center justify-center">
+                    <span class="material-symbols-outlined text-3xl" style="font-variation-settings:'FILL' 1;">currency_yuan</span>
+                </div>
+                <div>
+                    <h1 class="text-2xl font-bold text-primary">轻账</h1>
+                    <p class="text-sm text-on-surface-variant">纯静态多页面原型导航</p>
+                </div>
+            </div>
+            <p class="text-on-surface-variant max-w-2xl mt-3">
+                基于 <a class="text-primary hover:underline" href="../001.产品PRD/轻账-产品需求文档PRD.md">PRD v1.0</a>
+                与 <a class="text-primary hover:underline" href="../001.产品PRD/轻账-产品需求文档PRD-V1.0.1.md">PRD v1.0.1</a>
+                生成的 12 个高保真原型页面。点击下方卡片可进入对应页面，体验完整跳转流程。
+            </p>
+            <div class="flex flex-wrap gap-3 mt-5">
+                <a class="inline-flex items-center gap-2 px-4 py-2 bg-primary text-on-primary rounded-lg hover:bg-primary-container transition-colors" href="./pages/01-login.html">
+                    <span class="material-symbols-outlined text-sm">play_arrow</span> 从登录开始预览
+                </a>
+                <a class="inline-flex items-center gap-2 px-4 py-2 border border-divider bg-bg-card rounded-lg hover:bg-surface-container transition-colors" href="./docs/DESIGN.md">
+                    <span class="material-symbols-outlined text-sm">design_services</span> 设计系统
+                </a>
+            </div>
+        </header>
+
+        <section>
+            <h2 class="text-lg font-semibold text-on-surface mb-4">页面清单</h2>
+            <div class="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-6 gap-4">
+                <a class="card bg-bg-card rounded-xl border border-divider overflow-hidden block" href="./pages/01-login.html">
+                    <div class="aspect-[9/16] bg-surface flex items-center justify-center overflow-hidden">
+                        <img alt="登录" class="w-full h-full object-cover" src="./screenshots/01-login.png"/>
+                    </div>
+                    <div class="p-3">
+                        <div class="text-xs text-primary font-semibold mb-1">01</div>
+                        <div class="text-sm font-medium text-on-surface">登录</div>
+                    </div>
+                </a>
+
+                <a class="card bg-bg-card rounded-xl border border-divider overflow-hidden block" href="./pages/02-register.html">
+                    <div class="aspect-[9/16] bg-surface flex items-center justify-center overflow-hidden">
+                        <img alt="注册" class="w-full h-full object-cover" src="./screenshots/02-register.png"/>
+                    </div>
+                    <div class="p-3">
+                        <div class="text-xs text-primary font-semibold mb-1">02</div>
+                        <div class="text-sm font-medium text-on-surface">注册</div>
+                    </div>
+                </a>
+
+                <a class="card bg-bg-card rounded-xl border border-divider overflow-hidden block" href="./pages/03-home.html">
+                    <div class="aspect-[9/16] bg-surface flex items-center justify-center overflow-hidden">
+                        <img alt="首页仪表盘" class="w-full h-full object-cover" src="./screenshots/03-home.png"/>
+                    </div>
+                    <div class="p-3">
+                        <div class="text-xs text-primary font-semibold mb-1">03</div>
+                        <div class="text-sm font-medium text-on-surface">首页</div>
+                    </div>
+                </a>
+
+                <a class="card bg-bg-card rounded-xl border border-divider overflow-hidden block" href="./pages/04-transactions.html">
+                    <div class="aspect-[9/16] bg-surface flex items-center justify-center overflow-hidden">
+                        <img alt="全部交易" class="w-full h-full object-cover" src="./screenshots/04-transactions.png"/>
+                    </div>
+                    <div class="p-3">
+                        <div class="text-xs text-primary font-semibold mb-1">04</div>
+                        <div class="text-sm font-medium text-on-surface">全部交易</div>
+                    </div>
+                </a>
+
+                <a class="card bg-bg-card rounded-xl border border-divider overflow-hidden block" href="./pages/05-record-expense.html">
+                    <div class="aspect-[9/16] bg-surface flex items-center justify-center overflow-hidden">
+                        <img alt="快速记账-支出" class="w-full h-full object-cover" src="./screenshots/05-record-expense.png"/>
+                    </div>
+                    <div class="p-3">
+                        <div class="text-xs text-primary font-semibold mb-1">05</div>
+                        <div class="text-sm font-medium text-on-surface">记一笔-支出</div>
+                    </div>
+                </a>
+
+                <a class="card bg-bg-card rounded-xl border border-divider overflow-hidden block" href="./pages/06-record-income.html">
+                    <div class="aspect-[9/16] bg-surface flex items-center justify-center overflow-hidden">
+                        <img alt="快速记账-收入" class="w-full h-full object-cover" src="./screenshots/06-record-income.png"/>
+                    </div>
+                    <div class="p-3">
+                        <div class="text-xs text-primary font-semibold mb-1">06</div>
+                        <div class="text-sm font-medium text-on-surface">记一笔-收入</div>
+                    </div>
+                </a>
+
+                <a class="card bg-bg-card rounded-xl border border-divider overflow-hidden block" href="./pages/07-report-monthly.html">
+                    <div class="aspect-[9/16] bg-surface flex items-center justify-center overflow-hidden">
+                        <img alt="月度报表" class="w-full h-full object-cover" src="./screenshots/07-report-monthly.png"/>
+                    </div>
+                    <div class="p-3">
+                        <div class="text-xs text-primary font-semibold mb-1">07</div>
+                        <div class="text-sm font-medium text-on-surface">月度报表</div>
+                    </div>
+                </a>
+
+                <a class="card bg-bg-card rounded-xl border border-divider overflow-hidden block" href="./pages/08-report-yearly.html">
+                    <div class="aspect-[9/16] bg-surface flex items-center justify-center overflow-hidden">
+                        <img alt="年度报表" class="w-full h-full object-cover" src="./screenshots/08-report-yearly.png"/>
+                    </div>
+                    <div class="p-3">
+                        <div class="text-xs text-primary font-semibold mb-1">08</div>
+                        <div class="text-sm font-medium text-on-surface">年度报表</div>
+                    </div>
+                </a>
+
+                <a class="card bg-bg-card rounded-xl border border-divider overflow-hidden block" href="./pages/09-accounts.html">
+                    <div class="aspect-[9/16] bg-surface flex items-center justify-center overflow-hidden">
+                        <img alt="账户管理" class="w-full h-full object-cover" src="./screenshots/09-accounts.png"/>
+                    </div>
+                    <div class="p-3">
+                        <div class="text-xs text-primary font-semibold mb-1">09</div>
+                        <div class="text-sm font-medium text-on-surface">账户管理</div>
+                    </div>
+                </a>
+
+                <a class="card bg-bg-card rounded-xl border border-divider overflow-hidden block" href="./pages/10-account-add.html">
+                    <div class="aspect-[9/16] bg-surface flex items-center justify-center overflow-hidden">
+                        <img alt="添加账户" class="w-full h-full object-cover" src="./screenshots/10-account-add.png"/>
+                    </div>
+                    <div class="p-3">
+                        <div class="text-xs text-primary font-semibold mb-1">10</div>
+                        <div class="text-sm font-medium text-on-surface">添加账户</div>
+                    </div>
+                </a>
+
+                <a class="card bg-bg-card rounded-xl border border-divider overflow-hidden block" href="./pages/11-settings.html">
+                    <div class="aspect-[9/16] bg-surface flex items-center justify-center overflow-hidden">
+                        <img alt="设置" class="w-full h-full object-cover" src="./screenshots/11-settings.png"/>
+                    </div>
+                    <div class="p-3">
+                        <div class="text-xs text-primary font-semibold mb-1">11</div>
+                        <div class="text-sm font-medium text-on-surface">设置</div>
+                    </div>
+                </a>
+
+                <a class="card bg-bg-card rounded-xl border border-divider overflow-hidden block" href="./pages/12-profile-edit.html">
+                    <div class="aspect-[9/16] bg-surface flex items-center justify-center overflow-hidden">
+                        <img alt="编辑资料" class="w-full h-full object-cover" src="./screenshots/12-profile-edit.png"/>
+                    </div>
+                    <div class="p-3">
+                        <div class="text-xs text-primary font-semibold mb-1">12</div>
+                        <div class="text-sm font-medium text-on-surface">编辑资料</div>
+                    </div>
+                </a>
+            </div>
+        </section>
+
+        <footer class="mt-12 pt-6 border-t border-divider text-sm text-on-surface-variant">
+            <p>提示：本站点为纯静态 HTML 原型，无需构建工具，可直接用浏览器打开 index.html。</p>
+        </footer>
+    </div>
+</body>
+</html>

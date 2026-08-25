@@ -1,3 +1,11 @@
+export interface User {
+  id: string
+  username: string
+  passwordHash: string
+  salt: string
+  createdAt: number
+}
+
 export interface Category {
   id: string
   type: 'expense' | 'income'

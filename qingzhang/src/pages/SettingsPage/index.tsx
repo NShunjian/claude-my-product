@@ -1,6 +1,7 @@
 import React, { useMemo } from 'react'
 import { useRecordStore } from '../../stores/useRecordStore'
 import { useAppStore } from '../../stores/useAppStore'
+import { useAuthStore } from '../../stores/useAuthStore'
 import * as XLSX from 'xlsx'
 import dayjs from 'dayjs'
 import { Moon, Sun } from '../../components/Icons'
@@ -8,6 +9,7 @@ import { Moon, Sun } from '../../components/Icons'
 const SettingsPage: React.FC = () => {
   const { records } = useRecordStore()
   const { isDark, toggleTheme } = useAppStore()
+  const { currentUser, logout } = useAuthStore()
 
   const months = useMemo(() => {
     const set = new Set<string>()
@@ -82,8 +84,23 @@ const SettingsPage: React.FC = () => {
         <div className="rounded-2xl bg-[var(--color-bg-card)] p-4 shadow-sm">
           <h3 className="mb-2 text-base font-semibold text-[var(--color-text-primary)]">关于轻账</h3>
           <p className="text-sm leading-relaxed text-[var(--color-text-secondary)]">
-            轻账 V1.0 —— 最轻的账本，最快的记账。让记账像发朋友圈一样简单。
+            轻账 V1.0.1 —— 最轻的账本，最快的记账。让记账像发朋友圈一样简单。
           </p>
+        </div>
+
+        <div className="rounded-2xl bg-[var(--color-bg-card)] p-4 shadow-sm">
+          <div className="mb-3 flex items-center justify-between">
+            <span className="text-sm text-[var(--color-text-secondary)]">当前用户</span>
+            <span className="font-medium text-[var(--color-text-primary)]">
+              {currentUser?.username}
+            </span>
+          </div>
+          <button
+            onClick={logout}
+            className="w-full rounded-xl border border-[var(--color-danger)] py-3 text-[var(--color-danger)] transition-all"
+          >
+            退出登录
+          </button>
         </div>
       </div>
     </div>

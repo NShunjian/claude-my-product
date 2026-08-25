@@ -1,5 +1,5 @@
 import Dexie, { Table } from 'dexie'
-import { Record, Account, Category } from '../types'
+import { Record, Account, Category, User } from '../types'
 import { createPresetCategories } from '../constants/categories'
 import { PRESET_ACCOUNTS } from '../constants/accounts'
 
@@ -7,6 +7,7 @@ class QingZhangDB extends Dexie {
   records!: Table<Record, string>
   accounts!: Table<Account, string>
   categories!: Table<Category, string>
+  users!: Table<User, string>
 
   constructor() {
     super('qingzhang')
@@ -14,6 +15,13 @@ class QingZhangDB extends Dexie {
       records: 'id, type, categoryId, accountId, recordDate, createdAt',
       accounts: 'id, isDefault, sortOrder',
       categories: 'id, type, sortOrder',
+    })
+    // V1.0.1: 新增 users 表
+    this.version(2).stores({
+      records: 'id, type, categoryId, accountId, recordDate, createdAt',
+      accounts: 'id, isDefault, sortOrder',
+      categories: 'id, type, sortOrder',
+      users: 'id, username',
     })
   }
 }

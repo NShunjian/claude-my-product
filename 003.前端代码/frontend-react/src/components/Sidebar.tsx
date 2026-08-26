@@ -49,7 +49,7 @@ export function Sidebar() {
               className={({ isActive }) =>
                 `px-4 py-3 flex items-center gap-3 rounded-lg transition-colors hover:bg-surface-container ${
                   isActive
-                    ? 'bg-primary-light text-primary font-bold'
+                    ? 'bg-primary-light text-primary-container font-bold border border-primary-light'
                     : 'text-on-surface-variant'
                 }`
               }

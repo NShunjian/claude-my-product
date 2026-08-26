@@ -14,6 +14,21 @@
   --color-surface-bright: #f8f9ff;
   --color-surface-variant: #d4e4fc;
   --color-error: #ba1a1a;
+  --color-cat-pink: #ED64A6;
+  --color-cat-blue: #4299E1;
+  --color-cat-purple: #805AD5;
+  --color-cat-teal: #319795;
+  --color-cat-brown: #8B6E4E;
+  --color-secondary: #006d40;
+  --color-warning-orange: #ED8936;
+  --color-secondary-container: #8ef5b5;
+  --color-surface-container: #e5eeff;
+  --color-surface-container-low: #eff4ff;
+  --color-surface-container-lowest: #ffffff;
+  --color-surface-container-high: #dce9ff;
+  --color-surface-container-highest: #d4e4fc;
+  --color-outline-variant: #c1c7d2;
+  --color-on-surface: #0d1c2e;
 
   --radius-lg: 0.5rem;
   --radius-xl: 0.75rem;

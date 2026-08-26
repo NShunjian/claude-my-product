@@ -82,7 +82,7 @@ export function Home() {
         <div>
           <h2 className="font-display-lg text-display-lg text-text-primary mb-1">总览</h2>
           <div className="flex items-center gap-2 text-on-surface-variant font-headline-md text-headline-md cursor-pointer hover:text-primary transition-colors">
-            <span>8月 2026</span>
+            <span>8月 2023</span>
             <span className="material-symbols-outlined text-sm">expand_more</span>
           </div>
         </div>
@@ -93,9 +93,7 @@ export function Home() {
         {/* 本月支出 */}
         <div className="bg-bg-card rounded-xl border border-divider p-4 shadow-sm relative overflow-hidden group">
           <div className="absolute top-0 right-0 p-4 opacity-10 group-hover:opacity-20 transition-opacity">
-            <span className="material-symbols-outlined text-6xl text-error" style={{ fontVariationSettings: "'FILL' 1" }}>
-              trending_down
-            </span>
+            <span className="material-symbols-outlined text-6xl text-error">trending_down</span>
           </div>
           <p className="font-caption-sm text-caption-sm text-on-surface-variant mb-2">本月支出</p>
           <div className="flex items-baseline gap-1">
@@ -109,9 +107,7 @@ export function Home() {
         {/* 本月收入 */}
         <div className="bg-bg-card rounded-xl border border-divider p-4 shadow-sm relative overflow-hidden group">
           <div className="absolute top-0 right-0 p-4 opacity-10 group-hover:opacity-20 transition-opacity">
-            <span className="material-symbols-outlined text-6xl text-secondary" style={{ fontVariationSettings: "'FILL' 1" }}>
-              trending_up
-            </span>
+            <span className="material-symbols-outlined text-6xl text-secondary">trending_up</span>
           </div>
           <p className="font-caption-sm text-caption-sm text-on-surface-variant mb-2">本月收入</p>
           <div className="flex items-baseline gap-1">

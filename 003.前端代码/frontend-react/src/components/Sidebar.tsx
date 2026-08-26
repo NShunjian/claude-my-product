@@ -30,23 +30,13 @@ export function Sidebar() {
       className="h-screen w-64 fixed left-0 top-0 bg-surface border-r border-divider flex flex-col p-4 z-40"
     >
       {/* Brand */}
-      <div className="mb-8 px-4 flex items-center gap-3">
-        <div className="w-10 h-10 rounded-full bg-primary flex items-center justify-center shrink-0">
-          <span
-            className="material-symbols-outlined text-on-primary"
-            style={{ fontSize: '20px', fontVariationSettings: "'FILL' 1" }}
-          >
-            account_balance_wallet
-          </span>
-        </div>
-        <div>
-          <h1 className="font-display-lg text-display-lg font-bold text-primary leading-none">
-            轻账
-          </h1>
-          <p className="font-caption-sm text-caption-sm text-on-surface-variant mt-0.5">
-            Financial Clarity
-          </p>
-        </div>
+      <div className="mb-8 px-4 mt-2">
+        <h1 className="font-display-lg text-display-lg font-bold text-primary leading-none">
+          轻账
+        </h1>
+        <p className="font-caption-sm text-caption-sm text-on-surface-variant mt-1">
+          让财务更清晰
+        </p>
       </div>
 
       {/* Nav Items */}
@@ -68,16 +58,11 @@ export function Sidebar() {
                 <>
                   <span
                     className="material-symbols-outlined"
-                    style={{
-                      fontSize: '20px',
-                      fontVariationSettings: isActive
-                        ? "'FILL' 1, 'wght' 400"
-                        : "'FILL' 0, 'wght' 400",
-                    }}
+                    style={{ fontSize: '20px' }}
                   >
                     {item.icon}
                   </span>
-                  <span className="font-body-md text-body-md font-medium">
+                  <span className="font-body-md text-body-md">
                     {item.label}
                   </span>
                 </>

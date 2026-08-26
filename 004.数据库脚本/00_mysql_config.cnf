@@ -1,0 +1,53 @@
+# =============================================================================
+# 轻账 (QingZhang) —— MySQL 字符集与时区配置
+# -----------------------------------------------------------------------------
+# 用途：解决 Navicat / 客户端显示乱码与时间漂移（UTC vs Asia/Shanghai）
+# 部署位置：拷贝到 MySQL 容器的 /etc/mysql/conf.d/ 目录下
+# 适用版本：MySQL 8.0+
+# =============================================================================
+
+[client]
+default-character-set         = utf8mb4
+
+[mysql]
+default-character-set         = utf8mb4
+
+[mysqld]
+character-set-server          = utf8mb4
+collation-server              = utf8mb4_unicode_ci
+character-set-filesystem      = binary
+default-time-zone             = Asia/Shanghai
+init_connect                  = 'SET NAMES utf8mb4'
+
+# =============================================================================
+# 应用方式（任选其一）
+# -----------------------------------------------------------------------------
+# 方案 A：拷贝到现有容器（推荐，无需重启 MySQL 进程即可应用 client 配置）
+#   docker cp 00_mysql_config.cnf mysql97:/etc/mysql/conf.d/99-qingzhang.cnf
+#   docker exec mysql97 mysql -uroot -p123456 -e "SET GLOBAL init_connect='SET NAMES utf8mb4';"
+#   docker restart mysql97
+#
+# 方案 B：挂载到容器（创建时挂载，永久生效）
+#   docker run -d --name mysql97 \
+#     -v /Users/apple/Desktop/claude_workspace/claude-my-product/004.数据库脚本/00_mysql_config.cnf:/etc/mysql/conf.d/99-qingzhang.cnf:ro \
+#     -e MYSQL_ROOT_PASSWORD=123456 \
+#     -e TZ=Asia/Shanghai \
+#     -p 3306:3306 mysql:9.7.2
+#
+# 方案 C：Navicat 客户端单独设置（仅影响 Navicat 显示，不影响数据库）
+#   连接 → 高级 → 编码：选 utf8mb4
+# =============================================================================
+
+# 验证命令：
+#   docker exec mysql97 mysql -uroot -p123456 -e "
+#     SHOW VARIABLES LIKE 'character_set%';
+#     SHOW VARIABLES LIKE 'time_zone';
+#     SELECT NOW(), UTC_TIMESTAMP();
+#   "
+#
+# 期望输出（关键字段）：
+#   character_set_client   utf8mb4
+#   character_set_results  utf8mb4
+#   time_zone              Asia/Shanghai
+#   NOW()                  2026-08-26 17:35:16  （北京时间）
+#   UTC_TIMESTAMP()        2026-08-26 09:35:16  （UTC 基准）

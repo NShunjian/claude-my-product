@@ -40,17 +40,17 @@ export function Sidebar() {
       </div>
 
       {/* Nav Items */}
-      <ul className="flex flex-col gap-1 flex-1">
+      <ul className="flex flex-col gap-2 flex-1">
         {NAV_ITEMS.map((item) => (
           <li key={item.to}>
             <NavLink
               to={item.to}
               end={item.endsWith}
               className={({ isActive }) =>
-                `px-4 py-3 flex items-center gap-3 rounded-lg transition-colors ${
+                `px-4 py-3 flex items-center gap-3 rounded-lg transition-colors hover:bg-surface-container ${
                   isActive
                     ? 'bg-primary-light text-primary font-bold'
-                    : 'text-on-surface-variant hover:bg-surface-container'
+                    : 'text-on-surface-variant'
                 }`
               }
             >
@@ -58,7 +58,7 @@ export function Sidebar() {
                 <>
                   <span
                     className="material-symbols-outlined"
-                    style={{ fontSize: '20px' }}
+                    style={{ fontSize: '24px' }}
                   >
                     {item.icon}
                   </span>
@@ -80,7 +80,7 @@ export function Sidebar() {
         >
           <span
             className="material-symbols-outlined"
-            style={{ fontVariationSettings: "'FILL' 1" }}
+            style={{ fontSize: '24px' }}
           >
             add
           </span>
@@ -94,10 +94,10 @@ export function Sidebar() {
         onClick={handleLogout}
         className="text-on-surface-variant px-4 py-3 flex items-center gap-3 hover:bg-surface-container transition-colors rounded-lg w-full text-left"
       >
-        <span className="material-symbols-outlined" style={{ fontSize: '20px' }}>
+        <span className="material-symbols-outlined" style={{ fontSize: '24px' }}>
           logout
         </span>
-        <span className="font-body-md text-body-md font-medium">退出登录</span>
+        <span className="font-body-md text-body-md">退出登录</span>
       </button>
     </nav>
   )

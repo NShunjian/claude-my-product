@@ -54,6 +54,13 @@ export function Home() {
     [thisMonthTxns],
   )
 
+  const totalAssets = useMemo(
+    () => ACCOUNTS.reduce((s, a) => s + a.balance, 0),
+    [],
+  )
+
+  const monthlyBalance = thisMonthIncome - thisMonthExpense
+
   const recentTxns = thisMonthTxns.slice(0, 8)
 
   // Group recent transactions by date for prototype-style rendering
@@ -88,8 +95,31 @@ export function Home() {
         </div>
       </div>
 
-      {/* Overview cards (本月支出 + 本月收入) */}
-      <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+      {/* Overview cards */}
+      {/* Row 1: 总资产 (prominent, full width) */}
+      <div className="bg-bg-card rounded-xl border border-divider p-6 shadow-sm relative overflow-hidden">
+        <div className="absolute top-0 right-0 p-4 opacity-10 pointer-events-none">
+          <span
+            className="material-symbols-outlined text-primary"
+            style={{ fontSize: '80px', lineHeight: 1, display: 'block' }}
+          >
+            account_balance_wallet
+          </span>
+        </div>
+        <p className="font-caption-sm text-caption-sm text-on-surface-variant mb-2">总资产</p>
+        <div className="flex items-baseline gap-1">
+          <span className="font-label-mono text-label-mono text-primary">¥</span>
+          <span className="font-label-mono text-[40px] leading-tight text-primary font-bold">
+            {formatMoney(totalAssets)}
+          </span>
+        </div>
+        <p className="font-caption-sm text-caption-sm text-on-surface-variant mt-2">
+          共 {ACCOUNTS.length} 个账户
+        </p>
+      </div>
+
+      {/* Row 2: 本月支出 + 本月收入 + 当月结余 */}
+      <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
         {/* 本月支出 */}
         <div className="bg-bg-card rounded-xl border border-divider p-4 shadow-sm relative overflow-hidden group">
           <div className="absolute top-0 right-0 p-4 opacity-10 group-hover:opacity-20 transition-opacity pointer-events-none">
@@ -127,6 +157,35 @@ export function Home() {
             </span>
           </div>
           <p className="font-caption-sm text-caption-sm text-on-surface-variant mt-2">较上月: +5%</p>
+        </div>
+        {/* 当月结余 */}
+        <div className="bg-bg-card rounded-xl border border-divider p-4 shadow-sm relative overflow-hidden group">
+          <div className="absolute top-0 right-0 p-4 opacity-10 group-hover:opacity-20 transition-opacity pointer-events-none">
+            <span
+              className="material-symbols-outlined"
+              style={{ fontSize: '60px', lineHeight: 1, display: 'block', color: monthlyBalance >= 0 ? '#006d40' : '#ba1a1a' }}
+            >
+              {monthlyBalance >= 0 ? 'trending_up' : 'trending_down'}
+            </span>
+          </div>
+          <p className="font-caption-sm text-caption-sm text-on-surface-variant mb-2">当月结余</p>
+          <div className="flex items-baseline gap-1">
+            <span
+              className="font-label-mono text-label-mono"
+              style={{ color: monthlyBalance >= 0 ? '#006d40' : '#ba1a1a' }}
+            >
+              {monthlyBalance >= 0 ? '¥' : '-¥'}
+            </span>
+            <span
+              className="font-label-mono text-[32px] leading-tight font-bold"
+              style={{ color: monthlyBalance >= 0 ? '#006d40' : '#ba1a1a' }}
+            >
+              {formatMoney(Math.abs(monthlyBalance))}
+            </span>
+          </div>
+          <p className="font-caption-sm text-caption-sm text-on-surface-variant mt-2">
+            {monthlyBalance >= 0 ? '盈余' : '超支'}
+          </p>
         </div>
       </div>
 

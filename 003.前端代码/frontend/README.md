@@ -17,7 +17,7 @@
 ```
 003.前端代码/
 └── frontend/
-    ├── index.html              # 导航预览入口
+    ├── index.html              # 入口：自动跳转至登录页
     ├── README.md               # 本文件
     ├── pages/                  # 12 个语义化命名页面
     │   ├── 01-login.html
@@ -87,7 +87,7 @@
 
 ### 方式一：直接打开（推荐）
 
-双击 `frontend/index.html` 即可。浏览器中打开导航页，点击任意卡片进入对应原型页面。
+双击 `frontend/index.html` 即可自动跳转到登录页 `pages/01-login.html`。浏览器中直接体验完整原型流程。
 
 ### 方式二：本地 HTTP 服务器
 
@@ -99,6 +99,8 @@ python3 -m http.server 8080
 ```
 
 然后访问：http://localhost:8080
+
+访问后会自动跳转至登录页；也可直接打开 http://localhost:8080/pages/01-login.html。
 
 ## 技术说明
 

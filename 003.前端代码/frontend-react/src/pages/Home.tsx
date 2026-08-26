@@ -92,8 +92,13 @@ export function Home() {
       <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
         {/* 本月支出 */}
         <div className="bg-bg-card rounded-xl border border-divider p-4 shadow-sm relative overflow-hidden group">
-          <div className="absolute top-0 right-0 p-4 opacity-10 group-hover:opacity-20 transition-opacity">
-            <span className="material-symbols-outlined text-6xl text-error">trending_down</span>
+          <div className="absolute top-0 right-0 p-4 opacity-10 group-hover:opacity-20 transition-opacity pointer-events-none">
+            <span
+              className="material-symbols-outlined text-error"
+              style={{ fontSize: '60px', lineHeight: 1, display: 'block' }}
+            >
+              trending_down
+            </span>
           </div>
           <p className="font-caption-sm text-caption-sm text-on-surface-variant mb-2">本月支出</p>
           <div className="flex items-baseline gap-1">
@@ -106,8 +111,13 @@ export function Home() {
         </div>
         {/* 本月收入 */}
         <div className="bg-bg-card rounded-xl border border-divider p-4 shadow-sm relative overflow-hidden group">
-          <div className="absolute top-0 right-0 p-4 opacity-10 group-hover:opacity-20 transition-opacity">
-            <span className="material-symbols-outlined text-6xl text-secondary">trending_up</span>
+          <div className="absolute top-0 right-0 p-4 opacity-10 group-hover:opacity-20 transition-opacity pointer-events-none">
+            <span
+              className="material-symbols-outlined text-secondary"
+              style={{ fontSize: '60px', lineHeight: 1, display: 'block' }}
+            >
+              trending_up
+            </span>
           </div>
           <p className="font-caption-sm text-caption-sm text-on-surface-variant mb-2">本月收入</p>
           <div className="flex items-baseline gap-1">

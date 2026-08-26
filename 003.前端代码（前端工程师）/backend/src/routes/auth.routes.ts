@@ -5,7 +5,7 @@ import { authLimiter } from '../middleware/rate-limit.js'
 
 export const authRouter = Router()
 
-authRouter.post('/register', authLimiter, controller.register)
-authRouter.post('/login',    authLimiter, controller.login)
+authRouter.post('/register', authLimiter, ...controller.register)
+authRouter.post('/login',    authLimiter, ...controller.login)
 authRouter.get('/me',        requireAuth,  controller.me)
 authRouter.post('/logout',   requireAuth,  controller.logout)

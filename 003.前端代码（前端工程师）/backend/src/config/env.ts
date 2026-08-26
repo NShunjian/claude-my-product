@@ -15,6 +15,8 @@ const envSchema = z.object({
 
   CORS_ORIGIN: z.string().url().default('http://localhost:5173'),
   BCRYPT_COST: z.coerce.number().int().min(4).max(15).default(12),
+
+  RATE_LIMIT_MAX: z.coerce.number().int().positive().default(10),
 })
 
 export const env = Object.freeze(envSchema.parse(process.env))

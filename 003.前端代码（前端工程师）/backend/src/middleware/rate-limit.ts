@@ -1,9 +1,10 @@
 import rateLimit from 'express-rate-limit'
 import { AppError, ErrorCode } from '../constants/errors.js'
+import { env } from '../config/env.js'
 
 export const authLimiter = rateLimit({
   windowMs: 60 * 1000, // 1 minute
-  max: 10,             // 10 requests per IP per minute
+  max: env.RATE_LIMIT_MAX, // 10 req/min in production; overridden to 10000 in tests
   standardHeaders: true,
   legacyHeaders: false,
   handler: (_req, _res, next) => {

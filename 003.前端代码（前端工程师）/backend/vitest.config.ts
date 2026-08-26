@@ -1,7 +1,8 @@
 import { defineConfig } from 'vitest/config'
 import dotenv from 'dotenv'
 
-// Load .env before any module evaluates process.env
+// Must be set before dotenv.config() so the override wins over .env
+process.env.RATE_LIMIT_MAX = '10000'
 dotenv.config()
 
 export default defineConfig({

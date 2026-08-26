@@ -3,8 +3,9 @@ import { Link } from 'react-router-dom'
 import { usePageTitle } from '../components/PageTitleContext'
 import { ACCOUNTS } from '../data/accounts'
 import { TRANSACTIONS } from '../data/transactions'
-import { EXPENSE_CATEGORIES } from '../data/categories'
+import { EXPENSE_CATEGORIES, INCOME_CATEGORIES } from '../data/categories'
 import { TransactionRow } from '../components/TransactionRow'
+import { CategoryBreakdown } from '../components/CategoryBreakdown'
 
 function formatMoney(amount: number): string {
   return new Intl.NumberFormat('zh-CN', {
@@ -227,47 +228,22 @@ export function Home() {
         </div>
       </div>
 
-      {/* Category breakdown */}
-      <div className="bg-bg-card rounded-xl border border-divider p-6 shadow-sm">
-        <h3 className="font-headline-md text-headline-md text-text-primary mb-4">支出分类</h3>
-        <div className="space-y-4">
-          {EXPENSE_CATEGORIES.slice(0, 5).map((cat) => {
-            const catTotal = thisMonthTxns
-              .filter((t) => t.type === 'expense' && t.categoryId === cat.id)
-              .reduce((s, t) => s + t.amount, 0)
-            const pct = thisMonthExpense > 0 ? (catTotal / thisMonthExpense) * 100 : 0
-            const colors: Record<string, string> = {
-              'cat-pink': '#ED64A6',
-              'cat-blue': '#4299E1',
-              'cat-purple': '#805AD5',
-              'cat-teal': '#319795',
-              'cat-brown': '#8B6E4E',
-            }
-            const color = colors[cat.colorToken] ?? '#727782'
-
-            return (
-              <div key={cat.id}>
-                <div className="flex justify-between mb-1">
-                  <div className="flex items-center gap-2">
-                    <span className="material-symbols-outlined text-sm" style={{ color, fontVariationSettings: "'FILL' 1" }}>
-                      {cat.icon}
-                    </span>
-                    <span className="font-body-md text-body-md text-text-primary">{cat.name}</span>
-                  </div>
-                  <span className="font-body-md text-body-md text-on-surface-variant">
-                    ¥{formatMoney(catTotal)}
-                  </span>
-                </div>
-                <div className="h-2 bg-surface-container rounded-full overflow-hidden">
-                  <div
-                    className="h-full rounded-full transition-all"
-                    style={{ width: `${pct}%`, backgroundColor: color }}
-                  />
-                </div>
-              </div>
-            )
-          })}
-        </div>
+      {/* Category breakdown: 支出分类 (left) + 收入分类 (right) */}
+      <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+        <CategoryBreakdown
+          title="支出分类"
+          categories={EXPENSE_CATEGORIES}
+          transactions={thisMonthTxns}
+          type="expense"
+          totalAmount={thisMonthExpense}
+        />
+        <CategoryBreakdown
+          title="收入分类"
+          categories={INCOME_CATEGORIES}
+          transactions={thisMonthTxns}
+          type="income"
+          totalAmount={thisMonthIncome}
+        />
       </div>
     </div>
   )

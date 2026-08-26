@@ -49,7 +49,7 @@ export function Sidebar() {
               className={({ isActive }) =>
                 `px-4 py-3 flex items-center gap-3 rounded-lg transition-colors hover:bg-surface-container ${
                   isActive
-                    ? 'bg-primary-light text-primary-container font-bold border border-primary-light'
+                    ? 'bg-primary-light text-primary font-extrabold border border-primary-light'
                     : 'text-on-surface-variant'
                 }`
               }
@@ -58,11 +58,14 @@ export function Sidebar() {
                 <>
                   <span
                     className="material-symbols-outlined"
-                    style={{ fontSize: '24px' }}
+                    style={{ fontSize: '24px', fontWeight: isActive ? 700 : 400 }}
                   >
                     {item.icon}
                   </span>
-                  <span className="font-body-md text-body-md">
+                  <span
+                    className="font-body-md text-body-md"
+                    style={{ fontWeight: isActive ? 800 : 400 }}
+                  >
                     {item.label}
                   </span>
                 </>

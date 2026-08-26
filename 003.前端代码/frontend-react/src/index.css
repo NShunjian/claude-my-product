@@ -11,8 +11,11 @@
   --color-on-surface-variant: #414750;
   --color-outline: #727782;
   --color-divider: #e2e8f0;
+  --color-surface: #f8f9ff;
   --color-surface-bright: #f8f9ff;
   --color-surface-variant: #d4e4fc;
+  --color-surface-dim: #ccdbf4;
+  --color-surface-tint: #1960a3;
   --color-error: #ba1a1a;
   --color-cat-pink: #ED64A6;
   --color-cat-blue: #4299E1;
@@ -29,6 +32,7 @@
   --color-surface-container-highest: #d4e4fc;
   --color-outline-variant: #c1c7d2;
   --color-on-surface: #0d1c2e;
+  --color-on-secondary: #ffffff;
 
   --radius-lg: 0.5rem;
   --radius-xl: 0.75rem;

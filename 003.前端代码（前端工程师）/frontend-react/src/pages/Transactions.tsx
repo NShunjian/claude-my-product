@@ -28,6 +28,20 @@ function formatDayWithWeekday(iso: string): string {
   return `${d.getMonth() + 1}月${d.getDate()}日，${WEEKDAYS[d.getDay()]}`
 }
 
+// Material Symbols "expand_more" 内嵌，与原型 chevron 一致
+const SELECT_ARROW =
+  "url(\"data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' height='24' width='24' viewBox='0 -960 960 960' fill='%23414750'%3E%3Cpath d='M480-345 226-599l57-57 197 197 197-197 57 57-254 254Z'/%3E%3C/svg%3E\")"
+
+// 与原型对齐：原生箭头外观不一致，统一用 SVG 箭头，right 12px 定位
+const SELECT_CLASS =
+  'bg-surface-container-lowest border border-outline-variant text-text-primary text-body-md font-body-md font-medium rounded-lg py-2 pl-3 pr-9 focus:border-primary focus:ring-0 cursor-pointer appearance-none bg-no-repeat'
+const SELECT_STYLE: React.CSSProperties = {
+  backgroundImage: SELECT_ARROW,
+  backgroundPosition: 'right 12px center',
+  backgroundRepeat: 'no-repeat',
+  backgroundSize: '20px 20px',
+}
+
 export function Transactions() {
   usePageTitle('全部交易')
   usePageBack('/', '首页')
@@ -86,7 +100,8 @@ export function Transactions() {
           <h2 className="font-headline-md text-headline-md text-text-primary mb-4">筛选</h2>
           <div className="flex flex-wrap gap-3">
             <select
-              className="bg-surface-container-lowest border border-outline-variant text-text-primary text-body-md font-body-md rounded-lg py-2 pl-3 pr-8 focus:border-primary focus:ring-0 cursor-pointer"
+              className={SELECT_CLASS}
+              style={SELECT_STYLE}
               value={filterMonth}
               onChange={(e) => setFilterMonth(e.target.value)}
             >
@@ -96,7 +111,8 @@ export function Transactions() {
             </select>
 
             <select
-              className="bg-surface-container-lowest border border-outline-variant text-text-primary text-body-md font-body-md rounded-lg py-2 pl-3 pr-8 focus:border-primary focus:ring-0 cursor-pointer"
+              className={SELECT_CLASS}
+              style={SELECT_STYLE}
               value={filterCategory}
               onChange={(e) => setFilterCategory(e.target.value)}
             >
@@ -109,7 +125,8 @@ export function Transactions() {
             </select>
 
             <select
-              className="bg-surface-container-lowest border border-outline-variant text-text-primary text-body-md font-body-md rounded-lg py-2 pl-3 pr-8 focus:border-primary focus:ring-0 cursor-pointer"
+              className={SELECT_CLASS}
+              style={SELECT_STYLE}
               value={filterAccount}
               onChange={(e) => setFilterAccount(e.target.value)}
             >

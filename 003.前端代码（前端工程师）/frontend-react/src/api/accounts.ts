@@ -18,7 +18,7 @@ export interface Account {
 }
 
 export interface ListAccountsResponse {
-  accounts: Account[]
+  items: Account[]
 }
 
 export interface CreateAccountInput {
@@ -50,7 +50,7 @@ export interface AccountEnvelope {
 
 export async function listAccounts(): Promise<Account[]> {
   const res = await request<ListAccountsResponse>('/api/accounts')
-  return res.accounts
+  return res.items
 }
 
 export async function getAccount(id: string): Promise<Account> {

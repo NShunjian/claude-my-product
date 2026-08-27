@@ -21,7 +21,7 @@ export interface Record {
 }
 
 export interface ListRecordsResponse {
-  records: Record[]
+  items: Record[]
 }
 
 export interface RecordEnvelope {
@@ -92,7 +92,7 @@ function buildQuery(p: ListRecordsParams): string {
 
 export async function listRecords(params: ListRecordsParams = {}): Promise<Record[]> {
   const res = await request<ListRecordsResponse>(`/api/records${buildQuery(params)}`)
-  return res.records
+  return res.items
 }
 
 export async function createRecord(input: CreateInput): Promise<Record> {

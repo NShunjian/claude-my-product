@@ -13,11 +13,11 @@ export interface Category {
 }
 
 export interface ListCategoriesResponse {
-  categories: Category[]
+  items: Category[]
 }
 
 export async function listCategories(type?: CategoryType): Promise<Category[]> {
   const qs = type ? `?type=${type}` : ''
   const res = await request<ListCategoriesResponse>(`/api/categories${qs}`)
-  return res.categories
+  return res.items
 }

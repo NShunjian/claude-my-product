@@ -10,7 +10,7 @@ export function ProfileEdit() {
 
   const [gender, setGender] = useState<'male' | 'female'>('male')
   const [age, setAge] = useState('')
-  const [username, setUsername] = useState(user?.username ?? '')
+  const [displayName, setDisplayName] = useState(user?.displayName ?? '')
   const [currentPwd, setCurrentPwd] = useState('')
   const [newPwd, setNewPwd] = useState('')
   const [confirmPwd, setConfirmPwd] = useState('')
@@ -81,22 +81,22 @@ export function ProfileEdit() {
         </header>
 
         <div className="space-y-6">
-          {/* 用户名（可编辑） */}
+          {/* 昵称（可编辑） */}
           <div className="space-y-2">
             <label
-              htmlFor="username"
+              htmlFor="displayName"
               className="block font-headline-md text-headline-md text-text-primary"
             >
-              用户名
+              昵称
             </label>
             <div className="relative">
               <span className={iconWrap} style={iconStyle}>person</span>
               <input
-                id="username"
+                id="displayName"
                 type="text"
-                value={username}
-                onChange={(e) => setUsername(e.target.value)}
-                placeholder="请输入用户名"
+                value={displayName}
+                onChange={(e) => setDisplayName(e.target.value)}
+                placeholder="请输入昵称"
                 className={inputBase}
               />
             </div>

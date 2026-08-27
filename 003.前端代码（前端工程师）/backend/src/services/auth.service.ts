@@ -26,6 +26,39 @@ const toUser = (row: UserRow): User => ({
 const issueToken = (row: UserRow): string =>
   signToken({ sub: Number(row.id), uuid: row.uuid, username: row.username } satisfies JwtPayload)
 
+/** 新用户注册后自动初始化的默认账户（每账户 uuid 在创建时分配，避免与 demo seed 的固定 UUID 冲突） */
+const DEFAULT_ACCOUNTS = [
+  { name: '微信支付', icon: '💳', type: 'wallet', isDefault: 1, sortOrder: 0 },
+  { name: '支付宝',   icon: '💳', type: 'wallet', isDefault: 0, sortOrder: 1 },
+  { name: '现金',     icon: '💵', type: 'cash',   isDefault: 0, sortOrder: 2 },
+  { name: '银行卡',   icon: '🏦', type: 'debit',  isDefault: 0, sortOrder: 3 },
+  { name: '信用卡',   icon: '💳', type: 'credit', isDefault: 0, sortOrder: 4 },
+] as const
+
+/**
+ * 为新用户创建 1 个个人账本 + 5 个默认账户
+ * 失败抛 AppError，但不删除已创建的用户（保持事务性不强求，依赖测试清理）
+ */
+const bootstrapNewUser = async (userId: number): Promise<void> => {
+  const pool = getPool()
+  const bookUuid = uuidv4()
+  const [bookResult] = await pool.query<ResultSetHeader>(
+    `INSERT INTO books (uuid, owner_id, name, type, currency, is_default, sort_order)
+     VALUES (?, ?, '个人账本', 'personal', 'CNY', 1, 0)`,
+    [bookUuid, userId],
+  )
+  const bookId = Number(bookResult.insertId)
+
+  for (const a of DEFAULT_ACCOUNTS) {
+    await pool.query(
+      `INSERT INTO accounts
+         (uuid, user_id, book_id, name, icon, type, initial_balance, current_balance, is_default, sort_order)
+       VALUES (?, ?, ?, ?, ?, ?, 0.00, 0.00, ?, ?)`,
+      [uuidv4(), userId, bookId, a.name, a.icon, a.type, a.isDefault, a.sortOrder],
+    )
+  }
+}
+
 export const register = async (input: RegisterInput): Promise<{ user: User; token: string }> => {
   const pool = getPool()
   const [existing] = await pool.query<UserRow[]>(
@@ -43,6 +76,14 @@ export const register = async (input: RegisterInput): Promise<{ user: User; toke
     [uuid, input.username, hash, 'bcrypt'],
   )
   const insertId = Number(result.insertId)
+
+  // 自动初始化账本 + 默认账户
+  try {
+    await bootstrapNewUser(insertId)
+  } catch (e) {
+    console.error('[register] bootstrapNewUser failed', e)
+    throw e
+  }
 
   // 回读完整行（保证 created_at 等由 DB 默认值填的字段拿到）
   const [rows] = await pool.query<UserRow[]>(

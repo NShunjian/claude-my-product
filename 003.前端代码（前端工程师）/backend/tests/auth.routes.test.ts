@@ -11,7 +11,15 @@ describe('POST /api/auth/* (E2E)', () => {
   const app = createApp()
 
   afterAll(async () => {
-    await getPool().query('DELETE FROM users WHERE username = ?', [USERNAME])
+    const pool = getPool()
+    // 先清理子表（accounts → books）再清 user
+    await pool.query(
+      `DELETE a, b FROM users u
+         LEFT JOIN accounts a ON a.user_id = u.id
+         LEFT JOIN books b ON b.owner_id = u.id
+       WHERE u.username = ?`,
+      [USERNAME],
+    )
     await closePool()
   })
 
@@ -21,11 +29,27 @@ describe('POST /api/auth/* (E2E)', () => {
     expect(res.body.error.code).toBe('INVALID_INPUT')
   })
 
-  it('registers a new user', async () => {
+  it('registers a new user and bootstraps book + 5 accounts', async () => {
     const res = await request(app).post('/api/auth/register').send({ username: USERNAME, password: PASSWORD })
     expect(res.status).toBe(201)
     expect(res.body.user.username).toBe(USERNAME)
     expect(res.body.token).toMatch(/^eyJ/)
+
+    // 验证自动初始化了账本和账户
+    const pool = getPool()
+    const [userRows] = await pool.query<any[]>('SELECT id FROM users WHERE username = ?', [USERNAME])
+    const userId = userRows[0].id
+    const [bookRows] = await pool.query<any[]>('SELECT name FROM books WHERE owner_id = ?', [userId])
+    expect(bookRows.length).toBe(1)
+    expect(bookRows[0].name).toBe('个人账本')
+
+    const [acctRows] = await pool.query<any[]>(
+      'SELECT name FROM accounts WHERE user_id = ? ORDER BY sort_order',
+      [userId],
+    )
+    expect(acctRows.map((r: any) => r.name)).toEqual([
+      '微信支付', '支付宝', '现金', '银行卡', '信用卡',
+    ])
   })
 
   it('rejects duplicate username', async () => {

@@ -1,31 +1,34 @@
 import { useContext } from 'react'
+import { Link, useLocation } from 'react-router-dom'
 import { PageTitleContext } from './PageTitleContext'
 
-interface TopBarProps {
-  backTo?: string
-  backLabel?: string
-}
-
-export function TopBar({ backTo, backLabel }: TopBarProps) {
-  const { title } = useContext(PageTitleContext)
+export function TopBar() {
+  const { title, backTo, backLabel } = useContext(PageTitleContext)
+  const location = useLocation()
+  // Hide back link once we've already reached the back target (e.g. after
+  // clicking ← 首页 and landing on /). Prevents stale back state from leaking
+  // across pages.
+  const showBack = !!backTo && backTo !== location.pathname
 
   return (
-    <header className="bg-page sticky top-0 z-30 flex justify-between items-center h-16 px-8 max-w-full border-b border-divider">
-      <div className="flex items-center gap-4">
-        {backTo && (
-          <a
-            href={backTo}
+    <header className="bg-bg-card sticky top-0 z-30 flex justify-between items-center h-16 px-8 max-w-full border-b border-divider">
+      <div className="flex items-center gap-4 flex-1">
+        {showBack && (
+          <Link
+            to={backTo}
             className="text-on-surface-variant hover:text-primary transition-colors flex items-center gap-1 p-1 rounded-full hover:bg-surface-container"
           >
             <span className="material-symbols-outlined text-2xl">arrow_back</span>
             {backLabel && (
-              <span className="font-body-md text-body-md ml-1 text-on-surface-variant">
+              <span className="font-body-md text-body-md ml-1 text-text-primary">
                 {backLabel}
               </span>
             )}
-          </a>
+          </Link>
         )}
-        <h2 className="font-headline-md text-headline-md text-primary font-bold">{title}</h2>
+        <h2 className="font-display-lg text-display-lg text-primary hidden md:block">
+          {title}
+        </h2>
       </div>
 
       <div className="flex items-center gap-4">

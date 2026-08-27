@@ -1,2 +1,16 @@
 # Local Claude Code config (per-machine permissions, not project code)
 .claude/
+
+# Dependencies (root, backend, frontend — 任何子目录的 node_modules)
+node_modules/
+
+# Build output
+dist/
+build/
+coverage/
+
+# Logs
+*.log
+
+# OS
+.DS_Store

@@ -13,6 +13,10 @@ export interface AuthContextValue {
   login: (input: Credentials) => Promise<void>
   register: (input: Credentials) => Promise<void>
   logout: () => void
+  /** 重新拉一次 me()，多用于资料修改后同步当前用户缓存 */
+  refreshUser: () => Promise<void>
+  /** 直接覆盖当前 user 缓存，多用于本地乐观更新（如头像预览） */
+  setUser: (user: User | null) => void
 }
 
 const AuthContext = createContext<AuthContextValue | undefined>(undefined)
@@ -66,9 +70,23 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     setUser(null)
   }, [])
 
+  const refreshUser = useCallback(async (): Promise<void> => {
+    try {
+      const res = await authApi.me()
+      setUser(res.user)
+    } catch (err) {
+      if (err instanceof ApiError && err.status === 401) {
+        localStorage.removeItem(TOKEN_KEY)
+        setToken(null)
+        setUser(null)
+      }
+      throw err
+    }
+  }, [])
+
   const value = useMemo<AuthContextValue>(
-    () => ({ token, user, loading, login, register, logout }),
-    [token, user, loading, login, register, logout],
+    () => ({ token, user, loading, login, register, logout, refreshUser, setUser }),
+    [token, user, loading, login, register, logout, refreshUser],
   )
 
   return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>

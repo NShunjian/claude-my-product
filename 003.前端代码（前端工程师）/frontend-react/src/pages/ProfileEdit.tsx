@@ -1,19 +1,96 @@
-import { useState } from 'react'
+import { useEffect, useState } from 'react'
 import { useAuth } from '../auth/AuthContext'
 import { usePageTitle, usePageBack } from '../components/PageTitleContext'
+import * as usersApi from '../api/users'
+import type { Gender } from '../api/users'
 
 export function ProfileEdit() {
   usePageTitle('编辑资料')
   usePageBack('/settings', '设置')
 
-  const { user } = useAuth()
+  const { user, refreshUser } = useAuth()
 
-  const [gender, setGender] = useState<'male' | 'female'>('male')
+  const [gender, setGender] = useState<Gender | ''>('')
   const [age, setAge] = useState('')
   const [displayName, setDisplayName] = useState(user?.displayName ?? '')
+
   const [currentPwd, setCurrentPwd] = useState('')
   const [newPwd, setNewPwd] = useState('')
   const [confirmPwd, setConfirmPwd] = useState('')
+
+  const [savingProfile, setSavingProfile] = useState(false)
+  const [savingPwd, setSavingPwd] = useState(false)
+  const [profileMsg, setProfileMsg] = useState<{ kind: 'ok' | 'err'; text: string } | null>(null)
+  const [pwdMsg, setPwdMsg] = useState<{ kind: 'ok' | 'err'; text: string } | null>(null)
+
+  // user 进入/变更时同步本地 state（特别是保存成功后 refreshUser() 会触发）
+  useEffect(() => {
+    setDisplayName(user?.displayName ?? '')
+    setGender((user?.gender as Gender | undefined) ?? '')
+    setAge(user?.age != null ? String(user.age) : '')
+  }, [user])
+
+  async function handleSaveProfile(): Promise<void> {
+    setProfileMsg(null)
+    const trimmedName = displayName.trim()
+    if (trimmedName.length === 0) {
+      setProfileMsg({ kind: 'err', text: '昵称不能为空' })
+      return
+    }
+    const parsedAge = age.trim() === '' ? null : Number.parseInt(age, 10)
+    if (parsedAge !== null && (!Number.isFinite(parsedAge) || parsedAge < 0 || parsedAge > 150)) {
+      setProfileMsg({ kind: 'err', text: '年龄需为 0-150 之间的整数' })
+      return
+    }
+    setSavingProfile(true)
+    try {
+      await usersApi.updateProfile({
+        displayName: trimmedName,
+        gender: gender === '' ? null : gender,
+        age: parsedAge,
+      })
+      await refreshUser()
+      setProfileMsg({ kind: 'ok', text: '资料已保存' })
+    } catch (err) {
+      const text = err instanceof Error ? err.message : '保存失败'
+      setProfileMsg({ kind: 'err', text })
+    } finally {
+      setSavingProfile(false)
+    }
+  }
+
+  async function handleChangePassword(): Promise<void> {
+    setPwdMsg(null)
+    if (currentPwd.length === 0 || newPwd.length === 0 || confirmPwd.length === 0) {
+      setPwdMsg({ kind: 'err', text: '请填写所有密码字段' })
+      return
+    }
+    if (newPwd !== confirmPwd) {
+      setPwdMsg({ kind: 'err', text: '两次输入的新密码不一致' })
+      return
+    }
+    if (newPwd.length < 8) {
+      setPwdMsg({ kind: 'err', text: '新密码至少需要 8 位' })
+      return
+    }
+    if (newPwd === currentPwd) {
+      setPwdMsg({ kind: 'err', text: '新密码不能与当前密码相同' })
+      return
+    }
+    setSavingPwd(true)
+    try {
+      await usersApi.changePassword({ oldPassword: currentPwd, newPassword: newPwd })
+      setCurrentPwd('')
+      setNewPwd('')
+      setConfirmPwd('')
+      setPwdMsg({ kind: 'ok', text: '密码已修改' })
+    } catch (err) {
+      const text = err instanceof Error ? err.message : '修改失败'
+      setPwdMsg({ kind: 'err', text })
+    } finally {
+      setSavingPwd(false)
+    }
+  }
 
   // 输入框统一样式
   const inputBase =
@@ -21,6 +98,14 @@ export function ProfileEdit() {
   const iconWrap =
     'absolute left-4 top-1/2 -translate-y-1/2 material-symbols-outlined text-on-surface-variant pointer-events-none'
   const iconStyle = { fontSize: '20px' }
+  const spinner = (
+    <span
+      className="material-symbols-outlined animate-spin"
+      style={{ fontSize: '18px' }}
+    >
+      progress_activity
+    </span>
+  )
 
   return (
     <div className="grid grid-cols-1 md:grid-cols-3 gap-5 items-stretch">
@@ -34,20 +119,24 @@ export function ProfileEdit() {
         </header>
 
         <div className="flex flex-col items-center gap-5">
-          {/* 头像 */}
-          <div className="w-36 h-36 rounded-full bg-primary-light flex items-center justify-center">
-            <span
-              className="material-symbols-outlined text-primary"
-              style={{ fontSize: '80px', fontVariationSettings: "'FILL' 0", fontWeight: 300 }}
-            >
-              account_circle
-            </span>
+          <div className="w-36 h-36 rounded-full bg-primary-light flex items-center justify-center overflow-hidden">
+            {user?.avatar ? (
+              <img src={user.avatar} alt="头像" className="w-full h-full object-cover" />
+            ) : (
+              <span
+                className="material-symbols-outlined text-primary"
+                style={{ fontSize: '80px', fontVariationSettings: "'FILL' 0", fontWeight: 300 }}
+              >
+                account_circle
+              </span>
+            )}
           </div>
 
-          {/* 上传新头像 */}
           <button
             type="button"
-            className="inline-flex items-center gap-2 px-5 py-2.5 border border-outline text-on-surface font-body-md text-body-md rounded-xl hover:bg-surface-container-low hover:border-primary transition-colors"
+            disabled
+            title="头像上传功能即将推出"
+            className="inline-flex items-center gap-2 px-5 py-2.5 border border-outline text-on-surface font-body-md text-body-md rounded-xl hover:bg-surface-container-low hover:border-primary transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
           >
             <span
               className="material-symbols-outlined"
@@ -63,7 +152,8 @@ export function ProfileEdit() {
           <div className="flex justify-end">
             <button
               type="button"
-              className="px-6 py-2.5 bg-primary text-on-primary font-headline-md text-headline-md rounded-lg hover:bg-primary-container hover:text-on-primary-container transition-colors shadow-sm"
+              disabled
+              className="px-6 py-2.5 bg-primary text-on-primary font-headline-md text-headline-md rounded-lg hover:bg-primary-container hover:text-on-primary-container transition-colors shadow-sm disabled:opacity-50 disabled:cursor-not-allowed inline-flex items-center gap-2"
             >
               保存头像
             </button>
@@ -169,12 +259,27 @@ export function ProfileEdit() {
           </div>
         </div>
 
+        {profileMsg && (
+          <div
+            className={`mt-4 rounded-lg px-3 py-2 font-caption-sm text-caption-sm ${
+              profileMsg.kind === 'ok'
+                ? 'bg-secondary-container text-on-secondary-container'
+                : 'bg-error-container text-on-error-container'
+            }`}
+          >
+            {profileMsg.text}
+          </div>
+        )}
+
         <div className="border-t border-divider mt-auto pt-6">
           <div className="flex justify-end">
             <button
               type="button"
-              className="px-6 py-2.5 bg-primary text-on-primary font-headline-md text-headline-md rounded-lg hover:bg-primary-container hover:text-on-primary-container transition-colors shadow-sm"
+              onClick={handleSaveProfile}
+              disabled={savingProfile}
+              className="px-6 py-2.5 bg-primary text-on-primary font-headline-md text-headline-md rounded-lg hover:bg-primary-container hover:text-on-primary-container transition-colors shadow-sm disabled:opacity-60 disabled:cursor-not-allowed inline-flex items-center gap-2"
             >
+              {savingProfile && spinner}
               保存资料
             </button>
           </div>
@@ -252,12 +357,27 @@ export function ProfileEdit() {
           </div>
         </div>
 
+        {pwdMsg && (
+          <div
+            className={`mt-4 rounded-lg px-3 py-2 font-caption-sm text-caption-sm ${
+              pwdMsg.kind === 'ok'
+                ? 'bg-secondary-container text-on-secondary-container'
+                : 'bg-error-container text-on-error-container'
+            }`}
+          >
+            {pwdMsg.text}
+          </div>
+        )}
+
         <div className="border-t border-divider mt-auto pt-6">
           <div className="flex justify-end">
             <button
               type="button"
-              className="px-6 py-2.5 bg-primary text-on-primary font-headline-md text-headline-md rounded-lg hover:bg-primary-container hover:text-on-primary-container transition-colors shadow-sm"
+              onClick={handleChangePassword}
+              disabled={savingPwd}
+              className="px-6 py-2.5 bg-primary text-on-primary font-headline-md text-headline-md rounded-lg hover:bg-primary-container hover:text-on-primary-container transition-colors shadow-sm disabled:opacity-60 disabled:cursor-not-allowed inline-flex items-center gap-2"
             >
+              {savingPwd && spinner}
               保存密码
             </button>
           </div>

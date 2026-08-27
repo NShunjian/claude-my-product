@@ -1,15 +1,18 @@
 import { useState } from 'react'
 import { Link, useNavigate } from 'react-router-dom'
 import { usePageTitle, usePageBack } from '../components/PageTitleContext'
+import * as accountsApi from '../api/accounts'
+import type { AccountType } from '../api/accounts'
+import { RECORDS_CHANGED_EVENT } from '../lib/hooks'
 
-// 原型账户类型（与 Accounts.tsx themeKey 对应）
-const ACCOUNT_TYPES = [
-  { value: '', label: '选择类型', disabled: true },
-  { value: 'wechat', label: '微信支付' },
-  { value: 'alipay', label: '支付宝' },
-  { value: 'bank', label: '银行卡' },
+// UI 标签 + 后端 type 映射（前端主题键叫 wechat/alipay，后端叫 wallet）
+const ACCOUNT_TYPES: { value: AccountType; label: string }[] = [
+  { value: 'wallet', label: '微信支付' },
+  { value: 'wallet', label: '支付宝' },
   { value: 'cash', label: '现金' },
+  { value: 'debit', label: '银行卡' },
   { value: 'credit', label: '信用卡' },
+  { value: 'investment', label: '投资账户' },
   { value: 'other', label: '其他' },
 ]
 
@@ -22,15 +25,37 @@ export function AccountAdd() {
   const navigate = useNavigate()
 
   const [name, setName] = useState('')
-  const [type, setType] = useState('')
+  const [type, setType] = useState<AccountType | ''>('')
   const [balance, setBalance] = useState('0.00')
   const [icon, setIcon] = useState(ICONS[0])
   const [isDefault, setIsDefault] = useState(false)
 
-  function handleSubmit(e: React.FormEvent<HTMLFormElement>): void {
+  const [submitting, setSubmitting] = useState(false)
+  const [errorMsg, setErrorMsg] = useState<string | null>(null)
+
+  async function handleSubmit(e: React.FormEvent<HTMLFormElement>): Promise<void> {
     e.preventDefault()
-    // In real app, call API here
-    navigate('/accounts')
+    if (!name.trim() || !type) return
+    setSubmitting(true)
+    setErrorMsg(null)
+    try {
+      const initialBalance = Number.parseFloat(balance)
+      await accountsApi.createAccount({
+        name: name.trim(),
+        type: type,
+        icon,
+        initialBalance: Number.isFinite(initialBalance) ? initialBalance : 0,
+        currency: 'CNY',
+        isDefault,
+      })
+      window.dispatchEvent(new CustomEvent(RECORDS_CHANGED_EVENT))
+      navigate('/accounts')
+    } catch (err) {
+      const msg = err instanceof Error ? err.message : '保存失败，请重试'
+      setErrorMsg(msg)
+    } finally {
+      setSubmitting(false)
+    }
   }
 
   return (
@@ -71,13 +96,12 @@ export function AccountAdd() {
                 id="account_type"
                 name="account_type"
                 value={type}
-                onChange={(e) => setType(e.target.value)}
+                onChange={(e) => setType(e.target.value as AccountType | '')}
                 className="w-full bg-transparent border-0 border-b-2 border-outline-variant focus:border-primary focus:ring-0 px-0 py-2 font-body-md text-body-md text-on-surface appearance-none transition-colors pr-8"
               >
-                {ACCOUNT_TYPES.map((t) => (
-                  <option key={t.value} value={t.value} disabled={t.disabled}>
-                    {t.label}
-                  </option>
+                <option value="" disabled>选择类型</option>
+                {ACCOUNT_TYPES.map((t, i) => (
+                  <option key={`${t.value}-${i}`} value={t.value}>{t.label}</option>
                 ))}
               </select>
               <span className="material-symbols-outlined absolute right-0 top-1/2 -translate-y-1/2 pointer-events-none text-outline-variant">
@@ -165,6 +189,13 @@ export function AccountAdd() {
             </label>
           </div>
 
+          {/* 错误提示 */}
+          {errorMsg && (
+            <div className="bg-error-container text-on-error-container rounded-lg px-4 py-3 font-body-md text-body-md">
+              {errorMsg}
+            </div>
+          )}
+
           {/* 操作按钮 */}
           <div className="pt-8 flex gap-4">
             <Link
@@ -175,9 +206,17 @@ export function AccountAdd() {
             </Link>
             <button
               type="submit"
-              disabled={!name || !type}
-              className="flex-1 py-3 px-4 bg-primary text-on-primary font-headline-md text-headline-md rounded-lg hover:bg-primary-container hover:text-on-primary-container transition-colors shadow-sm disabled:opacity-60 disabled:cursor-not-allowed"
+              disabled={!name.trim() || !type || submitting}
+              className="flex-1 py-3 px-4 bg-primary text-on-primary font-headline-md text-headline-md rounded-lg hover:bg-primary-container hover:text-on-primary-container transition-colors shadow-sm disabled:opacity-60 disabled:cursor-not-allowed inline-flex items-center justify-center gap-2"
             >
+              {submitting && (
+                <span
+                  className="material-symbols-outlined animate-spin"
+                  style={{ fontSize: '18px' }}
+                >
+                  progress_activity
+                </span>
+              )}
               保存账户
             </button>
           </div>

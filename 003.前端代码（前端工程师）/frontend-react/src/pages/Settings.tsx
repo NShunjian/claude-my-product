@@ -61,9 +61,15 @@ export function Settings() {
           <h3 className="font-headline-md text-headline-md text-text-primary mb-1">
             {user?.displayName || user?.username || 'testuser'}
           </h3>
+          <p className="font-body-md text-body-md text-on-surface-variant mb-1">
+            账号：{user?.username || 'demo'}
+          </p>
           <p className="font-body-md text-body-md text-on-surface-variant mb-1">免费版用户</p>
-          <p className="font-body-md text-body-md text-on-surface-variant mb-6">
+          <p className="font-body-md text-body-md text-on-surface-variant mb-1">
             性别：男
+          </p>
+          <p className="font-body-md text-body-md text-on-surface-variant mb-6">
+            年龄：25
           </p>
 
           <Link

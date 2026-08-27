@@ -1,4 +1,4 @@
-import type { Category } from '../data/categories'
+import type { Category } from '../lib/finance-types'
 
 interface CategoryBadgeProps {
   category: Category

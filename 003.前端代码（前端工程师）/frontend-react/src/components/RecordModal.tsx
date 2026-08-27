@@ -1,6 +1,6 @@
-import { useState, useEffect } from 'react'
+import { useEffect, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
-import type { Category } from '../data/categories'
+import type { Account, Category } from '../lib/finance-types'
 
 // 主题色映射（与原型一致）
 const COLOR_MAP: Record<string, { solid: string; tint: string; label: string }> = {
@@ -13,32 +13,70 @@ const COLOR_MAP: Record<string, { solid: string; tint: string; label: string }> 
   outline: { solid: '#727782', tint: 'rgba(114 119 130 / 0.10)', label: '#414750' },
 }
 
+interface SubmitPayload {
+  type: 'expense' | 'income'
+  categoryId: string
+  accountId: string
+  amount: number
+  note: string
+  recordDate: string // YYYY-MM-DD
+}
+
 interface RecordModalProps {
   kind: 'expense' | 'income'
   categories: Category[]
+  accounts: Account[]
   defaultCategoryId?: string
   /** 主题色（主按钮背景），默认 expense=primary blue / income=green */
   accent?: 'primary' | 'secondary'
+  /** 提交回调；返回成功后 RecordModal 会自动显示成功态 */
+  onSubmit: (payload: SubmitPayload) => Promise<void>
+}
+
+function todayISO(): string {
+  const d = new Date()
+  return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`
+}
+
+function pickDefaultAccountId(accounts: Account[]): string {
+  const def = accounts.find((a) => a.isDefault)
+  return def?.id ?? accounts[0]?.id ?? ''
 }
 
 export function RecordModal({
   kind,
   categories,
+  accounts,
   defaultCategoryId,
   accent = kind === 'expense' ? 'primary' : 'secondary',
+  onSubmit,
 }: RecordModalProps) {
   const navigate = useNavigate()
 
-  const [, setAmount] = useState('')
   const [note, setNote] = useState('')
   const [categoryId, setCategoryId] = useState(defaultCategoryId ?? categories[0]?.id ?? '')
+  const [accountId, setAccountId] = useState(pickDefaultAccountId(accounts))
   const [expression, setExpression] = useState('')
   const [showSuccess, setShowSuccess] = useState(false)
+  const [submitting, setSubmitting] = useState(false)
+  const [errorMsg, setErrorMsg] = useState<string | null>(null)
   const [activeTab, setActiveTab] = useState<'expense' | 'income'>(kind)
 
   useEffect(() => {
     setActiveTab(kind)
   }, [kind])
+
+  // 账户/分类列表刷新时若当前选中项失效，重置
+  useEffect(() => {
+    if (accountId && !accounts.find((a) => a.id === accountId)) {
+      setAccountId(pickDefaultAccountId(accounts))
+    }
+  }, [accounts]) // eslint-disable-line react-hooks/exhaustive-deps
+  useEffect(() => {
+    if (categoryId && !categories.find((c) => c.id === categoryId)) {
+      setCategoryId(defaultCategoryId ?? categories[0]?.id ?? '')
+    }
+  }, [categories]) // eslint-disable-line react-hooks/exhaustive-deps
 
   function handleClose() {
     navigate(-1)
@@ -46,7 +84,6 @@ export function RecordModal({
 
   function handleTabSwitch(next: 'expense' | 'income') {
     setActiveTab(next)
-    // 切 tab 时跳到对应路由
     navigate(next === 'expense' ? '/record/expense' : '/record/income', { replace: true })
   }
 
@@ -56,55 +93,76 @@ export function RecordModal({
       return
     }
     if (key === 'op') {
-      // + 或 - 操作符
       setExpression((prev) => {
         if (!prev) return '0+'
         const last = prev.slice(-1)
-        if (last === '+' || last === '-') return prev.slice(0, -1) + '+' // always add last
-        // simple: replace trailing number
+        if (last === '+' || last === '-') return prev.slice(0, -1) + '+'
         return prev + '+'
       })
       return
     }
     if (key === '.') {
       setExpression((prev) => {
-        // 找最后一段数字检查是否已有小数点
         const seg = prev.split(/[+\-]/).pop() ?? ''
         if (seg.includes('.')) return prev
         return prev + '.'
       })
       return
     }
-    // 数字键
     setExpression((prev) => {
       const next = prev + key
-      // 限制最大长度避免溢出
       return next.length > 12 ? prev : next
     })
   }
 
-  function computeAmount(): string {
-    if (!expression) return '0.00'
-    // 简单求值（只支持 + 法，足够原型演示）
+  function computeAmount(): number {
+    if (!expression) return 0
     try {
       if (!expression.includes('+')) {
         const n = parseFloat(expression)
-        return Number.isFinite(n) ? n.toFixed(2) : '0.00'
+        return Number.isFinite(n) ? n : 0
       }
       const parts = expression.split('+').map((s) => parseFloat(s) || 0)
-      const sum = parts.reduce((a, b) => a + b, 0)
-      return sum.toFixed(2)
+      return parts.reduce((a, b) => a + b, 0)
     } catch {
-      return '0.00'
+      return 0
     }
   }
 
-  function handleSubmit() {
-    const v = computeAmount()
-    if (v === '0.00') return
-    setAmount(v)
-    setShowSuccess(true)
-    setTimeout(() => navigate(-1), 1200)
+  function displayAmount(): string {
+    return computeAmount().toFixed(2)
+  }
+
+  async function handleSubmit() {
+    const amount = computeAmount()
+    if (amount <= 0) return
+    if (!categoryId) {
+      setErrorMsg('请选择分类')
+      return
+    }
+    if (!accountId) {
+      setErrorMsg('请选择账户')
+      return
+    }
+    setErrorMsg(null)
+    setSubmitting(true)
+    try {
+      await onSubmit({
+        type: activeTab,
+        categoryId,
+        accountId,
+        amount: Math.round(amount * 100) / 100,
+        note: note.trim(),
+        recordDate: todayISO(),
+      })
+      setShowSuccess(true)
+      setTimeout(() => navigate(-1), 1200)
+    } catch (err) {
+      const msg = err instanceof Error ? err.message : '提交失败，请重试'
+      setErrorMsg(msg)
+    } finally {
+      setSubmitting(false)
+    }
   }
 
   // 数字键
@@ -220,7 +278,7 @@ export function RecordModal({
                   className="font-label-mono text-5xl text-text-primary tabular-nums border-b-2 border-primary pb-1 px-2"
                   style={{ minWidth: '160px', display: 'inline-block' }}
                 >
-                  {computeAmount()}
+                  {displayAmount()}
                 </span>
                 <span
                   className="font-label-mono text-2xl text-text-primary ml-1"
@@ -233,68 +291,117 @@ export function RecordModal({
 
             {/* 分类网格 */}
             <div className="px-6 py-6 bg-bg-card">
-              <div className="grid grid-cols-4 gap-y-5 gap-x-2">
-                {categories.map((cat) => {
-                  const c = COLOR_MAP[cat.colorToken]
-                  const isSelected = cat.id === categoryId
-                  return (
-                    <button
-                      key={cat.id}
-                      type="button"
-                      onClick={() => setCategoryId(cat.id)}
-                      className="flex flex-col items-center gap-2 transition-transform active:scale-95"
-                    >
-                      <span
-                        className="w-12 h-12 rounded-full flex items-center justify-center transition-colors"
-                        style={{
-                          backgroundColor: isSelected ? c.solid : c.tint,
-                          border: isSelected ? `2px solid ${c.label}` : '2px solid transparent',
-                        }}
+              {categories.length === 0 ? (
+                <p className="text-on-surface-variant font-body-md text-body-md text-center py-4">
+                  加载分类中…
+                </p>
+              ) : (
+                <div className="grid grid-cols-4 gap-y-5 gap-x-2">
+                  {categories.map((cat) => {
+                    const c = COLOR_MAP[cat.colorToken] ?? COLOR_MAP['outline']
+                    const isSelected = cat.id === categoryId
+                    return (
+                      <button
+                        key={cat.id}
+                        type="button"
+                        onClick={() => setCategoryId(cat.id)}
+                        className="flex flex-col items-center gap-2 transition-transform active:scale-95"
                       >
                         <span
-                          className="material-symbols-outlined"
+                          className="w-12 h-12 rounded-full flex items-center justify-center transition-colors"
                           style={{
-                            fontSize: '22px',
-                            color: isSelected ? '#fff' : c.solid,
-                            fontVariationSettings: "'FILL' 1",
+                            backgroundColor: isSelected ? c.solid : c.tint,
+                            border: isSelected ? `2px solid ${c.label}` : '2px solid transparent',
                           }}
                         >
-                          {cat.icon}
+                          <span
+                            className="material-symbols-outlined"
+                            style={{
+                              fontSize: '22px',
+                              color: isSelected ? '#fff' : c.solid,
+                              fontVariationSettings: "'FILL' 1",
+                            }}
+                          >
+                            {cat.icon}
+                          </span>
                         </span>
-                      </span>
-                      <span
-                        className="font-caption-sm text-caption-sm"
-                        style={{
-                          color: isSelected ? c.label : '#414750',
-                          fontWeight: isSelected ? 600 : 400,
-                        }}
-                      >
-                        {cat.name}
-                      </span>
-                    </button>
-                  )
-                })}
-              </div>
+                        <span
+                          className="font-caption-sm text-caption-sm"
+                          style={{
+                            color: isSelected ? c.label : '#414750',
+                            fontWeight: isSelected ? 600 : 400,
+                          }}
+                        >
+                          {cat.name}
+                        </span>
+                      </button>
+                    )
+                  })}
+                </div>
+              )}
             </div>
 
-            {/* 日期 + 备注 行 */}
-            <div className="px-6 pb-4 flex items-center gap-3">
-              <button
-                type="button"
-                className="flex items-center gap-2 px-4 py-2 bg-surface-container rounded-lg font-body-md text-body-md text-text-primary hover:bg-surface-container-high transition-colors"
-              >
-                <span className="material-symbols-outlined" style={{ fontSize: '18px' }}>
-                  calendar_today
-                </span>
-                今天
-              </button>
-              <input
-                type="text"
-                value={note}
-                onChange={(e) => setNote(e.target.value)}
-                placeholder="添加备注..."
-                className="flex-1 px-4 py-2 bg-surface-container rounded-lg font-body-md text-body-md text-text-primary placeholder:text-outline focus:outline-none focus:ring-1 focus:ring-primary transition-colors"
-              />
+            {/* 账户选择 + 日期 + 备注 行 */}
+            <div className="px-6 pb-4 space-y-3">
+              {/* 账户 chip 横向滚动 */}
+              {accounts.length > 0 && (
+                <div className="flex items-center gap-2 overflow-x-auto">
+                  <span className="font-caption-sm text-caption-sm text-on-surface-variant whitespace-nowrap">
+                    账户
+                  </span>
+                  <div className="flex gap-2">
+                    {accounts.map((acct) => {
+                      const selected = acct.id === accountId
+                      return (
+                        <button
+                          key={acct.id}
+                          type="button"
+                          onClick={() => setAccountId(acct.id)}
+                          className={`flex items-center gap-1.5 px-3 py-1.5 rounded-full font-caption-sm text-caption-sm whitespace-nowrap transition-colors ${
+                            selected
+                              ? 'bg-primary text-on-primary'
+                              : 'bg-surface-container text-text-primary hover:bg-surface-container-high'
+                          }`}
+                        >
+                          <span
+                            className="material-symbols-outlined"
+                            style={{ fontSize: '14px' }}
+                          >
+                            account_balance_wallet
+                          </span>
+                          {acct.name}
+                        </button>
+                      )
+                    })}
+                  </div>
+                </div>
+              )}
+
+              {/* 日期 + 备注 */}
+              <div className="flex items-center gap-3">
+                <button
+                  type="button"
+                  className="flex items-center gap-2 px-4 py-2 bg-surface-container rounded-lg font-body-md text-body-md text-text-primary hover:bg-surface-container-high transition-colors"
+                >
+                  <span className="material-symbols-outlined" style={{ fontSize: '18px' }}>
+                    calendar_today
+                  </span>
+                  今天
+                </button>
+                <input
+                  type="text"
+                  value={note}
+                  onChange={(e) => setNote(e.target.value)}
+                  placeholder="添加备注..."
+                  className="flex-1 px-4 py-2 bg-surface-container rounded-lg font-body-md text-body-md text-text-primary placeholder:text-outline focus:outline-none focus:ring-1 focus:ring-primary transition-colors"
+                />
+              </div>
+
+              {errorMsg && (
+                <div className="bg-error-container text-on-error-container rounded-lg px-3 py-2 font-caption-sm text-caption-sm">
+                  {errorMsg}
+                </div>
+              )}
             </div>
 
             {/* 数字键盘 */}
@@ -307,7 +414,7 @@ export function RecordModal({
                       key={`confirm-${idx}`}
                       type="button"
                       onClick={handleSubmit}
-                      disabled={expression === ''}
+                      disabled={expression === '' || submitting || !categoryId || !accountId}
                       className="row-span-1 rounded-xl transition-all active:scale-95 disabled:opacity-50 disabled:cursor-not-allowed"
                       style={{
                         backgroundColor: accent === 'primary' ? '#005394' : '#10b981',
@@ -319,7 +426,7 @@ export function RecordModal({
                         className="material-symbols-outlined"
                         style={{ fontSize: '28px', fontVariationSettings: "'FILL' 1" }}
                       >
-                        check
+                        {submitting ? 'progress_activity' : 'check'}
                       </span>
                     </button>
                   )

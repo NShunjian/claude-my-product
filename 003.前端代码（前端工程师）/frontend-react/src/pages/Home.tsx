@@ -1,11 +1,11 @@
 import { useMemo } from 'react'
 import { Link } from 'react-router-dom'
 import { usePageTitle, usePageBack } from '../components/PageTitleContext'
-import { ACCOUNTS } from '../data/accounts'
-import { TRANSACTIONS } from '../data/transactions'
-import { EXPENSE_CATEGORIES, INCOME_CATEGORIES } from '../data/categories'
 import { TransactionRow } from '../components/TransactionRow'
 import { CategoryBreakdown } from '../components/CategoryBreakdown'
+import { useAccounts, useCategories, useRecords } from '../lib/hooks'
+import { toAccounts, toCategories, toTransactions } from '../lib/finance-mappers'
+import type { Account, Category, Transaction } from '../lib/finance-types'
 
 function formatMoney(amount: number): string {
   return new Intl.NumberFormat('zh-CN', {
@@ -14,14 +14,6 @@ function formatMoney(amount: number): string {
   }).format(amount)
 }
 
-function findAccount(id: string) {
-  return ACCOUNTS.find((a) => a.id === id)
-}
-
-/**
-  Format a date label like "今天，8月24日" / "昨天，8月23日" / "8月22日"
-  relative to a fixed "today" (2026-08-26) so seed data renders consistently.
-*/
 function dateLabel(iso: string, today: Date): string {
   const d = new Date(iso)
   const sameDay = (a: Date, b: Date): boolean =>
@@ -34,17 +26,46 @@ function dateLabel(iso: string, today: Date): string {
   return monthDay
 }
 
+function currentMonthYYYYMM(): string {
+  const d = new Date()
+  return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}`
+}
+
+function currentMonthLabel(): string {
+  const d = new Date()
+  return `${d.getMonth() + 1}月 ${d.getFullYear()}`
+}
+
 export function Home() {
   usePageTitle('首页')
   usePageBack(null)
 
-  const thisMonthTxns = useMemo(() => {
-    const now = new Date(2026, 7, 26) // 2026-08-26
-    return TRANSACTIONS.filter((t) => {
-      const d = new Date(t.date)
-      return d.getFullYear() === now.getFullYear() && d.getMonth() === now.getMonth()
-    })
-  }, [])
+  const month = useMemo(currentMonthYYYYMM, [])
+  const today = useMemo(() => new Date(), [])
+
+  const accountsQ = useAccounts()
+  const expenseCatsQ = useCategories('expense')
+  const incomeCatsQ = useCategories('income')
+  const recordsQ = useRecords({ month })
+
+  const accounts = useMemo<Account[]>(
+    () => (accountsQ.data ? toAccounts(accountsQ.data) : []),
+    [accountsQ.data],
+  )
+  const expenseCats = useMemo<Category[]>(
+    () => (expenseCatsQ.data ? toCategories(expenseCatsQ.data) : []),
+    [expenseCatsQ.data],
+  )
+  const incomeCats = useMemo<Category[]>(
+    () => (incomeCatsQ.data ? toCategories(incomeCatsQ.data) : []),
+    [incomeCatsQ.data],
+  )
+  const allTxns = useMemo<Transaction[]>(
+    () => (recordsQ.data ? toTransactions(recordsQ.data) : []),
+    [recordsQ.data],
+  )
+
+  const thisMonthTxns = allTxns
 
   const thisMonthIncome = useMemo(
     () => thisMonthTxns.filter((t) => t.type === 'income').reduce((s, t) => s + t.amount, 0),
@@ -57,23 +78,20 @@ export function Home() {
   )
 
   const totalAssets = useMemo(
-    () => ACCOUNTS.reduce((s, a) => s + a.balance, 0),
-    [],
+    () => accounts.reduce((s, a) => s + a.balance, 0),
+    [accounts],
   )
 
   const monthlyBalance = thisMonthIncome - thisMonthExpense
 
   const recentTxns = thisMonthTxns.slice(0, 8)
 
-  // Group recent transactions by date for prototype-style rendering
   const groupedTxns = useMemo(() => {
-    const today = new Date(2026, 7, 26)
-    const groups = new Map<string, typeof recentTxns>()
+    const groups = new Map<string, Transaction[]>()
     for (const t of recentTxns) {
-      const key = t.date
-      const arr = groups.get(key) ?? []
+      const arr = groups.get(t.date) ?? []
       arr.push(t)
-      groups.set(key, arr)
+      groups.set(t.date, arr)
     }
     return Array.from(groups.entries()).map(([date, txns]) => {
       const net = txns.reduce(
@@ -82,29 +100,36 @@ export function Home() {
       )
       return { date, txns, net, label: dateLabel(date, today) }
     })
-  }, [recentTxns])
+  }, [recentTxns, today])
+
+  const findAccount = (id: string): Account | undefined =>
+    accounts.find((a) => a.id === id)
+
+  const isLoading = accountsQ.loading || recordsQ.loading
+  const isError = !isLoading && (!!accountsQ.error || !!recordsQ.error)
+  const errMsg = accountsQ.error?.message ?? recordsQ.error?.message ?? null
 
   return (
     <div className="space-y-6">
-      {/* Month selector */}
       <div className="flex justify-between items-end">
         <div>
           <h2 className="font-display-lg text-display-lg text-text-primary mb-1">总览</h2>
-          <div className="flex items-center gap-2 text-on-surface-variant font-headline-md text-headline-md cursor-pointer hover:text-primary transition-colors">
-            <span>8月 2023</span>
-            <span className="material-symbols-outlined text-sm">expand_more</span>
+          <div className="flex items-center gap-2 text-on-surface-variant font-headline-md text-headline-md">
+            <span>{currentMonthLabel()}</span>
           </div>
         </div>
       </div>
 
-      {/* Overview cards */}
-      {/* Row 1: 总资产 (prominent, full width) */}
+      {isError && (
+        <div className="bg-error-container text-on-error-container rounded-xl p-4 font-body-md text-body-md">
+          加载失败：{errMsg}
+        </div>
+      )}
+
+      {/* Row 1: 总资产 */}
       <div className="bg-bg-card rounded-xl border border-divider p-6 shadow-sm relative overflow-hidden">
         <div className="absolute top-0 right-0 p-4 opacity-10 pointer-events-none">
-          <span
-            className="material-symbols-outlined text-primary"
-            style={{ fontSize: '80px', lineHeight: 1, display: 'block' }}
-          >
+          <span className="material-symbols-outlined text-primary" style={{ fontSize: '80px', lineHeight: 1, display: 'block' }}>
             account_balance_wallet
           </span>
         </div>
@@ -116,22 +141,13 @@ export function Home() {
           </span>
         </div>
         <p className="font-caption-sm text-caption-sm text-on-surface-variant mt-2">
-          共 {ACCOUNTS.length} 个账户
+          共 {accounts.length} 个账户
         </p>
       </div>
 
-      {/* Row 2: 本月支出 + 本月收入 + 当月结余 */}
+      {/* Row 2: 三张 KPI 卡 */}
       <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-        {/* 本月支出 */}
-        <div className="bg-bg-card rounded-xl border border-divider p-4 shadow-sm relative overflow-hidden group">
-          <div className="absolute top-0 right-0 p-4 opacity-10 group-hover:opacity-20 transition-opacity pointer-events-none">
-            <span
-              className="material-symbols-outlined text-error"
-              style={{ fontSize: '60px', lineHeight: 1, display: 'block' }}
-            >
-              trending_down
-            </span>
-          </div>
+        <div className="bg-bg-card rounded-xl border border-divider p-4 shadow-sm relative overflow-hidden">
           <p className="font-caption-sm text-caption-sm text-on-surface-variant mb-2">本月支出</p>
           <div className="flex items-baseline gap-1">
             <span className="font-label-mono text-label-mono text-error">¥</span>
@@ -139,18 +155,8 @@ export function Home() {
               {formatMoney(thisMonthExpense)}
             </span>
           </div>
-          <p className="font-caption-sm text-caption-sm text-on-surface-variant mt-2">较上月: +12%</p>
         </div>
-        {/* 本月收入 */}
-        <div className="bg-bg-card rounded-xl border border-divider p-4 shadow-sm relative overflow-hidden group">
-          <div className="absolute top-0 right-0 p-4 opacity-10 group-hover:opacity-20 transition-opacity pointer-events-none">
-            <span
-              className="material-symbols-outlined text-secondary"
-              style={{ fontSize: '60px', lineHeight: 1, display: 'block' }}
-            >
-              trending_up
-            </span>
-          </div>
+        <div className="bg-bg-card rounded-xl border border-divider p-4 shadow-sm relative overflow-hidden">
           <p className="font-caption-sm text-caption-sm text-on-surface-variant mb-2">本月收入</p>
           <div className="flex items-baseline gap-1">
             <span className="font-label-mono text-label-mono text-secondary">¥</span>
@@ -158,30 +164,14 @@ export function Home() {
               {formatMoney(thisMonthIncome)}
             </span>
           </div>
-          <p className="font-caption-sm text-caption-sm text-on-surface-variant mt-2">较上月: +5%</p>
         </div>
-        {/* 当月结余 */}
-        <div className="bg-bg-card rounded-xl border border-divider p-4 shadow-sm relative overflow-hidden group">
-          <div className="absolute top-0 right-0 p-4 opacity-10 group-hover:opacity-20 transition-opacity pointer-events-none">
-            <span
-              className="material-symbols-outlined"
-              style={{ fontSize: '60px', lineHeight: 1, display: 'block', color: monthlyBalance >= 0 ? '#006d40' : '#ba1a1a' }}
-            >
-              {monthlyBalance >= 0 ? 'trending_up' : 'trending_down'}
-            </span>
-          </div>
+        <div className="bg-bg-card rounded-xl border border-divider p-4 shadow-sm relative overflow-hidden">
           <p className="font-caption-sm text-caption-sm text-on-surface-variant mb-2">当月结余</p>
           <div className="flex items-baseline gap-1">
-            <span
-              className="font-label-mono text-label-mono"
-              style={{ color: monthlyBalance >= 0 ? '#006d40' : '#ba1a1a' }}
-            >
+            <span className="font-label-mono text-label-mono" style={{ color: monthlyBalance >= 0 ? '#006d40' : '#ba1a1a' }}>
               {monthlyBalance >= 0 ? '¥' : '-¥'}
             </span>
-            <span
-              className="font-label-mono text-[32px] leading-tight font-bold"
-              style={{ color: monthlyBalance >= 0 ? '#006d40' : '#ba1a1a' }}
-            >
+            <span className="font-label-mono text-[32px] leading-tight font-bold" style={{ color: monthlyBalance >= 0 ? '#006d40' : '#ba1a1a' }}>
               {formatMoney(Math.abs(monthlyBalance))}
             </span>
           </div>
@@ -191,7 +181,7 @@ export function Home() {
         </div>
       </div>
 
-      {/* Recent transactions (date-grouped) */}
+      {/* 最近交易 */}
       <div className="bg-bg-card rounded-xl border border-divider shadow-sm overflow-hidden">
         <div className="p-4 border-b border-divider bg-surface-bright flex justify-between items-center">
           <h3 className="font-headline-md text-headline-md text-text-primary">最近交易</h3>
@@ -199,9 +189,10 @@ export function Home() {
             查看全部 <span className="material-symbols-outlined" style={{ fontSize: '16px' }}>arrow_forward</span>
           </Link>
         </div>
-
         <div className="p-4">
-          {recentTxns.length === 0 ? (
+          {isLoading ? (
+            <p className="text-on-surface-variant font-body-md text-body-md text-center py-8">加载中…</p>
+          ) : recentTxns.length === 0 ? (
             <p className="text-on-surface-variant font-body-md text-body-md text-center py-8">暂无交易记录</p>
           ) : (
             groupedTxns.map((group, idx) => (
@@ -220,6 +211,7 @@ export function Home() {
                       key={txn.id}
                       transaction={txn}
                       account={findAccount(txn.accountId)}
+                      categories={[...expenseCats, ...incomeCats]}
                     />
                   ))}
                 </div>
@@ -229,18 +221,18 @@ export function Home() {
         </div>
       </div>
 
-      {/* Category breakdown: 支出分类 (left) + 收入分类 (right) */}
+      {/* Category breakdown */}
       <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
         <CategoryBreakdown
           title="支出分类"
-          categories={EXPENSE_CATEGORIES}
+          categories={expenseCats}
           transactions={thisMonthTxns}
           type="expense"
           totalAmount={thisMonthExpense}
         />
         <CategoryBreakdown
           title="收入分类"
-          categories={INCOME_CATEGORIES}
+          categories={incomeCats}
           transactions={thisMonthTxns}
           type="income"
           totalAmount={thisMonthIncome}

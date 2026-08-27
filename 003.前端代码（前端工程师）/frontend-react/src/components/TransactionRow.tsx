@@ -1,18 +1,18 @@
-import type { Transaction } from '../data/transactions'
-import { EXPENSE_CATEGORIES, INCOME_CATEGORIES, type Category } from '../data/categories'
-import type { Account } from '../data/accounts'
+import type { Transaction, Account, Category } from '../lib/finance-types'
 import { CategoryBadge } from './CategoryBadge'
 
 interface TransactionRowProps {
   transaction: Transaction
   account: Account | undefined
+  /** 全部分类数组，用于按 categoryId 查找展示名/图标/颜色。父组件负责加载并合并 expense+income。 */
+  categories: Category[]
   /** 'compact' = Home/列表中嵌入用（py 较小、gap-3）
    *  'comfortable' = 独立交易列表页（p-4、gap-4、hover 高亮） */
   variant?: 'compact' | 'comfortable'
 }
 
-function findCategory(id: string): Category | undefined {
-  return [...EXPENSE_CATEGORIES, ...INCOME_CATEGORIES].find((c) => c.id === id)
+function findCategory(categories: Category[], id: string): Category | undefined {
+  return categories.find((c) => c.id === id)
 }
 
 function formatAmount(amount: number, type: 'expense' | 'income'): string {
@@ -26,9 +26,10 @@ function formatAmount(amount: number, type: 'expense' | 'income'): string {
 export function TransactionRow({
   transaction,
   account,
+  categories,
   variant = 'compact',
 }: TransactionRowProps) {
-  const category = findCategory(transaction.categoryId)
+  const category = findCategory(categories, transaction.categoryId)
   const isComfortable = variant === 'comfortable'
 
   const containerClass = isComfortable
@@ -42,7 +43,7 @@ export function TransactionRow({
 
         <div className={isComfortable ? '' : 'flex-1 min-w-0'}>
           <p className="font-body-md text-body-md text-text-primary font-medium truncate">
-            {transaction.note}
+            {transaction.note || (category?.name ?? '')}
           </p>
           <p className="font-caption-sm text-caption-sm text-on-surface-variant truncate">
             {category?.name}

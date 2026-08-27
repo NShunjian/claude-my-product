@@ -1,5 +1,7 @@
+import { useMemo } from 'react'
 import { usePageTitle, usePageBack } from '../components/PageTitleContext'
-import { ACCOUNTS } from '../data/accounts'
+import { useAccounts } from '../lib/hooks'
+import { toAccounts } from '../lib/finance-mappers'
 import { Link } from 'react-router-dom'
 
 function formatMoney(amount: number): string {
@@ -9,7 +11,6 @@ function formatMoney(amount: number): string {
   }).format(amount)
 }
 
-// 原型色系：微信(绿)/支付宝(蓝)/储蓄卡(蓝)/信用卡(粉)/现金(棕)
 const ACCOUNT_THEME: Record<
   string,
   { iconBg: string; iconColor: string; iconName: string }
@@ -25,11 +26,17 @@ export function Accounts() {
   usePageTitle('账户管理')
   usePageBack(null)
 
-  const totalBalance = ACCOUNTS.reduce((s, a) => s + a.balance, 0)
+  const accountsQ = useAccounts()
+  const accounts = useMemo(() => (accountsQ.data ? toAccounts(accountsQ.data) : []), [accountsQ.data])
+
+  const totalBalance = accounts.reduce((s, a) => s + a.balance, 0)
+  const isLoading = accountsQ.loading
+  const isError = !isLoading && !!accountsQ.error
+  const errMsg = accountsQ.error?.message ?? null
 
   return (
     <div className="space-y-6">
-      {/* 资产净值 + 添加账户 横向卡片 */}
+      {/* 资产净值 + 添加账户 */}
       <section className="bg-bg-card rounded-xl p-6 border border-divider shadow-sm relative overflow-hidden">
         <div className="flex flex-col md:flex-row md:items-center justify-between gap-6">
           <div>
@@ -66,68 +73,81 @@ export function Accounts() {
         </div>
       </section>
 
+      {isError && (
+        <div className="bg-error-container text-on-error-container rounded-xl p-4 font-body-md text-body-md">
+          加载失败：{errMsg}
+        </div>
+      )}
+
       {/* 账户卡片网格 */}
       <section className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4 md:gap-6">
-        {ACCOUNTS.map((acc) => {
-          const theme = ACCOUNT_THEME[acc.themeKey] ?? ACCOUNT_THEME.bank
-          const isCredit = acc.themeKey === 'credit'
-          return (
-            <article
-              key={acc.id}
-              className="bg-bg-card rounded-xl p-5 border border-divider shadow-sm hover:shadow-[0_4px_12px_rgba(0,0,0,0.04)] transition-shadow group relative cursor-pointer"
-            >
-              {/* 顶部：图标 + hover more 按钮 */}
-              <div className="flex justify-between items-start mb-6">
-                <div
-                  className="w-12 h-12 rounded-full flex items-center justify-center"
-                  style={{ backgroundColor: theme.iconBg }}
-                >
-                  <span
-                    className="material-symbols-outlined text-2xl"
-                    style={{ color: theme.iconColor, fontVariationSettings: "'FILL' 1" }}
+        {isLoading ? (
+          <p className="col-span-full text-on-surface-variant font-body-md text-body-md text-center py-12">
+            加载中…
+          </p>
+        ) : accounts.length === 0 ? (
+          <p className="col-span-full text-on-surface-variant font-body-md text-body-md text-center py-12">
+            暂无账户
+          </p>
+        ) : (
+          accounts.map((acc) => {
+            const theme = ACCOUNT_THEME[acc.themeKey] ?? ACCOUNT_THEME.bank
+            const isCredit = acc.themeKey === 'credit'
+            return (
+              <article
+                key={acc.id}
+                className="bg-bg-card rounded-xl p-5 border border-divider shadow-sm hover:shadow-[0_4px_12px_rgba(0,0,0,0.04)] transition-shadow group relative cursor-pointer"
+              >
+                <div className="flex justify-between items-start mb-6">
+                  <div
+                    className="w-12 h-12 rounded-full flex items-center justify-center"
+                    style={{ backgroundColor: theme.iconBg }}
                   >
-                    {theme.iconName}
-                  </span>
-                </div>
-                <button
-                  type="button"
-                  className="text-outline hover:text-on-surface-variant transition-colors opacity-0 group-hover:opacity-100 focus:opacity-100"
-                  aria-label="更多操作"
-                >
-                  <span className="material-symbols-outlined">more_horiz</span>
-                </button>
-              </div>
-
-              {/* 信息区 */}
-              <div>
-                <h3 className="font-headline-md text-headline-md text-on-surface mb-1">
-                  {acc.name}
-                </h3>
-                <p className="font-caption-sm text-caption-sm text-on-surface-variant mb-4">
-                  {acc.subtitle}
-                </p>
-
-                {isCredit ? (
-                  /* 信用卡：余额 + 限额 */
-                  <div className="flex justify-between items-end">
-                    <p className="font-label-mono text-label-mono text-error">
-                      -¥{formatMoney(Math.abs(acc.balance))}
-                    </p>
-                    {acc.creditLimit && (
-                      <span className="font-caption-sm text-caption-sm text-outline">
-                        Limit: ¥{acc.creditLimit}
-                      </span>
-                    )}
+                    <span
+                      className="material-symbols-outlined text-2xl"
+                      style={{ color: theme.iconColor, fontVariationSettings: "'FILL' 1" }}
+                    >
+                      {theme.iconName}
+                    </span>
                   </div>
-                ) : (
-                  <p className="font-label-mono text-label-mono text-on-surface">
-                    ¥{formatMoney(acc.balance)}
+                  <button
+                    type="button"
+                    className="text-outline hover:text-on-surface-variant transition-colors opacity-0 group-hover:opacity-100 focus:opacity-100"
+                    aria-label="更多操作"
+                  >
+                    <span className="material-symbols-outlined">more_horiz</span>
+                  </button>
+                </div>
+
+                <div>
+                  <h3 className="font-headline-md text-headline-md text-on-surface mb-1">
+                    {acc.name}
+                  </h3>
+                  <p className="font-caption-sm text-caption-sm text-on-surface-variant mb-4">
+                    {acc.subtitle}
                   </p>
-                )}
-              </div>
-            </article>
-          )
-        })}
+
+                  {isCredit ? (
+                    <div className="flex justify-between items-end">
+                      <p className="font-label-mono text-label-mono text-error">
+                        -¥{formatMoney(Math.abs(acc.balance))}
+                      </p>
+                      {acc.creditLimit && (
+                        <span className="font-caption-sm text-caption-sm text-outline">
+                          Limit: ¥{acc.creditLimit}
+                        </span>
+                      )}
+                    </div>
+                  ) : (
+                    <p className="font-label-mono text-label-mono text-on-surface">
+                      ¥{formatMoney(acc.balance)}
+                    </p>
+                  )}
+                </div>
+              </article>
+            )
+          })
+        )}
       </section>
     </div>
   )

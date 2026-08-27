@@ -1,5 +1,4 @@
-import type { Transaction } from '../data/transactions'
-import type { Category } from '../data/categories'
+import type { Transaction, Category } from '../lib/finance-types'
 
 interface CategoryBreakdownProps {
   title: string

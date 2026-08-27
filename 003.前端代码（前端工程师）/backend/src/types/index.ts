@@ -3,6 +3,9 @@ export interface User {
   uuid: string
   username: string
   displayName: string | null
+  avatar: string | null
+  gender: 'male' | 'female' | 'other' | null
+  age: number | null
   createdAt: string
 }
 

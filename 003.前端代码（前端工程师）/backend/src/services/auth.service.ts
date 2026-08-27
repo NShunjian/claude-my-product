@@ -12,6 +12,9 @@ interface UserRow extends RowDataPacket {
   uuid: string
   username: string
   display_name: string | null
+  avatar: string | null
+  gender: 'male' | 'female' | 'other' | null
+  age: number | null
   created_at: Date
 }
 
@@ -20,6 +23,9 @@ const toUser = (row: UserRow): User => ({
   uuid: row.uuid,
   username: row.username,
   displayName: row.display_name,
+  avatar: row.avatar,
+  gender: row.gender,
+  age: row.age != null ? Number(row.age) : null,
   createdAt: new Date(row.created_at).toISOString(),
 })
 
@@ -85,9 +91,9 @@ export const register = async (input: RegisterInput): Promise<{ user: User; toke
     throw e
   }
 
-  // 回读完整行（保证 created_at 等由 DB 默认值填的字段拿到）
+  // 回读完整行（保证 created_at 等由 DB 默认值填的字段拿到；含 profile 字段供前端资料编辑使用）
   const [rows] = await pool.query<UserRow[]>(
-    'SELECT id, uuid, username, display_name, created_at FROM users WHERE id = ?',
+    'SELECT id, uuid, username, display_name, avatar, gender, age, created_at FROM users WHERE id = ?',
     [insertId],
   )
   const row = rows[0]
@@ -97,7 +103,7 @@ export const register = async (input: RegisterInput): Promise<{ user: User; toke
 export const login = async (input: LoginInput): Promise<{ user: User; token: string }> => {
   const pool = getPool()
   const [rows] = await pool.query<UserRow[]>(
-    'SELECT id, uuid, username, password_hash, display_name, created_at FROM users WHERE username = ? LIMIT 1',
+    'SELECT id, uuid, username, password_hash, display_name, avatar, gender, age, created_at FROM users WHERE username = ? LIMIT 1',
     [input.username],
   )
   const row = rows[0]
@@ -116,7 +122,7 @@ export const login = async (input: LoginInput): Promise<{ user: User; token: str
 export const getCurrentUser = async (uuid: string): Promise<User> => {
   const pool = getPool()
   const [rows] = await pool.query<UserRow[]>(
-    'SELECT id, uuid, username, display_name, created_at FROM users WHERE uuid = ? LIMIT 1',
+    'SELECT id, uuid, username, display_name, avatar, gender, age, created_at FROM users WHERE uuid = ? LIMIT 1',
     [uuid],
   )
   const row = rows[0]

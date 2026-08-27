@@ -1,6 +1,6 @@
 import { useMemo } from 'react'
 import { Link } from 'react-router-dom'
-import { usePageTitle } from '../components/PageTitleContext'
+import { usePageTitle, usePageBack } from '../components/PageTitleContext'
 import { TRANSACTIONS } from '../data/transactions'
 import { EXPENSE_CATEGORIES, INCOME_CATEGORIES } from '../data/categories'
 import { LineChart } from '../components/LineChart'
@@ -36,6 +36,7 @@ const MONTH_OPTIONS = [
 
 export function ReportMonthly() {
   usePageTitle('报表')
+  usePageBack(null)
 
   const filterMonth = '2026-08'
 

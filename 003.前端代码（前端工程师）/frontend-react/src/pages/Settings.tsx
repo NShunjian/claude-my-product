@@ -1,7 +1,8 @@
-import { usePageTitle } from '../components/PageTitleContext'
+import { usePageTitle, usePageBack } from '../components/PageTitleContext'
 
 export function Settings() {
   usePageTitle('设置')
+  usePageBack(null)
 
   return (
     <div className="space-y-6">

@@ -1,4 +1,4 @@
-import { usePageTitle } from '../components/PageTitleContext'
+import { usePageTitle, usePageBack } from '../components/PageTitleContext'
 import { ACCOUNTS } from '../data/accounts'
 import { Link } from 'react-router-dom'
 
@@ -23,6 +23,7 @@ const ACCOUNT_THEME: Record<
 
 export function Accounts() {
   usePageTitle('账户管理')
+  usePageBack(null)
 
   const totalBalance = ACCOUNTS.reduce((s, a) => s + a.balance, 0)
 

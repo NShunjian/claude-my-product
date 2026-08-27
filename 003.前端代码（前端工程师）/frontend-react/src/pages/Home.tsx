@@ -1,6 +1,6 @@
 import { useMemo } from 'react'
 import { Link } from 'react-router-dom'
-import { usePageTitle } from '../components/PageTitleContext'
+import { usePageTitle, usePageBack } from '../components/PageTitleContext'
 import { ACCOUNTS } from '../data/accounts'
 import { TRANSACTIONS } from '../data/transactions'
 import { EXPENSE_CATEGORIES, INCOME_CATEGORIES } from '../data/categories'
@@ -36,6 +36,7 @@ function dateLabel(iso: string, today: Date): string {
 
 export function Home() {
   usePageTitle('首页')
+  usePageBack(null)
 
   const thisMonthTxns = useMemo(() => {
     const now = new Date(2026, 7, 26) // 2026-08-26

@@ -1,6 +1,6 @@
 import { useMemo, useState } from 'react'
 import { Link } from 'react-router-dom'
-import { usePageTitle } from '../components/PageTitleContext'
+import { usePageTitle, usePageBack } from '../components/PageTitleContext'
 import { TRANSACTIONS } from '../data/transactions'
 import { EXPENSE_CATEGORIES } from '../data/categories'
 import { DonutChart, type DonutSegment } from '../components/DonutChart'
@@ -26,6 +26,7 @@ function formatMoney(amount: number): string {
 
 export function ReportYearly() {
   usePageTitle('报表')
+  usePageBack(null)
 
   const [filterYear] = useState('2026')
 

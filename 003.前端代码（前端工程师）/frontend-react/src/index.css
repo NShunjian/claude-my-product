@@ -86,6 +86,35 @@
   box-shadow: 0 4px 12px rgba(0, 0, 0, 0.04);
 }
 
+/* 原型 bento-item：浅边框 + 轻阴影 + 圆角 xl + 24px 内边距
+   注意：不设置 background-color，让 Tailwind 的 bg-* 工具类来控制背景，
+   这样 bg-bg-card / bg-primary-light / bg-expense-card 才能正确生效 */
+@layer components {
+  .bento-item {
+    border: 1px solid var(--color-divider);
+    border-radius: 0.75rem;
+    padding: 24px;
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.04);
+  }
+
+  /* KPI 卡片背景：原型 #EBF4FF / #FFF5F5，但用户希望"若隐若现"，与页面底色 #F7FAFC 近乎合一
+     用极低透明度（/35），让色块只作为颜色暗示存在 */
+  .bg-income-card {
+    background-color: rgb(235 244 255 / 0.35);
+  }
+  .bg-expense-card {
+    background-color: rgb(255 245 245 / 0.35);
+  }
+
+  /* 透明描边色（原型用 primary-container/20、tertiary/20） */
+  .border-primary-soft {
+    border-color: rgb(43 108 176 / 0.2);
+  }
+  .border-tertiary-soft {
+    border-color: rgb(167 8 25 / 0.2);
+  }
+}
+
 .material-symbols-outlined {
   font-family: "Material Symbols Outlined";
   font-weight: normal;

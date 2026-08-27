@@ -11,7 +11,9 @@ export function TopBar() {
   const showBack = !!backTo && backTo !== location.pathname
 
   return (
-    <header className="bg-bg-card sticky top-0 z-30 flex justify-between items-center h-16 px-8 max-w-full border-b border-divider">
+    <header
+      className={`sticky top-0 z-30 flex justify-between items-center h-16 px-8 max-w-full border-b bg-bg-card border-divider`}
+    >
       <div className="flex items-center gap-4 flex-1">
         {showBack && (
           <Link
@@ -26,9 +28,7 @@ export function TopBar() {
             )}
           </Link>
         )}
-        <h2 className="font-display-lg text-display-lg text-primary hidden md:block">
-          {title}
-        </h2>
+        <h2 className="font-display-lg text-display-lg text-primary hidden md:block">{title}</h2>
       </div>
 
       <div className="flex items-center gap-4">
@@ -52,7 +52,7 @@ export function TopBar() {
           <span className="material-symbols-outlined text-xl">notifications</span>
         </button>
 
-        {/* Help */}
+        {/* Help icon */}
         <button
           type="button"
           className="text-on-surface-variant hover:text-primary transition-colors opacity-80 hover:opacity-100"
@@ -60,12 +60,12 @@ export function TopBar() {
           <span className="material-symbols-outlined text-xl">help</span>
         </button>
 
-        {/* Support text */}
+        {/* Help text */}
         <button
           type="button"
           className="font-body-md text-body-md text-on-surface-variant hover:text-primary transition-colors hidden sm:block"
         >
-          支持
+          帮助
         </button>
 
         {/* Avatar */}

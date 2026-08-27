@@ -10,7 +10,7 @@ export function SidebarLayout() {
         <Sidebar />
         <main className="flex-1 ml-64 flex flex-col min-h-screen">
           <TopBar />
-          <div className="p-8 max-w-5xl mx-auto w-full">
+          <div className="p-8 w-full">
             <Outlet />
           </div>
         </main>

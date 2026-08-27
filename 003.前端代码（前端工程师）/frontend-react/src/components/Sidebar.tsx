@@ -30,13 +30,21 @@ export function Sidebar() {
       className="h-screen w-64 fixed left-0 top-0 bg-surface border-r border-divider flex flex-col p-4 z-40"
     >
       {/* Brand */}
-      <div className="mb-8 px-4 mt-2">
-        <h1 className="font-display-lg text-display-lg font-bold text-primary leading-none">
-          轻账
-        </h1>
-        <p className="font-caption-sm text-caption-sm text-on-surface-variant mt-1">
-          让财务更清晰
-        </p>
+      <div className="mb-8 px-4 mt-2 flex items-center gap-2">
+        <span
+          className="material-symbols-outlined text-primary"
+          style={{ fontSize: '32px', fontVariationSettings: "'FILL' 1" }}
+        >
+          account_balance
+        </span>
+        <div>
+          <h1 className="font-display-lg text-display-lg font-bold text-primary leading-none">
+            轻账
+          </h1>
+          <p className="font-caption-sm text-caption-sm text-on-surface-variant mt-1">
+            Financial Clarity
+          </p>
+        </div>
       </div>
 
       {/* Nav Items */}
@@ -100,7 +108,7 @@ export function Sidebar() {
         <span className="material-symbols-outlined" style={{ fontSize: '24px' }}>
           logout
         </span>
-        <span className="font-body-md text-body-md">退出登录</span>
+        <span className="font-body-md text-body-md">退出</span>
       </button>
     </nav>
   )

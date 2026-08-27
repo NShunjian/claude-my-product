@@ -1,4 +1,5 @@
-import { useMemo, useState } from 'react'
+import { useMemo } from 'react'
+import { Link } from 'react-router-dom'
 import { usePageTitle } from '../components/PageTitleContext'
 import { TRANSACTIONS } from '../data/transactions'
 import { EXPENSE_CATEGORIES, INCOME_CATEGORIES } from '../data/categories'
@@ -36,8 +37,7 @@ const MONTH_OPTIONS = [
 export function ReportMonthly() {
   usePageTitle('报表')
 
-  const [period, setPeriod] = useState<'month' | 'year'>('month')
-  const [filterMonth] = useState('2026-08')
+  const filterMonth = '2026-08'
 
   // 当前月交易
   const monthTxns = useMemo(
@@ -162,28 +162,20 @@ export function ReportMonthly() {
 
           {/* 按月/按年 切换（白底容器 + 白卡高亮） */}
           <div className="flex items-center p-1 rounded-xl bg-surface-container border border-transparent">
-            <button
-              type="button"
-              onClick={() => setPeriod('month')}
+            <Link
+              to="/reports/monthly"
               className={`px-5 py-1.5 font-body-md text-body-md font-medium rounded-lg transition-colors ${
-                period === 'month'
-                  ? 'bg-bg-card text-primary shadow-sm'
-                  : 'text-on-surface-variant hover:text-primary'
+                'bg-bg-card text-primary shadow-sm'
               }`}
             >
               按月
-            </button>
-            <button
-              type="button"
-              onClick={() => setPeriod('year')}
-              className={`px-5 py-1.5 font-body-md text-body-md font-medium rounded-lg transition-colors ${
-                period === 'year'
-                  ? 'bg-bg-card text-primary shadow-sm'
-                  : 'text-on-surface-variant hover:text-primary'
-              }`}
+            </Link>
+            <Link
+              to="/reports/yearly"
+              className={`px-5 py-1.5 font-body-md text-body-md font-medium rounded-lg transition-colors text-on-surface-variant hover:text-primary`}
             >
               按年
-            </button>
+            </Link>
           </div>
         </div>
       </div>

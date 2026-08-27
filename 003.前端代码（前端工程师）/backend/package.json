@@ -9,7 +9,10 @@
     "build": "tsc -p tsconfig.json",
     "start": "node --env-file=.env dist/index.js",
     "test": "vitest run",
-    "test:watch": "vitest"
+    "test:watch": "vitest",
+    "db:init": "tsx --env-file=.env src/scripts/init.ts",
+    "db:schema": "tsx --env-file=.env src/scripts/schema.ts",
+    "db:seed": "tsx --env-file=.env src/scripts/seed.ts"
   },
   "dependencies": {
     "bcrypt": "^5.1.1",

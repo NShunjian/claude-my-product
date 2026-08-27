@@ -15,6 +15,11 @@ const REPORT_PALETTE: Record<string, string> = {
   medical: '#10b981',
   education: '#eab308',
   comm: '#94a3b8',
+  salary: '#10b981',
+  parttime: '#3b82f6',
+  investment: '#06b6d4',
+  redpacket: '#ec4899',
+  other: '#94a3b8',
 }
 
 function formatMoney(amount: number): string {

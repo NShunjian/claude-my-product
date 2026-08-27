@@ -23,10 +23,10 @@ const REPORT_PALETTE: Record<string, string> = {
   medical: '#10b981', // 医疗 - 绿
   education: '#eab308', // 教育 - 黄
   comm: '#94a3b8', // 通讯 - 灰
-  salary: '#005394',
-  bonus: '#8b5cf6',
-  investment: '#06b6d4',
-  transfer: '#3b82f6',
+  salary: '#10b981', // 工资 - 绿
+  parttime: '#3b82f6', // 兼职 - 蓝
+  investment: '#06b6d4', // 理财 - 青
+  redpacket: '#ec4899', // 红包 - 粉
   other: '#94a3b8',
 }
 

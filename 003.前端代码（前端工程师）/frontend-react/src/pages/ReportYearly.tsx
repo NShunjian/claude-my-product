@@ -100,10 +100,9 @@ export function ReportYearly() {
       {/* 标题 + 年份选择 + 月报/年报 切换 */}
       <div className="flex flex-wrap items-center justify-between gap-4">
         <div>
-          <h2 className="font-headline-md text-headline-md text-text-primary leading-none mb-1.5">
+          <h2 className="font-headline-md text-headline-md text-text-primary leading-none">
             年度统计
           </h2>
-          <p className="font-body-md text-body-md text-on-surface-variant">{filterYear} 年</p>
         </div>
         <div className="flex items-center gap-3">
           {/* 年份选择器（白底 + 浅边框） */}

@@ -3,6 +3,11 @@ import helmet from 'helmet'
 import cors from 'cors'
 import { env } from './config/env.js'
 import { authRouter } from './routes/auth.routes.js'
+import { categoriesRouter } from './routes/categories.routes.js'
+import { accountsRouter } from './routes/accounts.routes.js'
+import { recordsRouter } from './routes/records.routes.js'
+import { reportsRouter } from './routes/reports.routes.js'
+import { usersRouter } from './routes/users.routes.js'
 import { errorHandler } from './middleware/error.js'
 import { notFoundHandler } from './middleware/not-found.js'
 
@@ -14,6 +19,11 @@ export const createApp = (): Application => {
 
   app.get('/health', (_req, res) => res.json({ ok: true }))
   app.use('/api/auth', authRouter)
+  app.use('/api/categories', categoriesRouter)
+  app.use('/api/accounts', accountsRouter)
+  app.use('/api/records', recordsRouter)
+  app.use('/api/reports', reportsRouter)
+  app.use('/api/users', usersRouter)
 
   app.use(notFoundHandler)
   app.use(errorHandler)

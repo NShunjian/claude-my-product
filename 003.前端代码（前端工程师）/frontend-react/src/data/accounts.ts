@@ -1,56 +1,50 @@
 export interface Account {
   id: string
   name: string
-  type: 'Digital Wallet' | 'Bank' | 'Credit Card' | 'Cash'
-  balance: number // negative for credit card debt
-  icon: string
-  colorToken: 'cat-teal' | 'cat-blue' | 'primary' | 'error' | 'cat-brown'
-  trailingNote?: string // e.g. "**** 8842" or "Limit: ¥50k"
+  /** 卡片副标题：英文账户类型 / 卡号 **** 8842 */
+  subtitle: string
+  /** 主题 key：决定 icon 背景色 + icon 颜色 + icon 名（与原型对应） */
+  themeKey: 'wechat' | 'alipay' | 'bank' | 'credit' | 'cash'
+  balance: number // 负数 = 信用卡欠款
+  /** 仅信用卡：显示额度 Limit: ¥50k */
+  creditLimit?: string
 }
 
 export const ACCOUNTS: Account[] = [
   {
-    id: 'wxpay',
+    id: 'wechat',
     name: '微信支付',
-    type: 'Digital Wallet',
-    balance: 3256.8,
-    icon: 'account_balance_wallet',
-    colorToken: 'cat-teal',
-    trailingNote: '**** 7621',
+    subtitle: 'Digital Wallet',
+    themeKey: 'wechat',
+    balance: 4250.0,
   },
   {
     id: 'alipay',
     name: '支付宝',
-    type: 'Digital Wallet',
-    balance: 15840.5,
-    icon: 'account_balance_wallet',
-    colorToken: 'cat-blue',
-    trailingNote: '**** 3892',
+    subtitle: 'Digital Wallet',
+    themeKey: 'alipay',
+    balance: 12400.0,
   },
   {
-    id: 'cmb',
-    name: '招商银行',
-    type: 'Bank',
-    balance: 42890.32,
-    icon: 'account_balance',
-    colorToken: 'primary',
-    trailingNote: '**** 8842',
+    id: 'icbc',
+    name: '工商银行储蓄卡',
+    subtitle: '**** 8842',
+    themeKey: 'bank',
+    balance: 125000.0,
   },
   {
-    id: 'ccb',
-    name: '建设银行',
-    type: 'Credit Card',
-    balance: -8250.0,
-    icon: 'credit_card',
-    colorToken: 'error',
-    trailingNote: 'Limit: ¥50k',
+    id: 'cmb-credit',
+    name: '招行信用卡',
+    subtitle: '**** 4291',
+    themeKey: 'credit',
+    balance: -3200.0,
+    creditLimit: '50k',
   },
   {
     id: 'cash',
     name: '现金',
-    type: 'Cash',
-    balance: 1200.0,
-    icon: 'payments',
-    colorToken: 'cat-brown',
+    subtitle: 'Physical Currency',
+    themeKey: 'cash',
+    balance: 4400.0,
   },
 ]

@@ -9,19 +9,16 @@ function formatMoney(amount: number): string {
   }).format(amount)
 }
 
-const COLOR_MAP: Record<string, string> = {
-  'cat-teal': '#319795',
-  'cat-blue': '#4299E1',
-  primary: '#005394',
-  error: '#ba1a1a',
-  'cat-brown': '#8B6E4E',
-}
-
-const TYPE_ICON: Record<string, string> = {
-  'Digital Wallet': 'account_balance_wallet',
-  Bank: 'account_balance',
-  'Credit Card': 'credit_card',
-  Cash: 'payments',
+// 原型色系：微信(绿)/支付宝(蓝)/储蓄卡(蓝)/信用卡(粉)/现金(棕)
+const ACCOUNT_THEME: Record<
+  string,
+  { iconBg: string; iconColor: string; iconName: string }
+> = {
+  wechat: { iconBg: '#E5F5E9', iconColor: '#09B83E', iconName: 'chat_bubble' },
+  alipay: { iconBg: '#E3F2FD', iconColor: '#1677FF', iconName: 'payments' },
+  bank: { iconBg: '#e5eeff', iconColor: '#005394', iconName: 'account_balance' },
+  credit: { iconBg: 'rgb(167 8 25 / 0.12)', iconColor: '#ba1a1a', iconName: 'credit_card' },
+  cash: { iconBg: '#dce9ff', iconColor: '#8B6E4E', iconName: 'local_atm' },
 }
 
 export function Accounts() {
@@ -31,83 +28,106 @@ export function Accounts() {
 
   return (
     <div className="space-y-6">
-      {/* Header */}
-      <div className="flex justify-between items-end">
-        <div>
-          <h2 className="font-display-lg text-display-lg text-text-primary mb-1">账户管理</h2>
-          <p className="font-caption-sm text-caption-sm text-on-surface-variant">
-            共 {ACCOUNTS.length} 个账户
-          </p>
-        </div>
-        <Link
-          to="/accounts/new"
-          className="flex items-center gap-2 bg-primary text-on-primary font-headline-md text-headline-md px-4 py-2 rounded-lg hover:bg-primary-container transition-colors"
-        >
-          <span className="material-symbols-outlined text-lg" style={{ fontVariationSettings: "'FILL' 1" }}>
-            add
-          </span>
-          添加账户
-        </Link>
-      </div>
-
-      {/* Total balance */}
-      <div className="bg-bg-card rounded-xl border border-divider p-6 shadow-sm">
-        <p className="font-caption-sm text-caption-sm text-on-surface-variant mb-1">总资产</p>
-        <p className="font-label-mono text-label-mono text-text-primary mb-2">
-          ¥{formatMoney(totalBalance)}
-        </p>
-        <p className="font-caption-sm text-caption-sm text-on-surface-variant">
-          净资产（不含信用卡）¥{formatMoney(ACCOUNTS.filter((a) => a.balance >= 0).reduce((s, a) => s + a.balance, 0))}
-        </p>
-      </div>
-
-      {/* Account list */}
-      <div className="bg-bg-card rounded-xl border border-divider overflow-hidden shadow-sm">
-        {ACCOUNTS.map((acc, i) => {
-          const color = COLOR_MAP[acc.colorToken] ?? '#727782'
-          const icon = TYPE_ICON[acc.type] ?? 'account_balance_wallet'
-          const isLast = i === ACCOUNTS.length - 1
-
-          return (
-            <div
-              key={acc.id}
-              className={`flex items-center gap-4 p-4 ${!isLast ? 'border-b border-divider' : ''}`}
-            >
-              <div
-                className="w-12 h-12 rounded-full flex items-center justify-center shrink-0"
-                style={{ backgroundColor: color, opacity: 0.15 }}
-              >
+      {/* 资产净值 + 添加账户 横向卡片 */}
+      <section className="bg-bg-card rounded-xl p-6 border border-divider shadow-sm relative overflow-hidden">
+        <div className="flex flex-col md:flex-row md:items-center justify-between gap-6">
+          <div>
+            <p className="font-caption-sm text-caption-sm text-on-surface-variant mb-1 uppercase tracking-wider">
+              资产净值
+            </p>
+            <div className="flex items-baseline gap-2">
+              <span className="font-display-lg text-display-lg font-bold text-text-primary">
+                ¥{formatMoney(totalBalance)}
+              </span>
+              <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full font-caption-sm text-caption-sm text-secondary bg-secondary-container/40">
                 <span
-                  className="material-symbols-outlined text-xl"
-                  style={{ color, fontVariationSettings: "'FILL' 1" }}
+                  className="material-symbols-outlined"
+                  style={{ fontSize: '14px', fontVariationSettings: "'FILL' 1" }}
                 >
-                  {icon}
+                  trending_up
                 </span>
-              </div>
-
-              <div className="flex-1 min-w-0">
-                <p className="font-body-md text-body-md text-text-primary font-semibold">
-                  {acc.name}
-                </p>
-                <p className="font-caption-sm text-caption-sm text-on-surface-variant">
-                  {acc.type}
-                  {acc.trailingNote && (
-                    <span className="ml-2 text-outline">{acc.trailingNote}</span>
-                  )}
-                </p>
-              </div>
-
-              <p
-                className={`font-label-mono text-label-mono shrink-0 ${
-                  acc.balance < 0 ? 'text-error' : 'text-text-primary'
-                }`}
-              >
-                {acc.balance < 0 ? '-' : ''}¥{formatMoney(Math.abs(acc.balance))}
-              </p>
+                +2.4%
+              </span>
             </div>
+          </div>
+          <Link
+            to="/accounts/new"
+            className="flex items-center justify-center gap-2 bg-primary text-on-primary font-headline-md text-headline-md py-2.5 px-6 rounded-lg shadow-[0_2px_8px_rgba(0,83,148,0.2)] hover:bg-primary-container transition-all active:scale-95 w-full md:w-auto"
+          >
+            <span
+              className="material-symbols-outlined"
+              style={{ fontVariationSettings: "'FILL' 1" }}
+            >
+              add_circle
+            </span>
+            添加账户
+          </Link>
+        </div>
+      </section>
+
+      {/* 账户卡片网格 */}
+      <section className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4 md:gap-6">
+        {ACCOUNTS.map((acc) => {
+          const theme = ACCOUNT_THEME[acc.themeKey] ?? ACCOUNT_THEME.bank
+          const isCredit = acc.themeKey === 'credit'
+          return (
+            <article
+              key={acc.id}
+              className="bg-bg-card rounded-xl p-5 border border-divider shadow-sm hover:shadow-[0_4px_12px_rgba(0,0,0,0.04)] transition-shadow group relative cursor-pointer"
+            >
+              {/* 顶部：图标 + hover more 按钮 */}
+              <div className="flex justify-between items-start mb-6">
+                <div
+                  className="w-12 h-12 rounded-full flex items-center justify-center"
+                  style={{ backgroundColor: theme.iconBg }}
+                >
+                  <span
+                    className="material-symbols-outlined text-2xl"
+                    style={{ color: theme.iconColor, fontVariationSettings: "'FILL' 1" }}
+                  >
+                    {theme.iconName}
+                  </span>
+                </div>
+                <button
+                  type="button"
+                  className="text-outline hover:text-on-surface-variant transition-colors opacity-0 group-hover:opacity-100 focus:opacity-100"
+                  aria-label="更多操作"
+                >
+                  <span className="material-symbols-outlined">more_horiz</span>
+                </button>
+              </div>
+
+              {/* 信息区 */}
+              <div>
+                <h3 className="font-headline-md text-headline-md text-on-surface mb-1">
+                  {acc.name}
+                </h3>
+                <p className="font-caption-sm text-caption-sm text-on-surface-variant mb-4">
+                  {acc.subtitle}
+                </p>
+
+                {isCredit ? (
+                  /* 信用卡：余额 + 限额 */
+                  <div className="flex justify-between items-end">
+                    <p className="font-label-mono text-label-mono text-error">
+                      -¥{formatMoney(Math.abs(acc.balance))}
+                    </p>
+                    {acc.creditLimit && (
+                      <span className="font-caption-sm text-caption-sm text-outline">
+                        Limit: ¥{acc.creditLimit}
+                      </span>
+                    )}
+                  </div>
+                ) : (
+                  <p className="font-label-mono text-label-mono text-on-surface">
+                    ¥{formatMoney(acc.balance)}
+                  </p>
+                )}
+              </div>
+            </article>
           )
         })}
-      </div>
+      </section>
     </div>
   )
 }

@@ -30,7 +30,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     }
     setToken(saved)
     authApi
-      .me(saved)
+      .me()
       .then((res) => {
         setUser(res.user)
       })

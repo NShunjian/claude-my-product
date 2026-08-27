@@ -12,7 +12,7 @@ export interface AccountPresentation {
   /** 卡片副标题：英文类型 / 卡号占位 */
   subtitle: string
   themeKey: ThemeKey
-  /** 仅信用卡：显示额度（mock 占位，真实场景需用户输入） */
+  /** 仅信用卡：显示额度（暂无用户输入字段，使用占位） */
   creditLimit?: string
 }
 

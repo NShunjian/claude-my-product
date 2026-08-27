@@ -116,8 +116,18 @@ export function ReportMonthly() {
     color: REPORT_PALETTE[cat.id] ?? '#94a3b8',
   }))
 
+  // 收入环形图：取全部收入分类（一般 4-5 个）
+  const incomeDonutSegments: DonutSegment[] = incomeByCategory.map((cat) => ({
+    label: cat.name,
+    value: cat.total,
+    color: REPORT_PALETTE[cat.id] ?? '#94a3b8',
+  }))
+
   // 支出排行：原型展示前 3
   const ranking = expenseByCategory.slice(0, 3)
+
+  // 收入排行：原型展示前 3
+  const incomeRanking = incomeByCategory.slice(0, 3)
 
   const currentMonthDisplay = MONTH_OPTIONS.find((m) => m.value === filterMonth)?.display ?? 'November 2023'
 
@@ -265,11 +275,11 @@ export function ReportMonthly() {
 
       {/* 折线图（col-span-8）+ 环形图（col-span-4） */}
       <div className="grid grid-cols-1 md:grid-cols-12 gap-6">
-        {/* 每日收支趋势 */}
-        <div className="bento-item bg-bg-card md:col-span-8 min-h-[300px] flex flex-col">
+        {/* 每日收支趋势（占满 12 列） */}
+        <div className="bento-item bg-bg-card md:col-span-12 min-h-[300px] flex flex-col">
           <div className="flex justify-between items-center mb-4">
             <h3 className="font-headline-md text-headline-md text-text-primary">每日收支趋势</h3>
-            <div className="flex items-center gap-4">
+            <div className="flex items-center gap-4" style={{ paddingRight: '2.5%' }}>
               <div className="flex items-center gap-1.5">
                 <span className="w-2.5 h-2.5 rounded-full bg-primary" />
                 <span className="font-caption-sm text-caption-sm text-on-surface-variant">
@@ -286,8 +296,80 @@ export function ReportMonthly() {
           </div>
           <LineChart data={dailyData} />
         </div>
+      </div>
 
-        {/* 支出占比（col-span-4，居中展示环形图） */}
+      {/* 收入占比（col-span-4）+ 收入排行（col-span-8） */}
+      <div className="grid grid-cols-1 md:grid-cols-12 gap-6">
+        {/* 收入占比 */}
+        <div className="bento-item bg-bg-card md:col-span-4 min-h-[300px] flex flex-col">
+          <h3 className="font-headline-md text-headline-md text-text-primary mb-6">收入占比</h3>
+          {incomeDonutSegments.length === 0 ? (
+            <p className="text-on-surface-variant text-center py-12">暂无收入记录</p>
+          ) : (
+            <div className="flex-1 relative flex items-center justify-center">
+              <DonutChart
+                segments={incomeDonutSegments}
+                totalValue={`$${Math.round(totalIncome).toLocaleString('en-US')}`}
+              />
+            </div>
+          )}
+        </div>
+
+        {/* 收入排行 */}
+        <div className="bento-item bg-bg-card md:col-span-8 p-6 flex flex-col">
+          <h3 className="font-headline-md text-headline-md text-text-primary mb-4">收入排行</h3>
+          {incomeRanking.length === 0 ? (
+            <p className="text-on-surface-variant text-center py-8">暂无收入记录</p>
+          ) : (
+            <div className="space-y-5 flex-1">
+              {incomeRanking.map((cat) => {
+                const color = REPORT_PALETTE[cat.id] ?? '#94a3b8'
+                const pct = totalIncome > 0 ? (cat.total / totalIncome) * 100 : 0
+                return (
+                  <div key={cat.id}>
+                    <div className="flex justify-between items-center mb-2">
+                      <div className="flex items-center gap-2">
+                        <span
+                          className="w-8 h-8 rounded-full flex items-center justify-center"
+                          style={{ backgroundColor: `${color}26` }}
+                        >
+                          <span
+                            className="material-symbols-outlined"
+                            style={{ fontSize: '16px', color, fontVariationSettings: "'FILL' 1" }}
+                          >
+                            {cat.icon}
+                          </span>
+                        </span>
+                        <span className="font-body-md text-body-md text-text-primary font-medium">
+                          {cat.name}
+                        </span>
+                      </div>
+                      <div className="text-right">
+                        <p className="font-body-md text-body-md text-text-primary font-semibold">
+                          ${formatMoney(cat.total)}
+                        </p>
+                        <p className="font-caption-sm text-caption-sm text-on-surface-variant">
+                          {pct.toFixed(0)}%
+                        </p>
+                      </div>
+                    </div>
+                    <div className="h-2 bg-surface-container rounded-full overflow-hidden">
+                      <div
+                        className="h-full rounded-full transition-all"
+                        style={{ width: `${pct}%`, backgroundColor: color }}
+                      />
+                    </div>
+                  </div>
+                )
+              })}
+            </div>
+          )}
+        </div>
+      </div>
+
+      {/* 支出占比（col-span-4）+ 支出排行（col-span-8） */}
+      <div className="grid grid-cols-1 md:grid-cols-12 gap-6">
+        {/* 支出占比 */}
         <div className="bento-item bg-bg-card md:col-span-4 min-h-[300px] flex flex-col">
           <h3 className="font-headline-md text-headline-md text-text-primary mb-6">支出占比</h3>
           {donutSegments.length === 0 ? (
@@ -301,57 +383,57 @@ export function ReportMonthly() {
             </div>
           )}
         </div>
-      </div>
 
-      {/* 支出排行（无卡片包裹） */}
-      <div>
-        <h3 className="font-headline-md text-headline-md text-text-primary mb-4">支出排行</h3>
-        {ranking.length === 0 ? (
-          <p className="text-on-surface-variant text-center py-8">暂无支出记录</p>
-        ) : (
-          <div className="space-y-5">
-            {ranking.map((cat) => {
-              const color = REPORT_PALETTE[cat.id] ?? '#94a3b8'
-              const pct = totalExpense > 0 ? (cat.total / totalExpense) * 100 : 0
-              return (
-                <div key={cat.id}>
-                  <div className="flex justify-between items-center mb-2">
-                    <div className="flex items-center gap-2">
-                      <span
-                        className="w-8 h-8 rounded-full flex items-center justify-center"
-                        style={{ backgroundColor: `${color}26` }}
-                      >
+        {/* 支出排行 */}
+        <div className="bento-item bg-bg-card md:col-span-8 p-6 flex flex-col">
+          <h3 className="font-headline-md text-headline-md text-text-primary mb-4">支出排行</h3>
+          {ranking.length === 0 ? (
+            <p className="text-on-surface-variant text-center py-8">暂无支出记录</p>
+          ) : (
+            <div className="space-y-5 flex-1">
+              {ranking.map((cat) => {
+                const color = REPORT_PALETTE[cat.id] ?? '#94a3b8'
+                const pct = totalExpense > 0 ? (cat.total / totalExpense) * 100 : 0
+                return (
+                  <div key={cat.id}>
+                    <div className="flex justify-between items-center mb-2">
+                      <div className="flex items-center gap-2">
                         <span
-                          className="material-symbols-outlined"
-                          style={{ fontSize: '16px', color, fontVariationSettings: "'FILL' 1" }}
+                          className="w-8 h-8 rounded-full flex items-center justify-center"
+                          style={{ backgroundColor: `${color}26` }}
                         >
-                          {cat.icon}
+                          <span
+                            className="material-symbols-outlined"
+                            style={{ fontSize: '16px', color, fontVariationSettings: "'FILL' 1" }}
+                          >
+                            {cat.icon}
+                          </span>
                         </span>
-                      </span>
-                      <span className="font-body-md text-body-md text-text-primary font-medium">
-                        {cat.name}
-                      </span>
+                        <span className="font-body-md text-body-md text-text-primary font-medium">
+                          {cat.name}
+                        </span>
+                      </div>
+                      <div className="text-right">
+                        <p className="font-body-md text-body-md text-text-primary font-semibold">
+                          ${formatMoney(cat.total)}
+                        </p>
+                        <p className="font-caption-sm text-caption-sm text-on-surface-variant">
+                          {pct.toFixed(0)}%
+                        </p>
+                      </div>
                     </div>
-                    <div className="text-right">
-                      <p className="font-body-md text-body-md text-text-primary font-semibold">
-                        ${formatMoney(cat.total)}
-                      </p>
-                      <p className="font-caption-sm text-caption-sm text-on-surface-variant">
-                        {pct.toFixed(0)}%
-                      </p>
+                    <div className="h-2 bg-surface-container rounded-full overflow-hidden">
+                      <div
+                        className="h-full rounded-full transition-all"
+                        style={{ width: `${pct}%`, backgroundColor: color }}
+                      />
                     </div>
                   </div>
-                  <div className="h-2 bg-surface-container rounded-full overflow-hidden">
-                    <div
-                      className="h-full rounded-full transition-all"
-                      style={{ width: `${pct}%`, backgroundColor: color }}
-                    />
-                  </div>
-                </div>
-              )
-            })}
-          </div>
-        )}
+                )
+              })}
+            </div>
+          )}
+        </div>
       </div>
     </div>
   )

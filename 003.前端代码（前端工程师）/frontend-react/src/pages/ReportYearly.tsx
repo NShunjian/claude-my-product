@@ -1,86 +1,57 @@
 import { useMemo, useState } from 'react'
 import { Link } from 'react-router-dom'
 import { usePageTitle, usePageBack } from '../components/PageTitleContext'
-import { TRANSACTIONS } from '../data/transactions'
-import { EXPENSE_CATEGORIES } from '../data/categories'
 import { DonutChart, type DonutSegment } from '../components/DonutChart'
-
-// 年报专用配色（与原型一致）
-const REPORT_PALETTE: Record<string, string> = {
-  housing: '#3b82f6',
-  food: '#f97316',
-  transport: '#8b5cf6',
-  shopping: '#ec4899',
-  entertainment: '#06b6d4',
-  medical: '#10b981',
-  education: '#eab308',
-  comm: '#94a3b8',
-  salary: '#10b981',
-  parttime: '#3b82f6',
-  investment: '#06b6d4',
-  redpacket: '#ec4899',
-  other: '#94a3b8',
-}
+import { useYearlyReport } from '../lib/hooks'
+import { getCategoryPresentationById } from '../lib/category-presentation'
+import type { CategoryTotal, MonthlyPoint, YearlyReport } from '../api/reports'
 
 function formatMoney(amount: number): string {
-  return new Intl.NumberFormat('en-US', {
-    minimumFractionDigits: 0,
+  return new Intl.NumberFormat('zh-CN', {
+    minimumFractionDigits: 2,
     maximumFractionDigits: 2,
   }).format(Math.abs(amount))
+}
+
+/** 把后端 MonthlyPoint 数组补齐到 12 个月 */
+function fillMonthlyData(report: YearlyReport): MonthlyPoint[] {
+  const byMonth = new Map(report.monthlyData.map((d) => [d.month, d]))
+  return Array.from({ length: 12 }, (_, i) => {
+    const month = i + 1
+    return byMonth.get(month) ?? { month, income: 0, expense: 0 }
+  })
+}
+
+function currentYear(): number {
+  return new Date().getFullYear()
 }
 
 export function ReportYearly() {
   usePageTitle('报表')
   usePageBack(null)
 
-  const [filterYear] = useState('2026')
+  const [filterYear, setFilterYear] = useState<number>(currentYear())
+  const reportQ = useYearlyReport(filterYear)
+  const report = reportQ.data
 
-  // 全年交易
-  const yearlyTxns = useMemo(
-    () => TRANSACTIONS.filter((t) => t.date.startsWith(filterYear)),
-    [filterYear],
-  )
+  const monthlyData = useMemo(() => (report ? fillMonthlyData(report) : []), [report])
 
-  const totalIncome = useMemo(
-    () => yearlyTxns.filter((t) => t.type === 'income').reduce((s, t) => s + t.amount, 0),
-    [yearlyTxns],
-  )
-  const totalExpense = useMemo(
-    () => yearlyTxns.filter((t) => t.type === 'expense').reduce((s, t) => s + t.amount, 0),
-    [yearlyTxns],
-  )
-  const netSavings = totalIncome - totalExpense
+  const totalIncome = report?.totalIncome ?? 0
+  const totalExpense = report?.totalExpense ?? 0
+  const netSavings = report?.netSavings ?? 0
 
-  // 12 个月度收支数据（柱状图）
-  const monthlyData = useMemo(() => {
-    return Array.from({ length: 12 }, (_, i) => {
-      const m = String(i + 1).padStart(2, '0')
-      const monthTxns = yearlyTxns.filter((t) => t.date.slice(5, 7) === m)
-      const income = monthTxns.filter((t) => t.type === 'income').reduce((s, t) => s + t.amount, 0)
-      const expense = monthTxns.filter((t) => t.type === 'expense').reduce((s, t) => s + t.amount, 0)
-      return { month: i + 1, income, expense }
-    })
-  }, [yearlyTxns])
-
-  // Y 轴上限：取最大值向上取整到 5000 的倍数
   const yAxisMax = useMemo(() => {
     const raw = Math.max(...monthlyData.map((d) => Math.max(d.income, d.expense)), 0)
     return Math.ceil(raw / 5000) * 5000 || 10000
   }, [monthlyData])
 
-  // 支出构成（按分类汇总，按总额降序）
   const expenseByCategory = useMemo(() => {
-    return EXPENSE_CATEGORIES.map((cat) => ({
-      ...cat,
-      total: yearlyTxns
-        .filter((t) => t.type === 'expense' && t.categoryId === cat.id)
-        .reduce((s, t) => s + t.amount, 0),
-    }))
-      .filter((c) => c.total > 0)
-      .sort((a, b) => b.total - a.total)
-  }, [yearlyTxns])
+    if (!report) return []
+    return report.expenseByCategory.slice().sort((a, b) => b.total - a.total)
+  }, [report])
 
-  // 环形图：取前 5 大支出分类（剩余归为"其他"以填充完整环）
+  const topCategories = expenseByCategory.slice(0, 2)
+
   const donutSegments: DonutSegment[] = useMemo(() => {
     const top = expenseByCategory.slice(0, 5)
     const topTotal = top.reduce((s, x) => s + x.total, 0)
@@ -88,7 +59,7 @@ export function ReportYearly() {
     const segs: DonutSegment[] = top.map((cat) => ({
       label: cat.name,
       value: cat.total,
-      color: REPORT_PALETTE[cat.id] ?? '#94a3b8',
+      color: getCategoryPresentationById(cat.categoryId).colorHex,
     }))
     if (rest > 0) {
       segs.push({ label: '其他', value: rest, color: '#E2E8F0' })
@@ -96,10 +67,40 @@ export function ReportYearly() {
     return segs
   }, [expenseByCategory, totalExpense])
 
-  // 环形图下方分类列表（按原型展示前 2 项）
-  const topCategories = expenseByCategory.slice(0, 2)
-
   const monthLabels = ['1月', '2月', '3月', '4月', '5月', '6月', '7月', '8月', '9月', '10月', '11月', '12月']
+
+  const isLoading = reportQ.loading
+  const isError = !isLoading && !!reportQ.error
+  const errMsg = reportQ.error?.message ?? null
+
+  function renderCategoryRow(cat: CategoryTotal) {
+    const pres = getCategoryPresentationById(cat.categoryId)
+    const pct = totalExpense > 0 ? (cat.total / totalExpense) * 100 : 0
+    return (
+      <div key={cat.categoryId} className="flex items-center gap-3">
+        <span
+          className="w-9 h-9 rounded-full flex items-center justify-center"
+          style={{ backgroundColor: `${pres.colorHex}26` }}
+        >
+          <span
+            className="material-symbols-outlined"
+            style={{ fontSize: '18px', color: pres.colorHex, fontVariationSettings: "'FILL' 1" }}
+          >
+            {pres.icon}
+          </span>
+        </span>
+        <div className="flex-1">
+          <p className="font-body-md text-body-md text-text-primary font-medium">{cat.name}</p>
+          <p className="font-caption-sm text-caption-sm text-on-surface-variant">
+            {pct.toFixed(0)}%
+          </p>
+        </div>
+        <p className="font-body-md text-body-md text-text-primary font-semibold">
+          ¥{formatMoney(cat.total)}
+        </p>
+      </div>
+    )
+  }
 
   return (
     <div className="space-y-6">
@@ -112,10 +113,11 @@ export function ReportYearly() {
           <p className="font-body-md text-body-md text-on-surface-variant">{filterYear} 年</p>
         </div>
         <div className="flex items-center gap-3">
-          {/* 年份选择器（白底 + 浅边框） */}
           <div className="flex items-center gap-2 px-4 py-2 rounded-xl bg-bg-card border border-divider">
             <button
               type="button"
+              onClick={() => setFilterYear((y) => y - 1)}
+              aria-label="上一年"
               className="text-on-surface-variant hover:text-primary transition-colors"
             >
               <span className="material-symbols-outlined" style={{ fontSize: '20px' }}>
@@ -133,6 +135,8 @@ export function ReportYearly() {
             </span>
             <button
               type="button"
+              onClick={() => setFilterYear((y) => y + 1)}
+              aria-label="下一年"
               className="text-on-surface-variant hover:text-primary transition-colors"
             >
               <span className="material-symbols-outlined" style={{ fontSize: '20px' }}>
@@ -141,7 +145,6 @@ export function ReportYearly() {
             </button>
           </div>
 
-          {/* 月报/年报 切换（白底容器 + 白卡高亮） */}
           <div className="flex items-center p-1 rounded-xl bg-surface-container border border-transparent">
             <Link
               to="/reports/monthly"
@@ -159,9 +162,14 @@ export function ReportYearly() {
         </div>
       </div>
 
-      {/* 3 个 KPI 卡片（年度结余 / 年度总收入 / 年度总支出） */}
+      {isError && (
+        <div className="bg-error-container text-on-error-container rounded-xl p-4 font-body-md text-body-md">
+          加载失败：{errMsg}
+        </div>
+      )}
+
+      {/* 3 个 KPI 卡片 */}
       <div className="grid grid-cols-1 md:grid-cols-12 gap-6">
-        {/* 年度结余 */}
         <div className="bento-item bg-bg-card md:col-span-4 flex flex-col gap-3">
           <div className="flex items-center gap-2 text-on-surface-variant">
             <span
@@ -182,11 +190,10 @@ export function ReportYearly() {
               netSavings >= 0 ? 'text-primary' : 'text-error'
             }`}
           >
-            ${formatMoney(netSavings)}
+            {netSavings >= 0 ? '' : '-'}{`¥${formatMoney(netSavings)}`}
           </p>
         </div>
 
-        {/* 年度总收入 */}
         <div className="bento-item bg-income-card border-primary-soft md:col-span-4 flex flex-col gap-3">
           <div className="flex items-center gap-2 text-primary">
             <span
@@ -203,11 +210,10 @@ export function ReportYearly() {
             <span className="font-body-md text-body-md font-medium">年度总收入</span>
           </div>
           <p className="font-label-mono text-label-mono text-primary text-3xl font-bold">
-            +${formatMoney(totalIncome)}
+            ¥{formatMoney(totalIncome)}
           </p>
         </div>
 
-        {/* 年度总支出 */}
         <div className="bento-item bg-expense-card border-tertiary-soft md:col-span-4 flex flex-col gap-3">
           <div className="flex items-center gap-2 text-error">
             <span
@@ -224,14 +230,13 @@ export function ReportYearly() {
             <span className="font-body-md text-body-md font-medium">年度总支出</span>
           </div>
           <p className="font-label-mono text-label-mono text-error text-3xl font-bold">
-            -${formatMoney(totalExpense)}
+            ¥{formatMoney(totalExpense)}
           </p>
         </div>
       </div>
 
-      {/* 柱状图（col-span-8）+ 环形图（col-span-4） */}
+      {/* 柱状图 + 环形图 */}
       <div className="grid grid-cols-1 md:grid-cols-12 gap-6">
-        {/* 年度收支趋势 */}
         <div className="bento-item bg-bg-card md:col-span-8 min-h-[420px] flex flex-col">
           <div className="flex justify-between items-center mb-6">
             <h3 className="font-headline-md text-headline-md text-text-primary">年度收支趋势</h3>
@@ -246,50 +251,47 @@ export function ReportYearly() {
               </div>
             </div>
           </div>
-          <div className="flex-1 flex items-end gap-3 relative">
-            {/* Y 轴刻度（左侧） */}
-            <div className="absolute left-0 top-0 bottom-6 flex flex-col justify-between text-xs text-on-surface-variant font-caption-sm text-caption-sm pointer-events-none">
-              <span>{yAxisMax.toLocaleString('en-US')}</span>
-              <span>{Math.round(yAxisMax / 2).toLocaleString('en-US')}</span>
-              <span>0</span>
-            </div>
-            {/* 柱状图区 */}
-            <div className="flex-1 ml-10 flex items-end gap-2 h-full pb-6 relative">
-              {/* 水平网格线 */}
-              <div className="absolute inset-x-0 top-0 border-t border-divider" style={{ top: '0%' }} />
-              <div className="absolute inset-x-0 border-t border-divider" style={{ top: '50%' }} />
-              <div className="absolute inset-x-0 bottom-6 border-t border-divider" />
-              {/* 柱子 */}
-              {monthlyData.map((d, i) => {
-                const incomeH = yAxisMax > 0 ? (d.income / yAxisMax) * 100 : 0
-                const expenseH = yAxisMax > 0 ? (d.expense / yAxisMax) * 100 : 0
-                return (
-                  <div key={d.month} className="flex-1 flex flex-col items-center gap-1 h-full justify-end relative z-10">
-                    <div className="w-full flex flex-col h-full justify-end">
-                      {/* 收入柱（绿色，从底部往上叠加支出柱之上） */}
-                      <div
-                        className="w-full bg-secondary rounded-t-sm transition-all"
-                        style={{ height: `${incomeH}%`, minHeight: incomeH > 0 ? '2px' : 0 }}
-                        title={`收入 $${formatMoney(d.income)}`}
-                      />
-                      {/* 支出柱（灰色，紧贴收入柱下方） */}
-                      <div
-                        className="w-full bg-gray-300 transition-all"
-                        style={{ height: `${expenseH}%`, minHeight: expenseH > 0 ? '2px' : 0 }}
-                        title={`支出 $${formatMoney(d.expense)}`}
-                      />
+          {isLoading ? (
+            <p className="text-on-surface-variant font-body-md text-body-md text-center py-12">加载中…</p>
+          ) : (
+            <div className="flex-1 flex items-end gap-3 relative">
+              <div className="absolute left-0 top-0 bottom-6 flex flex-col justify-between text-xs text-on-surface-variant font-caption-sm text-caption-sm pointer-events-none">
+                <span>{yAxisMax.toLocaleString('zh-CN')}</span>
+                <span>{Math.round(yAxisMax / 2).toLocaleString('zh-CN')}</span>
+                <span>0</span>
+              </div>
+              <div className="flex-1 ml-10 flex items-end gap-2 h-full pb-6 relative">
+                <div className="absolute inset-x-0 top-0 border-t border-divider" style={{ top: '0%' }} />
+                <div className="absolute inset-x-0 border-t border-divider" style={{ top: '50%' }} />
+                <div className="absolute inset-x-0 bottom-6 border-t border-divider" />
+                {monthlyData.map((d, i) => {
+                  const incomeH = yAxisMax > 0 ? (d.income / yAxisMax) * 100 : 0
+                  const expenseH = yAxisMax > 0 ? (d.expense / yAxisMax) * 100 : 0
+                  return (
+                    <div key={d.month} className="flex-1 flex flex-col items-center gap-1 h-full justify-end relative z-10">
+                      <div className="w-full flex flex-col h-full justify-end">
+                        <div
+                          className="w-full bg-secondary rounded-t-sm transition-all"
+                          style={{ height: `${incomeH}%`, minHeight: incomeH > 0 ? '2px' : 0 }}
+                          title={`收入 ¥${formatMoney(d.income)}`}
+                        />
+                        <div
+                          className="w-full bg-gray-300 transition-all"
+                          style={{ height: `${expenseH}%`, minHeight: expenseH > 0 ? '2px' : 0 }}
+                          title={`支出 ¥${formatMoney(d.expense)}`}
+                        />
+                      </div>
+                      <span className="absolute -bottom-5 font-caption-sm text-caption-sm text-on-surface-variant">
+                        {monthLabels[i]}
+                      </span>
                     </div>
-                    <span className="absolute -bottom-5 font-caption-sm text-caption-sm text-on-surface-variant">
-                      {monthLabels[i]}
-                    </span>
-                  </div>
-                )
-              })}
+                  )
+                })}
+              </div>
             </div>
-          </div>
+          )}
         </div>
 
-        {/* 年度支出构成（环形图 + 分类列表） */}
         <div className="bento-item bg-bg-card md:col-span-4 min-h-[420px] flex flex-col">
           <h3 className="font-headline-md text-headline-md text-text-primary mb-4">年度支出构成</h3>
           {donutSegments.length === 0 ? (
@@ -299,39 +301,11 @@ export function ReportYearly() {
               <div className="flex-1 relative flex items-center justify-center min-h-[220px]">
                 <DonutChart
                   segments={donutSegments}
-                  totalValue={`$${(totalExpense / 1000).toFixed(1)}k`}
+                  totalValue={`¥${(totalExpense / 1000).toFixed(1)}k`}
                 />
               </div>
-              {/* 分类列表（原型展示前 2 项） */}
               <div className="mt-6 space-y-3 pt-4 border-t border-divider">
-                {topCategories.map((cat) => {
-                  const color = REPORT_PALETTE[cat.id] ?? '#94a3b8'
-                  const pct = totalExpense > 0 ? (cat.total / totalExpense) * 100 : 0
-                  return (
-                    <div key={cat.id} className="flex items-center gap-3">
-                      <span
-                        className="w-9 h-9 rounded-full flex items-center justify-center"
-                        style={{ backgroundColor: `${color}26` }}
-                      >
-                        <span
-                          className="material-symbols-outlined"
-                          style={{ fontSize: '18px', color, fontVariationSettings: "'FILL' 1" }}
-                        >
-                          {cat.icon}
-                        </span>
-                      </span>
-                      <div className="flex-1">
-                        <p className="font-body-md text-body-md text-text-primary font-medium">{cat.name}</p>
-                        <p className="font-caption-sm text-caption-sm text-on-surface-variant">
-                          {pct.toFixed(0)}%
-                        </p>
-                      </div>
-                      <p className="font-body-md text-body-md text-text-primary font-semibold">
-                        ${formatMoney(cat.total)}
-                      </p>
-                    </div>
-                  )
-                })}
+                {topCategories.map((cat) => renderCategoryRow(cat))}
               </div>
             </>
           )}

@@ -30,9 +30,7 @@ export interface MonthlyReport {
   dailyData: DailyPoint[]
 }
 
-export interface MonthlyReportResponse {
-  report: MonthlyReport
-}
+export interface MonthlyReportResponse extends MonthlyReport {}
 
 export interface MonthlyPoint {
   /** 1-12 */
@@ -50,20 +48,18 @@ export interface YearlyReport {
   expenseByCategory: CategoryTotal[]
 }
 
-export interface YearlyReportResponse {
-  report: YearlyReport
-}
+export interface YearlyReportResponse extends YearlyReport {}
 
 export async function getMonthlyReport(month: string): Promise<MonthlyReport> {
   const res = await request<MonthlyReportResponse>(
     `/api/reports/monthly?month=${encodeURIComponent(month)}`,
   )
-  return res.report
+  return res
 }
 
 export async function getYearlyReport(year: number): Promise<YearlyReport> {
   const res = await request<YearlyReportResponse>(
     `/api/reports/yearly?year=${encodeURIComponent(String(year))}`,
   )
-  return res.report
+  return res
 }

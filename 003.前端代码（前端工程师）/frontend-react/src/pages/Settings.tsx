@@ -1,5 +1,5 @@
 import { useState } from 'react'
-import { useNavigate } from 'react-router-dom'
+import { Link, useNavigate } from 'react-router-dom'
 import { usePageTitle, usePageBack } from '../components/PageTitleContext'
 import { useAuth } from '../auth/AuthContext'
 
@@ -66,12 +66,12 @@ export function Settings() {
             性别：男
           </p>
 
-          <button
-            type="button"
-            className="w-full py-2.5 px-4 border border-outline text-on-surface font-body-md text-body-md rounded-lg hover:bg-surface-container-low transition-colors"
+          <Link
+            to="/profile/edit"
+            className="w-full block text-center py-2.5 px-4 border border-outline text-on-surface font-body-md text-body-md rounded-lg hover:bg-surface-container-low transition-colors"
           >
             编辑资料
-          </button>
+          </Link>
         </div>
 
         {/* 系统偏好 */}

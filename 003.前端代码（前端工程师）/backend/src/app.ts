@@ -8,6 +8,7 @@ import { accountsRouter } from './routes/accounts.routes.js'
 import { recordsRouter } from './routes/records.routes.js'
 import { reportsRouter } from './routes/reports.routes.js'
 import { usersRouter } from './routes/users.routes.js'
+import { versionRouter } from './routes/version.routes.js'
 import { errorHandler } from './middleware/error.js'
 import { notFoundHandler } from './middleware/not-found.js'
 
@@ -24,6 +25,7 @@ export const createApp = (): Application => {
   app.use('/api/records', recordsRouter)
   app.use('/api/reports', reportsRouter)
   app.use('/api/users', usersRouter)
+  app.use('/api/version', versionRouter)
 
   app.use(notFoundHandler)
   app.use(errorHandler)

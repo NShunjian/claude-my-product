@@ -58,6 +58,12 @@
 | PATCH | `/api/users/me` | `users.controller.updateProfile` → `users.service.updateProfile` | **`users`** | UPDATE | 字段:`display_name` / `avatar` / `gender` / `age`;部分更新;avatar 支持 URL 或 base64 dataURL(≤30KB,V1.1) |
 | POST | `/api/users/me/password` | `users.controller.changePassword` → `users.service.changePassword` | **`users`** | UPDATE `password_hash` | 先 SELECT 验旧密码;成功后再写新 hash(同事务) |
 
+### 1.7 System 模块 — `routes/version.routes.ts`(无 auth)
+
+| Method | Path | Controller → Service | 涉及表 / 视图 | 写入动作 | 备注 |
+|--------|------|---------------------|---------------|---------|------|
+| GET | `/api/version` | `version.controller.get` → `version.service.getVersion` | **无 DB**(读 `backend/package.json`) | — | 服务进程启动时用 `createRequire` 同步读 `package.json#version` 缓存到模块顶层;不鉴权;用于前端"关于轻账"显示权威版本号 |
+
 ---
 
 ## 2. 实体关系图
@@ -129,6 +135,9 @@ v_account_balance  ← 视图,JOIN accounts + records 计算
 |------|------|---------|
 | 2026-08-28 | 初版映射手册(覆盖 Phase A 全部 endpoint) | 用户要求单独整理成可维护文档 |
 | 2026-08-28 | `users.avatar` 改为 `MEDIUMTEXT`;新增 base64 ≤30KB 限制 | V1.1 头像上传功能落地 |
+| 2026-08-28 | V1.1 前端范围落地:深色模式(3 档:跟随系统/浅/深) + 语言切换(简/英/繁);localStorage 持久化;不涉及 API 与表结构变更,文档仅作里程碑记录 | 用户要求设置页"深色模式、语言 / Language 实现下" |
+| 2026-08-28 | 设置页"数据管理"3 个导出按钮接真功能(client-side xlsx);"关于轻账"版本号改为读 `frontend-react/package.json` 的 version(`1.0.1`,与 SPEC §0 "适用产品版本"一致) + 构建日;前端加 `xlsx@^0.18.5` 依赖;不涉及 API 与表结构变更 | 用户要求"数据管理、关于轻账版本号显示,这两项给实现了" |
+| 2026-08-28 | 新增 `GET /api/version`(无鉴权)从 `backend/package.json#version` 同步读版本号;前端加 `VersionContext` 启动时 fetch 一次,"关于轻账"版本号改为后端权威下发;删除前端 vite `__PACKAGE_VERSION__` / `__BUILD_DATE__` 的 `define` 注入;`backend/package.json#version` 同步改为 `1.0.1`;不涉及数据库表/视图变更 | 用户要求"版本号也应该是动态从后台获取吧" |
 | | | |
 | | | |
 

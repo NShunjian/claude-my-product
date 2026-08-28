@@ -1,5 +1,9 @@
 @import "tailwindcss";
 
+/* 自定义 dark 变体:.dark 类挂在 <html> 上时生效(ThemeContext 控制)
+   这样 Tailwind v4 的 dark:bg-* / dark:text-* 工具类也能直接用 */
+@custom-variant dark (&:where(.dark, .dark *));
+
 @theme {
   --color-primary: #005394;
   --color-primary-container: #2b6cb0;
@@ -76,6 +80,37 @@
     color: var(--color-text-primary);
     -webkit-font-smoothing: antialiased;
   }
+}
+
+/* 深色模式 token 重定义 — 由 ThemeContext 在 <html> 上加 .dark 类触发
+   设计原则:背景压暗,文字提亮,主色保留品牌识别 */
+:root.dark {
+  --color-bg-page: #0d1117;
+  --color-bg-card: #161b22;
+  --color-text-primary: #e6edf3;
+  --color-on-surface: #c9d1d9;
+  --color-on-surface-variant: #8b949e;
+  --color-outline: #484f58;
+  --color-divider: #30363d;
+
+  --color-surface: #21262d;
+  --color-surface-bright: #2d333b;
+  --color-surface-variant: #30363d;
+  --color-surface-dim: #161b22;
+  --color-surface-tint: #58a6ff;
+
+  --color-primary: #58a6ff;
+  --color-primary-light: #1f3a5f;
+  --color-primary-container: #1f6feb;
+
+  --color-surface-container: #21262d;
+  --color-surface-container-low: #161b22;
+  --color-surface-container-lowest: #0d1117;
+  --color-surface-container-high: #2d333b;
+  --color-surface-container-highest: #383d44;
+  --color-outline-variant: #30363d;
+
+  --color-on-primary: #ffffff;
 }
 
 .glass-card {

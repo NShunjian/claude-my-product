@@ -2,6 +2,16 @@ import { useState } from 'react'
 import { Link, useNavigate } from 'react-router-dom'
 import { usePageTitle, usePageBack } from '../components/PageTitleContext'
 import { useAuth } from '../auth/AuthContext'
+import { LANGS, useLanguage, type Lang } from '../i18n/LanguageContext'
+import { useTheme, type ThemeMode } from '../theme/ThemeContext'
+import { useVersion } from '../version/VersionContext'
+import { exportAll, exportByCategory, exportMonthly } from '../lib/export'
+
+const THEME_OPTIONS: { mode: ThemeMode; labelKey: string }[] = [
+  { mode: 'system', labelKey: 'settings.prefs.theme.system' },
+  { mode: 'light', labelKey: 'settings.prefs.theme.light' },
+  { mode: 'dark', labelKey: 'settings.prefs.theme.dark' },
+]
 
 export function Settings() {
   usePageTitle('设置')
@@ -9,25 +19,44 @@ export function Settings() {
 
   const { user, logout } = useAuth()
   const navigate = useNavigate()
-  const [darkMode, setDarkMode] = useState(false)
-  const [language, setLanguage] = useState('简体中文')
+  const { mode: themeMode, setMode: setThemeMode } = useTheme()
+  const { lang, setLang, t } = useLanguage()
+  const { version, state: versionState } = useVersion()
+  const [exporting, setExporting] = useState<null | 'monthly' | 'category' | 'all'>(null)
+  const [exportErr, setExportErr] = useState<string | null>(null)
 
   function handleLogout() {
     logout()
     navigate('/login')
   }
 
+  async function runExport(kind: 'monthly' | 'category' | 'all'): Promise<void> {
+    setExportErr(null)
+    setExporting(kind)
+    try {
+      if (kind === 'monthly') await exportMonthly()
+      else if (kind === 'category') await exportByCategory()
+      else await exportAll()
+    } catch (err) {
+      console.error('[export] failed', err)
+      setExportErr(err instanceof Error ? err.message : '导出失败')
+    } finally {
+      setExporting(null)
+    }
+  }
+
   const genderText =
-    user?.gender === 'male' ? '男' :
-    user?.gender === 'female' ? '女' :
-    user?.gender === 'other' ? '其他' : '未设置'
-  const ageText = user?.age != null ? String(user.age) : '未设置'
+    user?.gender === 'male' ? t('settings.userCard.gender.male') :
+    user?.gender === 'female' ? t('settings.userCard.gender.female') :
+    user?.gender === 'other' ? t('settings.userCard.gender.other') :
+    t('settings.userCard.gender.none')
+  const ageText = user?.age != null ? String(user.age) : t('settings.userCard.age.none')
 
   return (
     <div className="space-y-6">
       {/* 标题 */}
       <h2 className="font-headline-md text-headline-md text-on-surface">
-        管理您的账户偏好与系统设置
+        {t('settings.heading')}
       </h2>
 
       {/* 顶部：用户卡片 + 系统偏好 */}
@@ -76,21 +105,23 @@ export function Settings() {
             {user?.displayName || user?.username || 'testuser'}
           </h3>
           <p className="font-body-md text-body-md text-on-surface-variant mb-1">
-            账号：{user?.username || 'demo'}
+            {t('settings.userCard.accountLabel')}：{user?.username || 'demo'}
           </p>
-          <p className="font-body-md text-body-md text-on-surface-variant mb-1">免费版用户</p>
           <p className="font-body-md text-body-md text-on-surface-variant mb-1">
-            性别：{genderText}
+            {t('settings.userCard.freeVersion')}
+          </p>
+          <p className="font-body-md text-body-md text-on-surface-variant mb-1">
+            {t('settings.userCard.genderLabel')}：{genderText}
           </p>
           <p className="font-body-md text-body-md text-on-surface-variant mb-6">
-            年龄：{ageText}
+            {t('settings.userCard.ageLabel')}：{ageText}
           </p>
 
           <Link
             to="/profile/edit"
             className="w-full block text-center py-2.5 px-4 border border-outline text-on-surface font-body-md text-body-md rounded-lg hover:bg-surface-container-low transition-colors"
           >
-            编辑资料
+            {t('settings.userCard.editProfile')}
           </Link>
         </div>
 
@@ -107,26 +138,47 @@ export function Settings() {
                 tune
               </span>
             </span>
-            <h3 className="font-headline-md text-headline-md text-text-primary">系统偏好</h3>
+            <h3 className="font-headline-md text-headline-md text-text-primary">
+              {t('settings.prefs.title')}
+            </h3>
           </div>
 
-          {/* 深色模式 */}
+          {/* 深色模式 — 3 档 segmented */}
           <div className="flex items-center justify-between pb-6">
             <div>
-              <p className="font-headline-md text-headline-md text-text-primary mb-1">深色模式</p>
+              <p className="font-headline-md text-headline-md text-text-primary mb-1">
+                {t('settings.prefs.theme.label')}
+              </p>
               <p className="font-body-md text-body-md text-on-surface-variant">
-                跟随系统或手动切换
+                {t('settings.prefs.theme.desc')}
               </p>
             </div>
-            <label className="relative inline-flex items-center cursor-pointer">
-              <input
-                type="checkbox"
-                className="sr-only peer"
-                checked={darkMode}
-                onChange={(e) => setDarkMode(e.target.checked)}
-              />
-              <div className="w-12 h-7 bg-outline-variant rounded-full peer peer-checked:bg-primary peer-focus:outline-none after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:rounded-full after:h-6 after:w-6 after:transition-all peer-checked:after:translate-x-5" />
-            </label>
+            <div
+              role="radiogroup"
+              aria-label={t('settings.prefs.theme.label')}
+              className="inline-flex p-1 rounded-lg bg-surface-container-low border border-divider"
+            >
+              {THEME_OPTIONS.map((opt) => {
+                const active = themeMode === opt.mode
+                return (
+                  <button
+                    key={opt.mode}
+                    type="button"
+                    role="radio"
+                    aria-checked={active}
+                    onClick={() => setThemeMode(opt.mode)}
+                    className={
+                      'px-3 py-1.5 text-sm rounded-md transition-colors ' +
+                      (active
+                        ? 'bg-bg-card text-text-primary shadow-sm'
+                        : 'text-on-surface-variant hover:text-text-primary')
+                    }
+                  >
+                    {t(opt.labelKey)}
+                  </button>
+                )
+              })}
+            </div>
           </div>
 
           <div className="border-t border-divider" />
@@ -135,23 +187,28 @@ export function Settings() {
           <div className="flex items-center justify-between pt-6">
             <div>
               <p className="font-headline-md text-headline-md text-text-primary mb-1">
-                语言 / Language
+                {t('settings.prefs.lang.label')}
               </p>
               <p className="font-body-md text-body-md text-on-surface-variant">
-                选择应用显示语言
+                {t('settings.prefs.lang.desc')}
               </p>
             </div>
             <div className="relative">
               <select
-                value={language}
-                onChange={(e) => setLanguage(e.target.value)}
+                value={lang}
+                onChange={(e) => setLang(e.target.value as Lang)}
                 className="appearance-none bg-surface-container-low border border-outline rounded-lg pl-5 pr-10 py-2 font-body-md text-body-md text-text-primary hover:border-primary focus:border-primary focus:ring-1 focus:ring-primary transition-colors cursor-pointer"
               >
-                <option value="简体中文">简体中文</option>
-                <option value="English">English</option>
-                <option value="繁體中文">繁體中文</option>
+                {LANGS.map((l) => (
+                  <option key={l.code} value={l.code}>
+                    {l.label}
+                  </option>
+                ))}
               </select>
-              <span className="material-symbols-outlined absolute right-3 top-1/2 -translate-y-1/2 pointer-events-none text-on-surface-variant" style={{ fontSize: '20px' }}>
+              <span
+                className="material-symbols-outlined absolute right-3 top-1/2 -translate-y-1/2 pointer-events-none text-on-surface-variant"
+                style={{ fontSize: '20px' }}
+              >
                 expand_more
               </span>
             </div>
@@ -179,48 +236,62 @@ export function Settings() {
           {/* 导出本月报表 */}
           <button
             type="button"
-            className="flex flex-col items-center justify-center gap-3 py-10 px-4 border border-divider rounded-xl bg-surface-container-lowest hover:border-primary hover:bg-primary-light/40 transition-all"
+            disabled={exporting !== null}
+            onClick={() => runExport('monthly')}
+            className="flex flex-col items-center justify-center gap-3 py-10 px-4 border border-divider rounded-xl bg-surface-container-lowest hover:border-primary hover:bg-primary-light/40 transition-all disabled:opacity-50 disabled:cursor-not-allowed disabled:hover:border-divider disabled:hover:bg-surface-container-lowest"
           >
             <span
               className="material-symbols-outlined text-on-surface-variant"
               style={{ fontSize: '36px', fontVariationSettings: "'FILL' 0", fontWeight: 300 }}
             >
-              calendar_month
+              {exporting === 'monthly' ? 'progress_activity' : 'calendar_month'}
             </span>
-            <span className="font-body-md text-body-md text-text-primary">导出本月报表</span>
+            <span className="font-body-md text-body-md text-text-primary">
+              {exporting === 'monthly' ? '导出中…' : '导出本月报表'}
+            </span>
           </button>
 
           {/* 按分类导出 */}
           <button
             type="button"
-            className="flex flex-col items-center justify-center gap-3 py-10 px-4 border border-divider rounded-xl bg-surface-container-lowest hover:border-primary hover:bg-primary-light/40 transition-all"
+            disabled={exporting !== null}
+            onClick={() => runExport('category')}
+            className="flex flex-col items-center justify-center gap-3 py-10 px-4 border border-divider rounded-xl bg-surface-container-lowest hover:border-primary hover:bg-primary-light/40 transition-all disabled:opacity-50 disabled:cursor-not-allowed disabled:hover:border-divider disabled:hover:bg-surface-container-lowest"
           >
             <span
               className="material-symbols-outlined text-on-surface-variant"
               style={{ fontSize: '36px', fontVariationSettings: "'FILL' 0", fontWeight: 300 }}
             >
-              category
+              {exporting === 'category' ? 'progress_activity' : 'category'}
             </span>
-            <span className="font-body-md text-body-md text-text-primary">按分类导出</span>
+            <span className="font-body-md text-body-md text-text-primary">
+              {exporting === 'category' ? '导出中…' : '按分类导出'}
+            </span>
           </button>
 
           {/* 导出全部数据 */}
           <button
             type="button"
-            className="flex flex-col items-center justify-center gap-3 py-10 px-4 border border-divider rounded-xl bg-surface-container-lowest hover:border-primary hover:bg-primary-light/40 transition-all"
+            disabled={exporting !== null}
+            onClick={() => runExport('all')}
+            className="flex flex-col items-center justify-center gap-3 py-10 px-4 border border-divider rounded-xl bg-surface-container-lowest hover:border-primary hover:bg-primary-light/40 transition-all disabled:opacity-50 disabled:cursor-not-allowed disabled:hover:border-divider disabled:hover:bg-surface-container-lowest"
           >
             <span
               className="material-symbols-outlined text-on-surface-variant"
               style={{ fontSize: '36px', fontVariationSettings: "'FILL' 0", fontWeight: 300 }}
             >
-              check_circle
+              {exporting === 'all' ? 'progress_activity' : 'check_circle'}
             </span>
-            <span className="font-body-md text-body-md text-text-primary">导出全部数据</span>
+            <span className="font-body-md text-body-md text-text-primary">
+              {exporting === 'all' ? '导出中…' : '导出全部数据'}
+            </span>
           </button>
         </div>
 
         <p className="text-center font-body-md text-body-md text-on-surface-variant">
-          所有数据将以 Excel (.xlsx) 格式导出至您的设备。
+          {exportErr
+            ? `导出失败:${exportErr}`
+            : '所有数据将以 Excel (.xlsx) 格式导出至您的设备。'}
         </p>
       </div>
 
@@ -245,11 +316,22 @@ export function Settings() {
               </span>
             </div>
             <div>
-              <p className="font-headline-md text-headline-md text-text-primary font-semibold mb-1">
-                QingZhang v2.4.1
+              <p
+                className="font-headline-md text-headline-md text-text-primary font-semibold mb-1"
+                aria-busy={versionState === 'loading'}
+              >
+                {versionState === 'loading'
+                  ? 'QingZhang v…'
+                  : versionState === 'error'
+                    ? 'QingZhang v—'
+                    : `QingZhang v${version}`}
               </p>
               <p className="font-body-md text-body-md text-on-surface-variant">
-                最新版本已更新
+                {versionState === 'ok'
+                  ? '当前版本'
+                  : versionState === 'error'
+                    ? '暂不可用,请稍后重试'
+                    : '正在获取版本号…'}
               </p>
             </div>
           </div>

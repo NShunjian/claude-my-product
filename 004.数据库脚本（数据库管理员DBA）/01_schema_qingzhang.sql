@@ -38,7 +38,7 @@ CREATE TABLE `users` (
   `password_hash`       VARCHAR(128)     NOT NULL                            COMMENT '密码哈希值（SHA-256 + salt）',
   `salt`                VARCHAR(64)      NOT NULL                            COMMENT '随机盐（16 字节 base64）',
   `display_name`        VARCHAR(50)      DEFAULT NULL                        COMMENT '昵称',
-  `avatar`              VARCHAR(255)     DEFAULT NULL                        COMMENT '头像 URL',
+  `avatar`              MEDIUMTEXT        DEFAULT NULL                        COMMENT '头像 URL 或 dataURL（V1.1 起支持 base64 内联图）',
   `gender`              ENUM('male','female','other') DEFAULT NULL          COMMENT '性别',
   `age`                 TINYINT UNSIGNED DEFAULT NULL                        COMMENT '年龄（0-120）',
   `email`               VARCHAR(100)     DEFAULT NULL                        COMMENT '邮箱（V1.1 预留）',

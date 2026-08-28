@@ -15,7 +15,7 @@ export const createApp = (): Application => {
   const app = express()
   app.use(helmet())
   app.use(cors({ origin: env.CORS_ORIGIN, credentials: true }))
-  app.use(express.json({ limit: '64kb' }))
+  app.use(express.json({ limit: '128kb' })) // 64→128: 给 base64 头像留余地（30KB 图 ≈ 40KB base64 + JSON 包装）
 
   app.get('/health', (_req, res) => res.json({ ok: true }))
   app.use('/api/auth', authRouter)

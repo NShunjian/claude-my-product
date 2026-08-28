@@ -23,6 +23,8 @@ const register = async (label: string) => {
 }
 
 beforeAll(async () => {
+  // dev 期同步 schema：avatar 改成 MEDIUMTEXT 后才能存 base64；生产由 db:migrate 跑
+  await getPool().query('ALTER TABLE users MODIFY COLUMN avatar MEDIUMTEXT DEFAULT NULL')
   const r = await register('users-test')
   token = r.token
   username = r.user
@@ -93,6 +95,45 @@ describe('PATCH /api/users/me', () => {
 
     expect(res.status).toBe(400)
     expect(res.body.error?.message).toMatch(/URL/)
+  })
+
+  it('avatar 接受 dataURL（base64 内联图）', async () => {
+    // 1×1 JPEG（最小合法图）base64：约 600 字节
+    const tinyJpegB64 =
+      '/9j/4AAQSkZJRgABAQEASABIAAD/2wBDAAEBAQEBAQEBAQEBAQEBAQEBAQEBAQEBAQEBAQEBAQEBAQEBAQEBAQEBAQEBAQEBAQEBAQEBAQEBAQEBAQEBAQH/2wBDAQEBAQEBAQEBAQEBAQEBAQEBAQEBAQEBAQEBAQEBAQEBAQEBAQEBAQEBAQEBAQEBAQEBAQEBAQEBAQEBAQEBAQH/wAARCAABAAEDASIAAhEBAxEB/8QAFQABAQAAAAAAAAAAAAAAAAAAAAv/xAAUEAEAAAAAAAAAAAAAAAAAAAAA/8QAFAEBAAAAAAAAAAAAAAAAAAAAAP/EABQRAQAAAAAAAAAAAAAAAAAAAAD/2gAMAwEAAhEDEQA/AL+AAAAAAAA//Z'
+    const dataUrl = `data:image/jpeg;base64,${tinyJpegB64}`
+    const res = await request(app)
+      .patch('/api/users/me')
+      .set('Authorization', `Bearer ${token}`)
+      .send({ avatar: dataUrl })
+
+    expect(res.status).toBe(200)
+    expect(res.body.user.avatar).toBe(dataUrl)
+  })
+
+  it('avatar dataURL 解码后超过 30KB 被拒绝', async () => {
+    // 30KB 零字节 base64 ≈ 41000 字符，纯零字符串不是合法 base64 字符但 Buffer.from 会容忍
+    // 用真实可解码字符：'A' 重复 40000 次 → 30KB 二进制
+    const big = Buffer.alloc(31 * 1024, 0x41).toString('base64') // 41 ≈ 31KB
+    const dataUrl = `data:image/jpeg;base64,${big}`
+    const res = await request(app)
+      .patch('/api/users/me')
+      .set('Authorization', `Bearer ${token}`)
+      .send({ avatar: dataUrl })
+
+    expect(res.status).toBe(400)
+    expect(res.body.error?.message).toMatch(/30KB/)
+  })
+
+  it('avatar dataURL 错误前缀被拒绝', async () => {
+    const dataUrl = `data:image/svg+xml;base64,PHN2Zy8+`
+    const res = await request(app)
+      .patch('/api/users/me')
+      .set('Authorization', `Bearer ${token}`)
+      .send({ avatar: dataUrl })
+
+    expect(res.status).toBe(400)
+    expect(res.body.error?.message).toMatch(/dataURL/)
   })
 
   it('age 超出范围被拒绝', async () => {

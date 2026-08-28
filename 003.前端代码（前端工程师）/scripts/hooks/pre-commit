@@ -1,0 +1,60 @@
+#!/usr/bin/env bash
+#
+# Git pre-commit hook — 零依赖(无 husky / lint-staged),通过 `git config core.hooksPath scripts/hooks` 启用。
+#
+# 行为:
+#   - 检测暂存区的文件路径,只跑受影响的检查,避免每次 commit 全量 tsc + 测试
+#   - frontend-react/** 改动 → oxlint + tsc --noEmit
+#   - backend/** 改动 → tsc --noEmit
+#   - 任一检查失败 → exit 1,阻止 commit
+#
+# 安装(在项目根目录跑一次):
+#   git config core.hooksPath scripts/hooks
+#
+# 跳过(紧急时):
+#   git commit --no-verify
+set -euo pipefail
+
+# 项目根 = 仓库根(core.hooksPath 改为相对路径 git 自动解析)
+ROOT="$(git rev-parse --show-toplevel)"
+cd "$ROOT"
+
+# 没有 staged 文件时(几乎不可能)直接放行
+STAGED="$(git diff --cached --name-only --diff-filter=ACMR)"
+if [ -z "$STAGED" ]; then
+  exit 0
+fi
+
+FAILED=0
+run() {
+  local label="$1"; shift
+  printf '\n[pre-commit] %s\n' "$label"
+  if "$@"; then
+    printf '[pre-commit] %s ✅\n' "$label"
+  else
+    printf '[pre-commit] %s ❌\n' "$label"
+    FAILED=1
+  fi
+}
+
+# 前端改动
+if echo "$STAGED" | grep -qE '(^|/)frontend-react/'; then
+  cd "$ROOT/003.前端代码（前端工程师）/frontend-react"
+  run "frontend oxlint" npm run -s lint
+  run "frontend tsc -b" npx --no-install tsc -b
+  cd "$ROOT"
+fi
+
+# 后端改动
+if echo "$STAGED" | grep -qE '(^|/)backend/'; then
+  cd "$ROOT/003.前端代码（前端工程师）/backend"
+  run "backend tsc --noEmit" npx --no-install tsc --noEmit
+  cd "$ROOT"
+fi
+
+if [ "$FAILED" -ne 0 ]; then
+  printf '\n[pre-commit] 有检查失败,请修复后再提交(紧急情况用 git commit --no-verify 跳过)\n'
+  exit 1
+fi
+
+exit 0

@@ -32,6 +32,12 @@ const envSchema = z.object({
   BCRYPT_COST: z.coerce.number().int().min(4).max(15).default(12),
 
   RATE_LIMIT_MAX: z.coerce.number().int().positive().default(10),
+  /** 业务写操作限流（records/accounts/users/me 的 POST/PATCH/DELETE） */
+  WRITE_RATE_LIMIT_MAX: z.coerce.number().int().positive().default(60),
+  /** 业务读操作限流（records/accounts/reports GET） */
+  READ_RATE_LIMIT_MAX: z.coerce.number().int().positive().default(300),
+  /** 改密码限流 */
+  PASSWORD_RATE_LIMIT_MAX: z.coerce.number().int().positive().default(5),
 })
 
 export const env = Object.freeze(envSchema.parse(process.env))

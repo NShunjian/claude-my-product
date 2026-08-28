@@ -294,9 +294,9 @@ export function ReportMonthly() {
         </div>
       </div>
 
-      {/* 折线图 */}
+      {/* 折线图（col-8）+ 支出占比（col-4） */}
       <div className="grid grid-cols-1 md:grid-cols-12 gap-6">
-        <div className="bento-item bg-bg-card md:col-span-12 min-h-[300px] flex flex-col">
+        <div className="bento-item bg-bg-card md:col-span-8 min-h-[300px] flex flex-col">
           <div className="flex justify-between items-center mb-4">
             <h3 className="font-headline-md text-headline-md text-text-primary">每日收支趋势</h3>
             <div className="flex items-center gap-4" style={{ paddingRight: '2.5%' }}>
@@ -318,6 +318,21 @@ export function ReportMonthly() {
             <p className="text-on-surface-variant font-body-md text-body-md text-center py-12">加载中…</p>
           ) : (
             <LineChart data={dailyData} />
+          )}
+        </div>
+
+        {/* 支出占比（与下方支出配对的同一份数据，复用） */}
+        <div className="bento-item bg-bg-card md:col-span-4 min-h-[300px] flex flex-col">
+          <h3 className="font-headline-md text-headline-md text-text-primary mb-6">支出占比</h3>
+          {expenseDonutSegments.length === 0 ? (
+            <p className="text-on-surface-variant text-center py-12">暂无支出记录</p>
+          ) : (
+            <div className="flex-1 relative flex items-center justify-center">
+              <DonutChart
+                segments={expenseDonutSegments}
+                totalValue={`¥${Math.round(totalExpense).toLocaleString('zh-CN')}`}
+              />
+            </div>
           )}
         </div>
       </div>
@@ -350,7 +365,7 @@ export function ReportMonthly() {
         </div>
       </div>
 
-      {/* 支出占比 + 支出排行 */}
+      {/* 支出占比 + 支出排行（与收入配对布局一致） */}
       <div className="grid grid-cols-1 md:grid-cols-12 gap-6">
         <div className="bento-item bg-bg-card md:col-span-4 min-h-[300px] flex flex-col">
           <h3 className="font-headline-md text-headline-md text-text-primary mb-6">支出占比</h3>

@@ -28,7 +28,7 @@ export const update = async (req: Request, res: Response, next: NextFunction): P
     const userId = req.user!.sub
     const id = req.params.id
     const input = updateAccountSchema.parse(req.body)
-    const account = await accountsService.updateAccount(userId, id, input)
+    const account = await accountsService.updateAccount(userId, id as string, input)
     res.json({ account })
   } catch (e) {
     next(e)
@@ -39,7 +39,7 @@ export const remove = async (req: Request, res: Response, next: NextFunction): P
   try {
     const userId = req.user!.sub
     const id = req.params.id
-    await accountsService.deleteAccount(userId, id)
+    await accountsService.deleteAccount(userId, id as string)
     res.status(204).send()
   } catch (e) {
     next(e)

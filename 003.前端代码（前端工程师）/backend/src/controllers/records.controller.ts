@@ -29,7 +29,7 @@ export const update = async (req: Request, res: Response, next: NextFunction): P
     const userId = req.user!.sub
     const id = req.params.id
     const input = updateRecordSchema.parse(req.body)
-    const record = await recordsService.updateRecord(userId, id, input)
+    const record = await recordsService.updateRecord(userId, id as string, input)
     res.json({ record })
   } catch (e) {
     next(e)
@@ -40,7 +40,7 @@ export const remove = async (req: Request, res: Response, next: NextFunction): P
   try {
     const userId = req.user!.sub
     const id = req.params.id
-    await recordsService.deleteRecord(userId, id)
+    await recordsService.deleteRecord(userId, id as string)
     res.status(204).send()
   } catch (e) {
     next(e)

@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react'
+import { useEffect, useRef, useState } from 'react'
 import { useAuth } from '../auth/AuthContext'
 import { usePageTitle, usePageBack } from '../components/PageTitleContext'
 import * as usersApi from '../api/users'
@@ -20,8 +20,14 @@ export function ProfileEdit() {
 
   const [savingProfile, setSavingProfile] = useState(false)
   const [savingPwd, setSavingPwd] = useState(false)
+  const [savingAvatar, setSavingAvatar] = useState(false)
   const [profileMsg, setProfileMsg] = useState<{ kind: 'ok' | 'err'; text: string } | null>(null)
   const [pwdMsg, setPwdMsg] = useState<{ kind: 'ok' | 'err'; text: string } | null>(null)
+  const [avatarMsg, setAvatarMsg] = useState<{ kind: 'ok' | 'err'; text: string } | null>(null)
+
+  // 头像本地预览（待保存的压缩图），保存成功后再 refreshUser() 让 user.avatar 同步
+  const [avatarPreview, setAvatarPreview] = useState<string | null>(null)
+  const fileInputRef = useRef<HTMLInputElement>(null)
 
   // user 进入/变更时同步本地 state（特别是保存成功后 refreshUser() 会触发）
   useEffect(() => {
@@ -92,6 +98,74 @@ export function ProfileEdit() {
     }
   }
 
+  /** 把 File 缩放到 128×128 JPEG(0.85)，输出 base64 dataURL。失败抛错。 */
+  function compressAvatar(file: File): Promise<string> {
+    return new Promise((resolve, reject) => {
+      if (!file.type.startsWith('image/')) {
+        reject(new Error('请选择图片文件'))
+        return
+      }
+      const reader = new FileReader()
+      reader.onerror = () => reject(new Error('读取文件失败'))
+      reader.onload = () => {
+        const img = new Image()
+        img.onerror = () => reject(new Error('图片解析失败'))
+        img.onload = () => {
+          const canvas = document.createElement('canvas')
+          const MAX = 128
+          const ratio = Math.min(MAX / img.width, MAX / img.height, 1)
+          canvas.width = Math.max(1, Math.round(img.width * ratio))
+          canvas.height = Math.max(1, Math.round(img.height * ratio))
+          const ctx = canvas.getContext('2d')
+          if (!ctx) {
+            reject(new Error('Canvas 不可用'))
+            return
+          }
+          ctx.drawImage(img, 0, 0, canvas.width, canvas.height)
+          resolve(canvas.toDataURL('image/jpeg', 0.85))
+        }
+        img.src = String(reader.result)
+      }
+      reader.readAsDataURL(file)
+    })
+  }
+
+  async function handleAvatarFileChange(e: React.ChangeEvent<HTMLInputElement>): Promise<void> {
+    setAvatarMsg(null)
+    const file = e.target.files?.[0]
+    // 复位 input value 以便选同一文件能再次触发 onChange
+    e.target.value = ''
+    if (!file) return
+    try {
+      const dataUrl = await compressAvatar(file)
+      setAvatarPreview(dataUrl)
+      setAvatarMsg({ kind: 'ok', text: '已生成预览，点「保存头像」生效' })
+    } catch (err) {
+      const text = err instanceof Error ? err.message : '图片处理失败'
+      setAvatarMsg({ kind: 'err', text })
+    }
+  }
+
+  async function handleSaveAvatar(): Promise<void> {
+    setAvatarMsg(null)
+    if (!avatarPreview) {
+      setAvatarMsg({ kind: 'err', text: '请先选择图片' })
+      return
+    }
+    setSavingAvatar(true)
+    try {
+      await usersApi.updateProfile({ avatar: avatarPreview })
+      await refreshUser()
+      setAvatarPreview(null)
+      setAvatarMsg({ kind: 'ok', text: '头像已更新' })
+    } catch (err) {
+      const text = err instanceof Error ? err.message : '保存失败'
+      setAvatarMsg({ kind: 'err', text })
+    } finally {
+      setSavingAvatar(false)
+    }
+  }
+
   // 输入框统一样式
   const inputBase =
     'w-full bg-surface-container-lowest border border-divider rounded-xl pl-12 pr-4 py-3.5 font-body-md text-body-md text-text-primary placeholder:text-outline focus:border-primary focus:ring-1 focus:ring-primary transition-colors'
@@ -120,8 +194,12 @@ export function ProfileEdit() {
 
         <div className="flex flex-col items-center gap-5">
           <div className="w-36 h-36 rounded-full bg-primary-light flex items-center justify-center overflow-hidden">
-            {user?.avatar ? (
-              <img src={user.avatar} alt="头像" className="w-full h-full object-cover" />
+            {avatarPreview || user?.avatar ? (
+              <img
+                src={avatarPreview ?? user!.avatar!}
+                alt="头像"
+                className="w-full h-full object-cover"
+              />
             ) : (
               <span
                 className="material-symbols-outlined text-primary"
@@ -134,9 +212,8 @@ export function ProfileEdit() {
 
           <button
             type="button"
-            disabled
-            title="头像上传功能即将推出"
-            className="inline-flex items-center gap-2 px-5 py-2.5 border border-outline text-on-surface font-body-md text-body-md rounded-xl hover:bg-surface-container-low hover:border-primary transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+            onClick={() => fileInputRef.current?.click()}
+            className="inline-flex items-center gap-2 px-5 py-2.5 border border-outline text-on-surface font-body-md text-body-md rounded-xl hover:bg-surface-container-low hover:border-primary transition-colors"
           >
             <span
               className="material-symbols-outlined"
@@ -146,15 +223,36 @@ export function ProfileEdit() {
             </span>
             上传新头像
           </button>
+          <input
+            ref={fileInputRef}
+            type="file"
+            accept="image/png,image/jpeg,image/webp"
+            className="hidden"
+            onChange={handleAvatarFileChange}
+          />
+
+          {avatarMsg && (
+            <div
+              className={`w-full rounded-lg px-3 py-2 font-caption-sm text-caption-sm ${
+                avatarMsg.kind === 'ok'
+                  ? 'bg-secondary-container text-on-secondary-container'
+                  : 'bg-error-container text-on-error-container'
+              }`}
+            >
+              {avatarMsg.text}
+            </div>
+          )}
         </div>
 
         <div className="border-t border-divider mt-auto pt-6">
           <div className="flex justify-end">
             <button
               type="button"
-              disabled
-              className="px-6 py-2.5 bg-primary text-on-primary font-headline-md text-headline-md rounded-lg hover:bg-primary-container hover:text-on-primary-container transition-colors shadow-sm disabled:opacity-50 disabled:cursor-not-allowed inline-flex items-center gap-2"
+              onClick={handleSaveAvatar}
+              disabled={savingAvatar || !avatarPreview}
+              className="px-6 py-2.5 bg-primary text-on-primary font-headline-md text-headline-md rounded-lg hover:bg-primary-container hover:text-on-primary-container transition-colors shadow-sm disabled:opacity-60 disabled:cursor-not-allowed inline-flex items-center gap-2"
             >
+              {savingAvatar && spinner}
               保存头像
             </button>
           </div>

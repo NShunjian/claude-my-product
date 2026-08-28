@@ -5,7 +5,8 @@
 > **数据库**:`qingzhang`(MySQL 9.x)  
 > **业务主键**:对外用 UUID(`CHAR(36)`,字段名 `uuid`),表内是 `id BIGINT UNSIGNED` 自增物理主键;service 层做 UUID ↔ bigint 互转。  
 > **软删**:除 `users` / `categories` / `book_members` 外,所有业务表都有 `deleted_at DATETIME(3)`,查询/列表都过滤 `deleted_at IS NULL`。  
-> **视图**:`v_account_balance`(账户实时余额 = `initial_balance + SUM(records.amount WHERE NOT deleted)`),只读。
+> **视图**:`v_account_balance`(账户实时余额 = `initial_balance + SUM(records.amount WHERE NOT deleted)`),只读。  
+> **货币**:V1.1 阶段所有账户 / 流水 / 账本均为人民币(`CNY`)。DB 保留 `currency CHAR(3)` 字段为 V2.0 多币种扩展用;**API 不暴露币种选择 UI**,后端 schema 默认 `'CNY'`,前端新建账户时硬编码写入 `'CNY'`。任何"切币种 / 换算汇率"相关需求需先确认扩展窗口。
 
 ---
 
@@ -138,6 +139,7 @@ v_account_balance  ← 视图,JOIN accounts + records 计算
 | 2026-08-28 | V1.1 前端范围落地:深色模式(3 档:跟随系统/浅/深) + 语言切换(简/英/繁);localStorage 持久化;不涉及 API 与表结构变更,文档仅作里程碑记录 | 用户要求设置页"深色模式、语言 / Language 实现下" |
 | 2026-08-28 | 设置页"数据管理"3 个导出按钮接真功能(client-side xlsx);"关于轻账"版本号改为读 `frontend-react/package.json` 的 version(`1.0.1`,与 SPEC §0 "适用产品版本"一致) + 构建日;前端加 `xlsx@^0.18.5` 依赖;不涉及 API 与表结构变更 | 用户要求"数据管理、关于轻账版本号显示,这两项给实现了" |
 | 2026-08-28 | 新增 `GET /api/version`(无鉴权)从 `backend/package.json#version` 同步读版本号;前端加 `VersionContext` 启动时 fetch 一次,"关于轻账"版本号改为后端权威下发;删除前端 vite `__PACKAGE_VERSION__` / `__BUILD_DATE__` 的 `define` 注入;`backend/package.json#version` 同步改为 `1.0.1`;不涉及数据库表/视图变更 | 用户要求"版本号也应该是动态从后台获取吧" |
+| 2026-08-28 | §0 加"货币"项目约束:V1.1 所有账户/流水/账本均为 `CNY`;DB `currency CHAR(3)` 字段为 V2.0 多币种扩展保留;API 不暴露币种选择 UI,创建时统一写 `'CNY'`;不涉及代码改动 | 用户声明"项目中所有货币是人名币",要求文档化 |
 | | | |
 | | | |
 

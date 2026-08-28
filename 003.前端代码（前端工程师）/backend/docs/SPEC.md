@@ -29,6 +29,7 @@ V1.0.1 业务 API 增量：在身份基础上，补齐**分类 / 账户 / 流水
 - 手机号 / 邮箱注册、第三方登录、找回密码（V1.1 再考虑）
 - 多端会话管理、refresh token（V1.1）
 - RBAC 权限分级（V1.1 共享账本时再设计）
+- ✅ 头像上传（V1.1, 2026-08 已落地，base64 inline 实现，见 §8 PATCH /api/users/me）
 - Redis 缓存、消息队列等基础设施（过早优化）
 - 多币种、预算、共享账本（V2.0）
 
@@ -190,6 +191,24 @@ V1.0.1 业务 API 增量：在身份基础上，补齐**分类 / 账户 / 流水
 
 **响应 200**：`{ user }`
 
+**User 响应字段**：
+
+```ts
+interface User {
+  id: number                       // 物理主键
+  uuid: string                     // 业务主键（前端统一使用此 ID）
+  username: string
+  displayName: string | null       // 昵称（用户编辑资料设置）
+  avatar: string | null            // 头像 URL 或 dataURL（V1.1 支持 base64 内联图，详见 §8 PATCH /api/users/me）
+  gender: 'male' | 'female' | 'other' | null
+  age: number | null               // 0~120
+  createdAt: string                // ISO
+}
+```
+
+> 完整字段由 `register` / `login` / `me` / `getCurrentUser` 共同返回；
+> 任何修改 profile 的 API（`PATCH /api/users/me`）后调用本接口会反映新值。
+
 **错误**：
 
 | HTTP | 场景 |
@@ -231,7 +250,7 @@ interface Category {
 
 ```bash
 GET /api/categories?type=expense
-# → 200 { categories: [{ id: 'expense-餐饮', type: 'expense', name: '餐饮', icon: '🍔', color: '#FF6B6B', sortOrder: 0 }, ...] }
+# → 200 { items: [{ id: 'expense-餐饮', type: 'expense', name: '餐饮', icon: '🍔', color: '#FF6B6B', sortOrder: 0 }, ...] }
 ```
 
 ---
@@ -287,6 +306,15 @@ interface Account {
 | 400 | 该账户仍有未删除流水 |
 | 404 | 账户不存在或非本人 |
 
+**响应包装约定**（与 §5.1 / §5.3 一致）：
+
+| Method | 响应体 |
+|--------|--------|
+| GET    | `{ items: Account[] }` |
+| POST   | 201 `{ account: Account }` |
+| PATCH  | `{ account: Account }` |
+| DELETE | 204 空 |
+
 ---
 
 ### 5.3 流水（records，全部需鉴权）
@@ -330,6 +358,15 @@ interface Record {
 ```
 
 **幂等性**：`client_id` 在用户维度 UNIQUE；同 `clientId` 重复 POST 返回原 record（不创建新行）。
+
+**响应包装约定**（与 §5.2 一致）：
+
+| Method | 响应体 |
+|--------|--------|
+| GET    | `{ items: Record[] }` |
+| POST   | 201 `{ record: Record }` |
+| PATCH  | `{ record: Record }` |
+| DELETE | 204 空 |
 
 ---
 
@@ -383,7 +420,7 @@ interface Record {
 ```json
 {
   "displayName": "string (1~50) | null",   // 可选
-  "avatar":      "https://... | null",     // 可选，必须为 URL
+  "avatar":      "https://... | data:image/(png|jpeg|webp);base64,... | null",     // 可选；URL 或 base64 dataURL（解码后 ≤ 30KB；V1.1 起支持 dataURL）
   "gender":      "male|female|other | null",
   "age":         0..120 | null
 }
@@ -587,6 +624,10 @@ BCRYPT_COST=12
 
 ## 十三、与前端的契约
 
+> **状态（2026-08-28）**：Phase B 已落地。前端 mock 全部删除，所有页面走 API。
+> 改造 commit 起点：`cb64823 feat(frontend): 新增业务接口模块` 起一系列提交。
+> 后续修复合入：`605373d 数据不展示问题`（4 个 list wrapper）/ `547308a fix(auth): /api/auth/me 返回 user 补全 avatar/gender/age` / `290bc5b fix(frontend): 月报/年报响应去掉多余 report 包装`。
+
 前端 `useAuthStore` 改造需做：
 
 1. `register/login` 改为 `fetch('/api/auth/register')` + `fetch('/api/auth/login')`
@@ -607,7 +648,7 @@ BCRYPT_COST=12
 
 | # | 问题 | 默认决定 |
 |---|------|---------|
-| Q1 | 是否同步改造前端？ | **否**（本期仅后端；前端 mock 替换另起计划） |
+| Q1 | 是否同步改造前端？ | ✅ **已落地**（Phase B, 2026-08 期间，参见 §13 顶部状态行） |
 | Q2 | token 存哪里？ | 前端 `localStorage`（保留 Zustand persist） |
 | Q3 | 接口前缀 | `/api/<module>/*` |
 | Q4 | JWT issuer | 不设置（V1.1 再说） |

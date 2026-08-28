@@ -1,4 +1,11 @@
-import { createContext, useContext, useState, type ReactNode } from 'react'
+import {
+  createContext,
+  useContext,
+  useEffect,
+  useMemo,
+  useState,
+  type ReactNode,
+} from 'react'
 
 interface PageTitleContextValue {
   title: string
@@ -23,23 +30,28 @@ export function PageTitleProvider({ children }: { children: ReactNode }) {
   const [backTo, setBackTo] = useState<string | null>(null)
   const [backLabel, setBackLabel] = useState<string | null>(null)
 
-  return (
-    <PageTitleContext.Provider
-      value={{ title, setTitle, backTo, setBackTo, backLabel, setBackLabel }}
-    >
-      {children}
-    </PageTitleContext.Provider>
+  // useState 的 setter 引用稳定；用 useMemo 锁住 value 对象本身，避免消费侧 useEffect 误以为 setTitle 变了
+  const value = useMemo<PageTitleContextValue>(
+    () => ({ title, setTitle, backTo, setBackTo, backLabel, setBackLabel }),
+    [title, backTo, backLabel],
   )
+
+  return <PageTitleContext.Provider value={value}>{children}</PageTitleContext.Provider>
 }
 
 export function usePageTitle(title: string): void {
   const { setTitle } = useContext(PageTitleContext)
-  // Set title on every render — title value is constant per page so it's safe
-  setTitle(title)
+  // 必须放在 useEffect 里，不能在 render 期间 setState：
+  // render 中触发其他组件的 setState 会被 React 19 警告 + 静默丢弃，进而拖垮同帧内的其他 setState（比如 toast）。
+  useEffect(() => {
+    setTitle(title)
+  }, [title, setTitle])
 }
 
 export function usePageBack(to: string | null, label?: string | null): void {
   const { setBackTo, setBackLabel } = useContext(PageTitleContext)
-  setBackTo(to)
-  setBackLabel(label ?? null)
+  useEffect(() => {
+    setBackTo(to)
+    setBackLabel(label ?? null)
+  }, [to, label, setBackTo, setBackLabel])
 }

@@ -26,7 +26,7 @@ export function Settings() {
   const [exportErr, setExportErr] = useState<string | null>(null)
 
   function handleLogout() {
-    logout()
+    void logout()  // fire-and-forget:调后端 /api/auth/logout + 清本地 token
     navigate('/login')
   }
 

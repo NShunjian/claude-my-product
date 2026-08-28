@@ -13,7 +13,7 @@ export interface AuthContextValue {
   loading: boolean
   login: (input: Credentials) => Promise<void>
   register: (input: Credentials) => Promise<void>
-  logout: () => void
+  logout: () => Promise<void>
   /** 重新拉一次 me()，多用于资料修改后同步当前用户缓存 */
   refreshUser: () => Promise<void>
   /** 直接覆盖当前 user 缓存，多用于本地乐观更新（如头像预览） */
@@ -69,7 +69,14 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     setUser(res.user)
   }, [])
 
-  const logout = useCallback((): void => {
+  const logout = useCallback(async (): Promise<void> => {
+    // 先通知后端(JWT 无状态,后端不维护黑名单,但保留调用为未来扩展 / 当前审计)
+    try {
+      await authApi.logout()
+    } catch (err) {
+      // 后端 logout 失败不阻断前端清 token
+      console.warn('[logout] 后端 logout 接口失败', err)
+    }
     localStorage.removeItem(TOKEN_KEY)
     setToken(null)
     setUser(null)

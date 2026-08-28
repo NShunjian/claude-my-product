@@ -20,7 +20,7 @@ export function Sidebar() {
   const { logout } = useAuth()
 
   function handleLogout(): void {
-    logout()
+    void logout()  // fire-and-forget:调后端 /api/auth/logout + 清本地 token
     navigate('/login', { replace: true })
   }
 

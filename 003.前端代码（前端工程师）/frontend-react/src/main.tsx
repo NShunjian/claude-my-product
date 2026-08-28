@@ -3,6 +3,7 @@ import { createRoot } from 'react-dom/client'
 import { BrowserRouter } from 'react-router-dom'
 import App from './App'
 import { AuthProvider } from './auth/AuthContext'
+import { ErrorBoundary } from './components/ErrorBoundary'
 import { LanguageProvider } from './i18n/LanguageContext'
 import { setInitialHtmlTheme, ThemeProvider } from './theme/ThemeContext'
 import { ToastProvider } from './components/Toast'
@@ -18,17 +19,19 @@ setInitialHtmlTheme()
 createRoot(rootEl).render(
   <StrictMode>
     <BrowserRouter>
-      <LanguageProvider>
-        <VersionProvider>
-          <ThemeProvider>
-            <ToastProvider>
-              <AuthProvider>
-                <App />
-              </AuthProvider>
-            </ToastProvider>
-          </ThemeProvider>
-        </VersionProvider>
-      </LanguageProvider>
+      <ErrorBoundary>
+        <LanguageProvider>
+          <VersionProvider>
+            <ThemeProvider>
+              <ToastProvider>
+                <AuthProvider>
+                  <App />
+                </AuthProvider>
+              </ToastProvider>
+            </ThemeProvider>
+          </VersionProvider>
+        </LanguageProvider>
+      </ErrorBoundary>
     </BrowserRouter>
   </StrictMode>,
 )

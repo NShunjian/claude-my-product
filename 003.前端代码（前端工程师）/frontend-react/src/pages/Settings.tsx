@@ -27,7 +27,7 @@ export function Settings() {
 
   function handleLogout() {
     void logout()  // fire-and-forget:调后端 /api/auth/logout + 清本地 token
-    navigate('/login')
+    navigate('/login', { replace: true })  // replace 避免后退回到 /settings 再被 ProtectedRoute 踢出
   }
 
   async function runExport(kind: 'monthly' | 'category' | 'all'): Promise<void> {

@@ -20,6 +20,33 @@ export class ApiError extends Error {
   }
 }
 
+/**
+ * 401 全局回调:任何 request() 收到 401 时触发。
+ * AuthContext 注册并清 token + user,然后 ProtectedRoute 自然把用户踢回 /login。
+ * 这样运行期任意接口 token 失效都能统一处理,不必每个调用方各自处理。
+ */
+type AuthInvalidListener = () => void
+
+const authInvalidListeners = new Set<AuthInvalidListener>()
+
+export function onAuthInvalid(listener: AuthInvalidListener): () => void {
+  authInvalidListeners.add(listener)
+  return () => {
+    authInvalidListeners.delete(listener)
+  }
+}
+
+function notifyAuthInvalid(): void {
+  for (const listener of authInvalidListeners) {
+    try {
+      listener()
+    } catch (err) {
+      // 单个 listener 失败不能阻断其他
+      console.error('[authInvalid] listener threw', err)
+    }
+  }
+}
+
 interface ErrorBody {
   error?: {
     code?: string
@@ -46,6 +73,10 @@ export async function request<T>(path: string, options: RequestInit = {}): Promi
   const res = await fetch(API_BASE + path, { ...options, headers })
 
   if (!res.ok) {
+    if (res.status === 401) {
+      // token 失效(token 被后端拉黑 / 过期) → 全局通知,AuthContext 会清状态并跳登录
+      notifyAuthInvalid()
+    }
     const body = (await res.json().catch(() => ({}))) as ErrorBody
     const code = body.error?.code ?? 'INTERNAL'
     const message = body.error?.message ?? `HTTP ${res.status}`

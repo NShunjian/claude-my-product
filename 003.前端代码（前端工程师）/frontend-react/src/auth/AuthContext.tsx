@@ -2,7 +2,7 @@ import { createContext, useCallback, useContext, useEffect, useMemo, useState } 
 import type { ReactNode } from 'react'
 import * as authApi from '../api/auth'
 import type { Credentials, User } from '../api/auth'
-import { ApiError } from '../lib/api'
+import { ApiError, onAuthInvalid } from '../lib/api'
 import { useToast } from '../components/Toast'
 
 const TOKEN_KEY = 'qz_token'
@@ -53,6 +53,16 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       .finally(() => {
         setLoading(false)
       })
+  }, [])
+
+  // 全局 401 监听:任何 request() 遇 401(token 失效) → 清状态,ProtectedRoute 自动跳登录
+  useEffect(() => {
+    const off = onAuthInvalid(() => {
+      localStorage.removeItem(TOKEN_KEY)
+      setToken(null)
+      setUser(null)
+    })
+    return off
   }, [])
 
   const login = useCallback(async (input: Credentials): Promise<void> => {

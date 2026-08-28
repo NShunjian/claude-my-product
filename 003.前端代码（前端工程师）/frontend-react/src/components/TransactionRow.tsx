@@ -1,4 +1,4 @@
-import type { Transaction, Account, Category } from '../lib/finance-types'
+import type { Transaction, Account, Category, TransactionType } from '../lib/finance-types'
 import { CategoryBadge } from './CategoryBadge'
 
 interface TransactionRowProps {
@@ -15,8 +15,11 @@ function findCategory(categories: Category[], id: string): Category | undefined 
   return categories.find((c) => c.id === id)
 }
 
-function formatAmount(amount: number, type: 'expense' | 'income'): string {
-  const sign = type === 'expense' ? '-' : '+'
+/**
+ * expense → "-¥"  income → "+¥"  transfer → "¥"（中性,不暗示方向,因为转账是两个账户互相抵消）
+ */
+function formatAmount(amount: number, type: TransactionType): string {
+  const sign = type === 'expense' ? '-' : type === 'income' ? '+' : ''
   return `${sign}¥${new Intl.NumberFormat('zh-CN', {
     minimumFractionDigits: 2,
     maximumFractionDigits: 2,

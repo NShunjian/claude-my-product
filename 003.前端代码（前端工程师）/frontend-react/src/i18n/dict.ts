@@ -237,6 +237,10 @@ const zh_CN: Dict = {
   'reportMonthly.incomeRanking': '收入排行',
   'reportMonthly.expenseRanking': '支出排行',
   'reportMonthly.loadErrorPrefix': '加载失败：',
+  'reportMonthly.pickMonth': '选择月份',
+  'reportMonthly.picker.yearLabel': '年份',
+  'reportMonthly.picker.clear': '清除',
+  'reportMonthly.picker.thisMonth': '本月',
 
   // reportYearly
   'reportYearly.title': '年度报表',
@@ -272,6 +276,7 @@ const zh_CN: Dict = {
   'reportYearly.monthDec': '12月',
   'reportYearly.incomeTip': '收入 ¥{amount}',
   'reportYearly.expenseTip': '支出 ¥{amount}',
+  'reportYearly.pickYear': '选择年份',
 
   // profileEdit
   'profileEdit.title': '编辑资料',
@@ -586,6 +591,10 @@ const en: Dict = {
   'reportMonthly.incomeRanking': 'Income ranking',
   'reportMonthly.expenseRanking': 'Expense ranking',
   'reportMonthly.loadErrorPrefix': 'Failed to load: ',
+  'reportMonthly.pickMonth': 'Pick month',
+  'reportMonthly.picker.yearLabel': 'Year',
+  'reportMonthly.picker.clear': 'Clear',
+  'reportMonthly.picker.thisMonth': 'This month',
 
   'reportYearly.title': 'Yearly report',
   'reportYearly.totalIncome': 'Income this year',
@@ -620,6 +629,7 @@ const en: Dict = {
   'reportYearly.monthDec': 'Dec',
   'reportYearly.incomeTip': 'Income ¥{amount}',
   'reportYearly.expenseTip': 'Expense ¥{amount}',
+  'reportYearly.pickYear': 'Pick year',
 
   'profileEdit.title': 'Edit profile',
   'profileEdit.displayName': 'Display name',
@@ -930,6 +940,10 @@ const zh_TW: Dict = {
   'reportMonthly.incomeRanking': '收入排行',
   'reportMonthly.expenseRanking': '支出排行',
   'reportMonthly.loadErrorPrefix': '載入失敗：',
+  'reportMonthly.pickMonth': '選擇月份',
+  'reportMonthly.picker.yearLabel': '年份',
+  'reportMonthly.picker.clear': '清除',
+  'reportMonthly.picker.thisMonth': '本月',
 
   'reportYearly.title': '年度報表',
   'reportYearly.totalIncome': '本年收入',
@@ -964,6 +978,7 @@ const zh_TW: Dict = {
   'reportYearly.monthDec': '12月',
   'reportYearly.incomeTip': '收入 ¥{amount}',
   'reportYearly.expenseTip': '支出 ¥{amount}',
+  'reportYearly.pickYear': '選擇年份',
 
   'profileEdit.title': '編輯資料',
   'profileEdit.displayName': '暱稱',

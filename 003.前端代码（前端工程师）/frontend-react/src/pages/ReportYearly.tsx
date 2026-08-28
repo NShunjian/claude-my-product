@@ -36,6 +36,14 @@ export function ReportYearly() {
   const reportQ = useYearlyReport(filterYear)
   const report = reportQ.data
 
+  // 可选年份范围:覆盖种子数据起始年(2021)到当前年之后 2 年
+  const yearOptions = useMemo(() => {
+    const cur = currentYear()
+    const years: number[] = []
+    for (let y = 2020; y <= cur + 2; y++) years.push(y)
+    return years
+  }, [])
+
   const monthlyData = useMemo(() => (report ? fillMonthlyData(report) : []), [report])
 
   const totalIncome = report?.totalIncome ?? 0
@@ -137,26 +145,45 @@ export function ReportYearly() {
               type="button"
               onClick={() => setFilterYear((y) => y - 1)}
               aria-label={t('reportYearly.prevYear')}
-              className="text-on-surface-variant hover:text-primary transition-colors"
+              disabled={!yearOptions.includes(filterYear - 1)}
+              className="text-on-surface-variant hover:text-primary transition-colors disabled:opacity-40 disabled:hover:text-on-surface-variant disabled:cursor-not-allowed"
             >
               <span className="material-symbols-outlined" style={{ fontSize: '20px' }}>
                 chevron_left
               </span>
             </button>
-            <span
-              className="material-symbols-outlined text-primary"
-              style={{ fontSize: '20px', fontVariationSettings: "'FILL' 1" }}
-            >
-              calendar_month
-            </span>
-            <span className="font-body-md text-body-md font-medium text-text-primary min-w-[72px] text-center">
-              {t('reportYearly.yearOnly').replace('{y}', String(filterYear))}
-            </span>
+            <div className="relative flex items-center gap-2">
+              <span
+                className="material-symbols-outlined text-primary pointer-events-none"
+                style={{ fontSize: '20px', fontVariationSettings: "'FILL' 1" }}
+              >
+                calendar_month
+              </span>
+              <select
+                value={filterYear}
+                onChange={(e) => setFilterYear(parseInt(e.target.value, 10))}
+                aria-label={t('reportYearly.pickYear')}
+                className="appearance-none bg-transparent font-body-md text-body-md font-medium text-text-primary pr-6 cursor-pointer focus:outline-none"
+              >
+                {yearOptions.map((y) => (
+                  <option key={y} value={y}>
+                    {t('reportYearly.yearOnly').replace('{y}', String(y))}
+                  </option>
+                ))}
+              </select>
+              <span
+                className="material-symbols-outlined absolute right-0 top-1/2 -translate-y-1/2 pointer-events-none text-on-surface-variant"
+                style={{ fontSize: '18px' }}
+              >
+                expand_more
+              </span>
+            </div>
             <button
               type="button"
               onClick={() => setFilterYear((y) => y + 1)}
               aria-label={t('reportYearly.nextYear')}
-              className="text-on-surface-variant hover:text-primary transition-colors"
+              disabled={!yearOptions.includes(filterYear + 1)}
+              className="text-on-surface-variant hover:text-primary transition-colors disabled:opacity-40 disabled:hover:text-on-surface-variant disabled:cursor-not-allowed"
             >
               <span className="material-symbols-outlined" style={{ fontSize: '20px' }}>
                 chevron_right

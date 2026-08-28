@@ -3,6 +3,7 @@ import { Link } from 'react-router-dom'
 import { usePageTitle, usePageBack } from '../components/PageTitleContext'
 import { LineChart } from '../components/LineChart'
 import { DonutChart, type DonutSegment } from '../components/DonutChart'
+import { MonthPicker } from '../components/MonthPicker'
 import { useMonthlyReport } from '../lib/hooks'
 import { getCategoryPresentationById } from '../lib/category-presentation'
 import { useLanguage } from '../i18n/LanguageContext'
@@ -52,6 +53,14 @@ export function ReportMonthly() {
   const [filterMonth, setFilterMonth] = useState<string>(currentMonth())
   const reportQ = useMonthlyReport(filterMonth)
   const report = reportQ.data
+
+  // 可选年份范围(覆盖种子数据起始年 2021 + 当前年后 2 年留余量)
+  const yearOptions = useMemo(() => {
+    const cur = new Date().getFullYear()
+    const years: number[] = []
+    for (let y = 2020; y <= cur + 2; y++) years.push(y)
+    return years
+  }, [])
 
   const dailyData = useMemo(() => (report ? fillDailyData(report) : []), [report])
 
@@ -173,15 +182,18 @@ export function ReportMonthly() {
                 chevron_left
               </span>
             </button>
-            <span
-              className="material-symbols-outlined text-primary"
-              style={{ fontSize: '20px', fontVariationSettings: "'FILL' 1" }}
-            >
-              calendar_month
-            </span>
-            <span className="font-body-md text-body-md font-medium text-text-primary min-w-[88px] text-center">
-              {formatMonth(filterMonth, t)}
-            </span>
+            <MonthPicker
+              value={filterMonth}
+              onChange={setFilterMonth}
+              yearOptions={yearOptions}
+              displayTemplate={t('reportMonthly.monthYear')}
+              triggerLabel={t('reportMonthly.pickMonth')}
+              labels={{
+                yearLabel: t('reportMonthly.picker.yearLabel'),
+                clear: t('reportMonthly.picker.clear'),
+                thisMonth: t('reportMonthly.picker.thisMonth'),
+              }}
+            />
             <button
               type="button"
               onClick={goNext}

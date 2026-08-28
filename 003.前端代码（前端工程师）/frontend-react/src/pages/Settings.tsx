@@ -17,7 +17,7 @@ export function Settings() {
   usePageTitle('设置')
   usePageBack(null)
 
-  const { user, logout } = useAuth()
+  const { user, loading: authLoading, logout } = useAuth()
   const navigate = useNavigate()
   const { mode: themeMode, setMode: setThemeMode } = useTheme()
   const { lang, setLang, t } = useLanguage()
@@ -102,10 +102,15 @@ export function Settings() {
           </div>
 
           <h3 className="font-headline-md text-headline-md text-text-primary mb-1">
-            {user?.displayName || user?.username || 'testuser'}
+            {authLoading
+              ? '加载中…'
+              : user
+                ? (user.displayName || user.username)
+                : '后端服务暂不可用'}
           </h3>
           <p className="font-body-md text-body-md text-on-surface-variant mb-1">
-            {t('settings.userCard.accountLabel')}：{user?.username || 'demo'}
+            {t('settings.userCard.accountLabel')}：
+            {authLoading ? '加载中…' : user ? user.username : '—'}
           </p>
           <p className="font-body-md text-body-md text-on-surface-variant mb-1">
             {t('settings.userCard.freeVersion')}

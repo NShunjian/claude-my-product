@@ -42,8 +42,8 @@ export async function login(input: Credentials): Promise<AuthResponse> {
 }
 
 /** 需要鉴权；token 由 request() 自动从 localStorage 注入。 */
-export async function me(): Promise<MeResponse> {
-  return request<MeResponse>('/api/auth/me', { method: 'GET' })
+export async function me(options?: { signal?: AbortSignal }): Promise<MeResponse> {
+  return request<MeResponse>('/api/auth/me', { method: 'GET', signal: options?.signal })
 }
 
 /** 调后端 /logout；JWT 无状态，主要给前端一个确认点。 */

@@ -15,7 +15,17 @@ import { notFoundHandler } from './middleware/not-found.js'
 export const createApp = (): Application => {
   const app = express()
   app.use(helmet())
-  app.use(cors({ origin: env.CORS_ORIGIN, credentials: true }))
+  // 白名单 origin:同源 / curl(无 origin header)直接放行;其他匹配 env.CORS_ORIGIN 才放行
+  app.use(
+    cors({
+      origin: (origin, cb) => {
+        if (!origin) return cb(null, true)
+        if (env.CORS_ORIGIN.includes(origin)) return cb(null, true)
+        cb(null, false)
+      },
+      credentials: true,
+    }),
+  )
   app.use(express.json({ limit: '128kb' })) // 64→128: 给 base64 头像留余地（30KB 图 ≈ 40KB base64 + JSON 包装）
 
   app.get('/health', (_req, res) => res.json({ ok: true }))

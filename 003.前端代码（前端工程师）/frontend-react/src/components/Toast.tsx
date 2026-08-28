@@ -2,6 +2,7 @@ import {
   createContext,
   useCallback,
   useContext,
+  useEffect,
   useMemo,
   useRef,
   useState,
@@ -59,6 +60,15 @@ export function ToastProvider({ children }: { children: ReactNode }) {
   )
 
   const api = useMemo<ToastApi>(() => ({ show }), [show])
+
+  // 卸载时清掉所有未触发的 dismiss timer,避免在 Provider 已 unmount 后回调
+  useEffect(() => {
+    const timers = timersRef.current
+    return () => {
+      timers.forEach((timer) => clearTimeout(timer))
+      timers.clear()
+    }
+  }, [])
 
   return (
     <ToastContext.Provider value={api}>

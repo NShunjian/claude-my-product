@@ -20,6 +20,8 @@ interface AsyncState<T> {
  * 401 会被 request() 抛 ApiError，调用方决定如何处理（一般不需额外动作：AuthContext 初始化已做过）。
  *
  * 可监听 window 事件名（eventNames）以触发 reload：记账成功后页面应该刷新流水/账户余额。
+ *
+ * 实现要点：用单调递增 token 让过期 in-flight 自动失效，避免旧请求覆盖新 state。
  */
 function useAsync<T>(
   loader: () => Promise<T>,
@@ -30,55 +32,36 @@ function useAsync<T>(
 
   const runRef = useRef(loader)
   runRef.current = loader
+  const tokenRef = useRef(0)
+
+  const execute = useCallback(() => {
+    const myToken = ++tokenRef.current
+    setState((s) => ({ ...s, loading: true, error: null }))
+    runRef.current()
+      .then((data) => {
+        if (myToken !== tokenRef.current) return  // 已被新请求 / 重载覆盖
+        setState({ data, loading: false, error: null })
+      })
+      .catch((err: unknown) => {
+        if (myToken !== tokenRef.current) return
+        if (err instanceof ApiError) {
+          setState({ data: null, loading: false, error: err })
+        } else {
+          setState({
+            data: null,
+            loading: false,
+            error: new ApiError('INTERNAL', String(err), 500),
+          })
+        }
+      })
+  }, [])
 
   // eslint-disable-next-line react-hooks/exhaustive-deps
   useEffect(() => {
-    let cancelled = false
-    setState((s) => ({ ...s, loading: true, error: null }))
-    runRef.current()
-      .then((data) => {
-        if (!cancelled) setState({ data, loading: false, error: null })
-      })
-      .catch((err: unknown) => {
-        if (cancelled) return
-        if (err instanceof ApiError) {
-          setState({ data: null, loading: false, error: err })
-        } else {
-          setState({
-            data: null,
-            loading: false,
-            error: new ApiError('INTERNAL', String(err), 500),
-          })
-        }
-      })
-    return () => {
-      cancelled = true
-    }
+    execute()
   }, deps)
 
-  const reload = useCallback(() => {
-    let cancelled = false
-    setState((s) => ({ ...s, loading: true, error: null }))
-    runRef.current()
-      .then((data) => {
-        if (!cancelled) setState({ data, loading: false, error: null })
-      })
-      .catch((err: unknown) => {
-        if (cancelled) return
-        if (err instanceof ApiError) {
-          setState({ data: null, loading: false, error: err })
-        } else {
-          setState({
-            data: null,
-            loading: false,
-            error: new ApiError('INTERNAL', String(err), 500),
-          })
-        }
-      })
-    return () => {
-      cancelled = true
-    }
-  }, [])
+  const reload = execute
 
   // 监听全局事件触发 reload
   useEffect(() => {

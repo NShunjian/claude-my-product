@@ -35,12 +35,16 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       return
     }
     setToken(saved)
+    // AbortController:StrictMode dev 下双跑 / 组件卸载时取消未完成请求,避免 setState 已 unmount 组件
+    const controller = new AbortController()
     authApi
-      .me()
+      .me({ signal: controller.signal })
       .then((res) => {
         setUser(res.user)
       })
       .catch((err: unknown) => {
+        // 主动 abort 不当作错误(组件卸载或 StrictMode 重跑)
+        if (err instanceof DOMException && err.name === 'AbortError') return
         if (err instanceof ApiError && err.status === 401) {
           localStorage.removeItem(TOKEN_KEY)
           setToken(null)
@@ -53,6 +57,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       .finally(() => {
         setLoading(false)
       })
+    return () => controller.abort()
   }, [])
 
   // 全局 401 监听:任何 request() 遇 401(token 失效) → 清状态,ProtectedRoute 自动跳登录

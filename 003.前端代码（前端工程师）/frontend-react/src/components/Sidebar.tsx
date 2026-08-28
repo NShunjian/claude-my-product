@@ -1,23 +1,25 @@
 import { NavLink, useNavigate } from 'react-router-dom'
 import { useAuth } from '../auth/AuthContext'
+import { useLanguage } from '../i18n/LanguageContext'
 
 interface NavItem {
-  label: string
+  labelKey: string
   icon: string
   to: string
   endsWith?: boolean
 }
 
 const NAV_ITEMS: NavItem[] = [
-  { label: '首页', icon: 'dashboard', to: '/' },
-  { label: '报表', icon: 'bar_chart', to: '/reports/monthly' },
-  { label: '账户', icon: 'account_balance_wallet', to: '/accounts' },
-  { label: '设置', icon: 'settings', to: '/settings' },
+  { labelKey: 'sidebar.home', icon: 'dashboard', to: '/' },
+  { labelKey: 'sidebar.reports', icon: 'bar_chart', to: '/reports/monthly' },
+  { labelKey: 'sidebar.accounts', icon: 'account_balance_wallet', to: '/accounts' },
+  { labelKey: 'sidebar.settings', icon: 'settings', to: '/settings' },
 ]
 
 export function Sidebar() {
   const navigate = useNavigate()
   const { logout } = useAuth()
+  const { t } = useLanguage()
 
   function handleLogout(): void {
     void logout()  // fire-and-forget:调后端 /api/auth/logout + 清本地 token
@@ -42,7 +44,7 @@ export function Sidebar() {
             轻账
           </h1>
           <p className="font-caption-sm text-caption-sm text-on-surface-variant mt-1">
-            Financial Clarity
+            {t('sidebar.brandTagline')}
           </p>
         </div>
       </div>
@@ -74,7 +76,7 @@ export function Sidebar() {
                     className="font-body-md text-body-md"
                     style={{ fontWeight: isActive ? 800 : 400 }}
                   >
-                    {item.label}
+                    {t(item.labelKey)}
                   </span>
                 </>
               )}
@@ -95,7 +97,7 @@ export function Sidebar() {
           >
             add
           </span>
-          快速记账
+          {t('sidebar.quickAdd')}
         </NavLink>
       </div>
 
@@ -108,7 +110,7 @@ export function Sidebar() {
         <span className="material-symbols-outlined" style={{ fontSize: '24px' }}>
           logout
         </span>
-        <span className="font-body-md text-body-md">退出</span>
+        <span className="font-body-md text-body-md">{t('sidebar.logout')}</span>
       </button>
     </nav>
   )

@@ -14,9 +14,6 @@ const THEME_OPTIONS: { mode: ThemeMode; labelKey: string }[] = [
 ]
 
 export function Settings() {
-  usePageTitle('设置')
-  usePageBack(null)
-
   const { user, logout } = useAuth()
   const navigate = useNavigate()
   const { mode: themeMode, setMode: setThemeMode } = useTheme()
@@ -24,6 +21,9 @@ export function Settings() {
   const { version, state: versionState } = useVersion()
   const [exporting, setExporting] = useState<null | 'monthly' | 'category' | 'all'>(null)
   const [exportErr, setExportErr] = useState<string | null>(null)
+
+  usePageTitle(t('pageTitle.settings'))
+  usePageBack(null)
 
   function handleLogout() {
     void logout()  // fire-and-forget:调后端 /api/auth/logout + 清本地 token
@@ -39,7 +39,7 @@ export function Settings() {
       else await exportAll()
     } catch (err) {
       console.error('[export] failed', err)
-      setExportErr(err instanceof Error ? err.message : '导出失败')
+      setExportErr(err instanceof Error ? err.message : t('settings.data.exportFailPrefix'))
     } finally {
       setExporting(null)
     }
@@ -79,7 +79,7 @@ export function Settings() {
                 style={{ fontFamily: 'Inter, system-ui, sans-serif' }}
               >
                 <textPath href="#circlePath" startOffset="0%">
-                  设置 · 轻账 ·
+                  {t('settings.about.title')}
                 </textPath>
               </text>
             </svg>
@@ -237,7 +237,7 @@ export function Settings() {
               database
             </span>
           </span>
-          <h3 className="font-headline-md text-headline-md text-text-primary">数据管理</h3>
+          <h3 className="font-headline-md text-headline-md text-text-primary">{t('settings.data.title')}</h3>
         </div>
 
         <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mb-6">
@@ -255,7 +255,7 @@ export function Settings() {
               {exporting === 'monthly' ? 'progress_activity' : 'calendar_month'}
             </span>
             <span className="font-body-md text-body-md text-text-primary">
-              {exporting === 'monthly' ? '导出中…' : '导出本月报表'}
+              {exporting === 'monthly' ? t('settings.data.exporting') : t('settings.data.exportMonthly')}
             </span>
           </button>
 
@@ -273,7 +273,7 @@ export function Settings() {
               {exporting === 'category' ? 'progress_activity' : 'category'}
             </span>
             <span className="font-body-md text-body-md text-text-primary">
-              {exporting === 'category' ? '导出中…' : '按分类导出'}
+              {exporting === 'category' ? t('settings.data.exporting') : t('settings.data.exportCategory')}
             </span>
           </button>
 
@@ -291,15 +291,15 @@ export function Settings() {
               {exporting === 'all' ? 'progress_activity' : 'check_circle'}
             </span>
             <span className="font-body-md text-body-md text-text-primary">
-              {exporting === 'all' ? '导出中…' : '导出全部数据'}
+              {exporting === 'all' ? t('settings.data.exporting') : t('settings.data.exportAll')}
             </span>
           </button>
         </div>
 
         <p className="text-center font-body-md text-body-md text-on-surface-variant">
           {exportErr
-            ? `导出失败:${exportErr}`
-            : '所有数据将以 Excel (.xlsx) 格式导出至您的设备。'}
+            ? `${t('settings.data.exportFailPrefix')}${exportErr}`
+            : t('settings.data.exportDesc')}
         </p>
       </div>
 
@@ -314,7 +314,7 @@ export function Settings() {
             >
               info
             </span>
-            <h3 className="font-headline-md text-headline-md text-text-primary">关于轻账</h3>
+            <h3 className="font-headline-md text-headline-md text-text-primary">{t('settings.about.title')}</h3>
           </div>
 
           <div className="flex items-start gap-4 mb-8">
@@ -336,10 +336,10 @@ export function Settings() {
               </p>
               <p className="font-body-md text-body-md text-on-surface-variant">
                 {versionState === 'ok'
-                  ? '当前版本'
+                  ? t('settings.about.currentVersion')
                   : versionState === 'error'
-                    ? '暂不可用,请稍后重试'
-                    : '正在获取版本号…'}
+                    ? t('settings.about.versionUnavailable')
+                    : t('settings.about.fetchingVersion')}
               </p>
             </div>
           </div>
@@ -349,13 +349,13 @@ export function Settings() {
               href="#"
               className="font-body-md text-body-md text-primary hover:underline"
             >
-              服务条款
+              {t('settings.about.terms')}
             </a>
             <a
               href="#"
               className="font-body-md text-body-md text-primary hover:underline"
             >
-              隐私政策
+              {t('settings.about.privacy')}
             </a>
           </div>
         </div>
@@ -369,11 +369,11 @@ export function Settings() {
             >
               shield
             </span>
-            <h3 className="font-headline-md text-headline-md text-text-primary">账号安全</h3>
+            <h3 className="font-headline-md text-headline-md text-text-primary">{t('settings.accountSecurity.title')}</h3>
           </div>
 
           <p className="font-body-md text-body-md text-on-surface-variant mb-8 leading-relaxed">
-            退出登录后，需要重新输入密码或使用生物识别认证才能再次访问您的账单数据。
+            {t('settings.accountSecurity.desc')}
           </p>
 
           <div className="mt-auto flex justify-end">
@@ -388,7 +388,7 @@ export function Settings() {
               >
                 logout
               </span>
-              退出登录
+              {t('settings.accountSecurity.logout')}
             </button>
           </div>
         </div>

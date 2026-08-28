@@ -1,6 +1,7 @@
 import { useEffect, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import type { Account, Category } from '../lib/finance-types'
+import { useLanguage } from '../i18n/LanguageContext'
 
 // 主题色映射（与原型一致）
 const COLOR_MAP: Record<string, { solid: string; tint: string; label: string }> = {
@@ -52,6 +53,7 @@ export function RecordModal({
   onSubmit,
 }: RecordModalProps) {
   const navigate = useNavigate()
+  const { t } = useLanguage()
 
   const [note, setNote] = useState('')
   const [categoryId, setCategoryId] = useState(defaultCategoryId ?? categories[0]?.id ?? '')
@@ -137,11 +139,11 @@ export function RecordModal({
     const amount = computeAmount()
     if (amount <= 0) return
     if (!categoryId) {
-      setErrorMsg('请选择分类')
+      setErrorMsg(activeTab === 'expense' ? t('recordExpense.categoryRequired') : t('recordIncome.categoryRequired'))
       return
     }
     if (!accountId) {
-      setErrorMsg('请选择账户')
+      setErrorMsg(activeTab === 'expense' ? t('recordExpense.accountRequired') : t('recordIncome.accountRequired'))
       return
     }
     setErrorMsg(null)
@@ -158,7 +160,7 @@ export function RecordModal({
       setShowSuccess(true)
       setTimeout(() => navigate(-1), 1200)
     } catch (err) {
-      const msg = err instanceof Error ? err.message : '提交失败，请重试'
+      const msg = err instanceof Error ? err.message : t('common.submitFailed')
       setErrorMsg(msg)
     } finally {
       setSubmitting(false)
@@ -222,7 +224,9 @@ export function RecordModal({
                 check
               </span>
             </div>
-            <p className="font-headline-md text-headline-md text-text-primary">记录成功</p>
+            <p className="font-headline-md text-headline-md text-text-primary">
+              {activeTab === 'expense' ? t('recordExpense.success') : t('recordIncome.success')}
+            </p>
           </div>
         ) : (
           <>
@@ -231,7 +235,7 @@ export function RecordModal({
               <button
                 type="button"
                 onClick={handleClose}
-                aria-label="关闭"
+                aria-label={t('recordModal.close')}
                 className="text-on-surface-variant hover:text-primary transition-colors"
               >
                 <span className="material-symbols-outlined" style={{ fontSize: '24px' }}>
@@ -249,7 +253,7 @@ export function RecordModal({
                       : 'text-on-surface-variant'
                   }`}
                 >
-                  支出
+                  {t('recordModal.expense')}
                 </button>
                 <button
                   type="button"
@@ -260,7 +264,7 @@ export function RecordModal({
                       : 'text-on-surface-variant'
                   }`}
                 >
-                  收入
+                  {t('recordModal.income')}
                 </button>
               </div>
 
@@ -270,7 +274,7 @@ export function RecordModal({
             {/* 金额显示 */}
             <div className="text-center px-6 pt-6 pb-4 bg-surface-container-lowest">
               <p className="font-caption-sm text-caption-sm text-on-surface-variant mb-2">
-                输入金额
+                {activeTab === 'expense' ? t('recordExpense.amountPrompt') : t('recordIncome.amountPrompt')}
               </p>
               <div className="flex items-center justify-center gap-1">
                 <span className="font-label-mono text-2xl text-on-surface-variant">¥</span>
@@ -293,7 +297,7 @@ export function RecordModal({
             <div className="px-6 py-6 bg-bg-card">
               {categories.length === 0 ? (
                 <p className="text-on-surface-variant font-body-md text-body-md text-center py-4">
-                  加载分类中…
+                  {t('recordModal.categoryLoading')}
                 </p>
               ) : (
                 <div className="grid grid-cols-4 gap-y-5 gap-x-2">
@@ -347,7 +351,7 @@ export function RecordModal({
               {accounts.length > 0 && (
                 <div className="flex items-center gap-2 overflow-x-auto">
                   <span className="font-caption-sm text-caption-sm text-on-surface-variant whitespace-nowrap">
-                    账户
+                    {t('recordModal.accountLabel')}
                   </span>
                   <div className="flex gap-2">
                     {accounts.map((acct) => {
@@ -386,13 +390,13 @@ export function RecordModal({
                   <span className="material-symbols-outlined" style={{ fontSize: '18px' }}>
                     calendar_today
                   </span>
-                  今天
+                  {activeTab === 'expense' ? t('recordExpense.today') : t('recordIncome.today')}
                 </button>
                 <input
                   type="text"
                   value={note}
                   onChange={(e) => setNote(e.target.value)}
-                  placeholder="添加备注..."
+                  placeholder={t('recordModal.notePlaceholder')}
                   className="flex-1 px-4 py-2 bg-surface-container rounded-lg font-body-md text-body-md text-text-primary placeholder:text-outline focus:outline-none focus:ring-1 focus:ring-primary transition-colors"
                 />
               </div>

@@ -3,9 +3,18 @@ import { usePageTitle, usePageBack } from '../components/PageTitleContext'
 import { TransactionRow } from '../components/TransactionRow'
 import { useAccounts, useCategories, useRecords } from '../lib/hooks'
 import { toAccounts, toCategories, toTransactions } from '../lib/finance-mappers'
+import { useLanguage } from '../i18n/LanguageContext'
 import type { Account, Category, Transaction } from '../lib/finance-types'
 
-const WEEKDAYS = ['星期日', '星期一', '星期二', '星期三', '星期四', '星期五', '星期六']
+const WEEKDAY_KEYS = [
+  'transactions.weekdaySun',
+  'transactions.weekdayMon',
+  'transactions.weekdayTue',
+  'transactions.weekdayWed',
+  'transactions.weekdayThu',
+  'transactions.weekdayFri',
+  'transactions.weekdaySat',
+]
 
 function formatMoney(amount: number): string {
   return new Intl.NumberFormat('zh-CN', {
@@ -19,9 +28,9 @@ function formatMonth(month: string): string {
   return `${y}年 ${parseInt(m, 10)}月`
 }
 
-function formatDayWithWeekday(iso: string): string {
+function formatDayWithWeekday(iso: string, weekdays: string[]): string {
   const d = new Date(iso)
-  return `${d.getMonth() + 1}月${d.getDate()}日，${WEEKDAYS[d.getDay()]}`
+  return `${d.getMonth() + 1}月${d.getDate()}日, ${weekdays[d.getDay()]}`
 }
 
 const SELECT_ARROW =
@@ -52,8 +61,10 @@ function recentMonths(): string[] {
 }
 
 export function Transactions() {
-  usePageTitle('全部交易')
-  usePageBack('/', '首页')
+  const { t } = useLanguage()
+  const weekdays = useMemo(() => WEEKDAY_KEYS.map((k) => t(k)), [t])
+  usePageTitle(t('transactions.titleAll'))
+  usePageBack('/', t('pageTitle.home'))
 
   const [filterMonth, setFilterMonth] = useState<string>(currentMonth())
   const [filterCategory, setFilterCategory] = useState<string>('all')
@@ -120,9 +131,9 @@ export function Transactions() {
         (s, t) => s + (t.type === 'income' ? t.amount : -t.amount),
         0,
       )
-      return { date, txns, net: groupNet, label: formatDayWithWeekday(date) }
+      return { date, txns, net: groupNet, label: formatDayWithWeekday(date, weekdays) }
     })
-  }, [filteredTxns])
+  }, [filteredTxns, weekdays])
 
   // 月份变更时，若当前账户/分类已不存在列表里，重置为 all
   useEffect(() => {
@@ -144,32 +155,32 @@ export function Transactions() {
     <div className="space-y-6">
       <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
         <div className="bg-bg-card rounded-xl border border-divider p-4 flex flex-col justify-center">
-          <h2 className="font-headline-md text-headline-md text-text-primary mb-4">筛选</h2>
+          <h2 className="font-headline-md text-headline-md text-text-primary mb-4">{t('transactions.filterLabel')}</h2>
           <div className="flex flex-wrap gap-3">
             <select className={SELECT_CLASS} style={SELECT_STYLE} value={filterMonth} onChange={(e) => setFilterMonth(e.target.value)}>
               {months.map((m) => <option key={m} value={m}>{formatMonth(m)}</option>)}
             </select>
             <select className={SELECT_CLASS} style={SELECT_STYLE} value={filterCategory} onChange={(e) => setFilterCategory(e.target.value)}>
-              <option value="all">所有分类</option>
+              <option value="all">{t('transactions.allCategories')}</option>
               {allCategories.map((cat) => <option key={cat.id} value={cat.id}>{cat.name}</option>)}
             </select>
             <select className={SELECT_CLASS} style={SELECT_STYLE} value={filterAccount} onChange={(e) => setFilterAccount(e.target.value)}>
-              <option value="all">所有账户</option>
+              <option value="all">{t('transactions.allAccounts')}</option>
               {accounts.map((acct) => <option key={acct.id} value={acct.id}>{acct.name}</option>)}
             </select>
           </div>
         </div>
         <div className="bg-primary text-on-primary rounded-xl p-4 flex flex-col justify-center relative overflow-hidden">
           <div className="absolute -right-10 -top-10 w-32 h-32 bg-primary-light opacity-10 rounded-full blur-2xl" />
-          <span className="font-caption-sm text-caption-sm text-primary-light mb-1">当月结余</span>
+          <span className="font-caption-sm text-caption-sm text-primary-light mb-1">{t('transactions.monthBalance')}</span>
           <span className="font-label-mono text-label-mono text-2xl">¥ {formatMoney(net)}</span>
           <div className="flex justify-between mt-4 font-body-md text-body-md">
             <div className="flex flex-col">
-              <span className="text-primary-light">收入</span>
+              <span className="text-primary-light">{t('transactions.income')}</span>
               <span className="font-label-mono text-label-mono">+¥ {formatMoney(income)}</span>
             </div>
             <div className="flex flex-col text-right">
-              <span className="text-primary-light">支出</span>
+              <span className="text-primary-light">{t('transactions.expense')}</span>
               <span className="font-label-mono text-label-mono">-¥ {formatMoney(expense)}</span>
             </div>
           </div>
@@ -178,15 +189,15 @@ export function Transactions() {
 
       {isError && (
         <div className="bg-error-container text-on-error-container rounded-xl p-4 font-body-md text-body-md">
-          加载失败：{errMsg}
+          {t('transactions.loadErrorPrefix')}{errMsg}
         </div>
       )}
 
       <div className="bg-bg-card rounded-xl border border-divider overflow-hidden">
         {isLoading ? (
-          <p className="text-on-surface-variant font-body-md text-body-md text-center py-12">加载中…</p>
+          <p className="text-on-surface-variant font-body-md text-body-md text-center py-12">{t('transactions.loading')}</p>
         ) : filteredTxns.length === 0 ? (
-          <p className="text-on-surface-variant font-body-md text-body-md text-center py-12">暂无交易记录</p>
+          <p className="text-on-surface-variant font-body-md text-body-md text-center py-12">{t('transactions.empty')}</p>
         ) : (
           <div className="flex flex-col">
             {groupedTxns.map((group, idx) => (

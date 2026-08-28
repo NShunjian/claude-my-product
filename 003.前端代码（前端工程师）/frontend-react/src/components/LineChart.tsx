@@ -1,4 +1,5 @@
 import { useMemo, useRef, useState } from 'react'
+import { useLanguage } from '../i18n/LanguageContext'
 
 interface LineChartProps {
   data: Array<{ day: number; income: number; expense: number }>
@@ -26,6 +27,7 @@ export function LineChart({
   expenseColor = '#ba1a1a',
   smoothWindow = 5,
 }: LineChartProps) {
+  const { t } = useLanguage()
   const W = 800
   const H = 320
   const PADDING = { top: 20, right: 20, bottom: 40, left: 50 }
@@ -250,7 +252,7 @@ export function LineChart({
               }}
             />
             <span className="text-text-primary">
-              收入: {Math.round(hoverData.income).toLocaleString('en-US')}
+              {t('chart.line.income')}: {Math.round(hoverData.income).toLocaleString('en-US')}
             </span>
           </div>
           <div className="flex items-center gap-2 text-xs">
@@ -262,7 +264,7 @@ export function LineChart({
               }}
             />
             <span className="text-text-primary">
-              支出: {Math.round(hoverData.expense).toLocaleString('en-US')}
+              {t('chart.line.expense')}: {Math.round(hoverData.expense).toLocaleString('en-US')}
             </span>
           </div>
         </div>

@@ -5,6 +5,7 @@ import { LineChart } from '../components/LineChart'
 import { DonutChart, type DonutSegment } from '../components/DonutChart'
 import { useMonthlyReport } from '../lib/hooks'
 import { getCategoryPresentationById } from '../lib/category-presentation'
+import { useLanguage } from '../i18n/LanguageContext'
 import type { CategoryTotal, DailyPoint, MonthlyReport } from '../api/reports'
 
 function formatMoney(amount: number): string {
@@ -14,9 +15,11 @@ function formatMoney(amount: number): string {
   }).format(amount)
 }
 
-function formatMonth(month: string): string {
+function formatMonth(month: string, t: (key: string) => string): string {
   const [y, m] = month.split('-')
-  return `${y} 年 ${parseInt(m, 10)} 月`
+  return t('reportMonthly.monthYear')
+    .replace('{y}', y)
+    .replace('{m}', String(parseInt(m, 10)))
 }
 
 function shiftMonth(month: string, delta: number): string {
@@ -42,7 +45,8 @@ function fillDailyData(report: MonthlyReport): DailyPoint[] {
 }
 
 export function ReportMonthly() {
-  usePageTitle('报表')
+  const { t } = useLanguage()
+  usePageTitle(t('pageTitle.reportMonthly'))
   usePageBack(null)
 
   const [filterMonth, setFilterMonth] = useState<string>(currentMonth())
@@ -151,10 +155,10 @@ export function ReportMonthly() {
       <div className="flex flex-wrap items-center justify-between gap-4">
         <div>
           <h2 className="font-headline-md text-headline-md text-text-primary leading-none mb-1.5">
-            月度统计
+            {t('reportMonthly.title')}
           </h2>
           <p className="font-body-md text-body-md text-on-surface-variant">
-            {formatMonth(filterMonth)}
+            {formatMonth(filterMonth, t)}
           </p>
         </div>
         <div className="flex items-center gap-3">
@@ -162,7 +166,7 @@ export function ReportMonthly() {
             <button
               type="button"
               onClick={goPrev}
-              aria-label="上一月"
+              aria-label={t('reportMonthly.prevMonth')}
               className="text-on-surface-variant hover:text-primary transition-colors"
             >
               <span className="material-symbols-outlined" style={{ fontSize: '20px' }}>
@@ -176,12 +180,12 @@ export function ReportMonthly() {
               calendar_month
             </span>
             <span className="font-body-md text-body-md font-medium text-text-primary min-w-[88px] text-center">
-              {formatMonth(filterMonth)}
+              {formatMonth(filterMonth, t)}
             </span>
             <button
               type="button"
               onClick={goNext}
-              aria-label="下一月"
+              aria-label={t('reportMonthly.nextMonth')}
               className="text-on-surface-variant hover:text-primary transition-colors"
             >
               <span className="material-symbols-outlined" style={{ fontSize: '20px' }}>
@@ -195,13 +199,13 @@ export function ReportMonthly() {
               to="/reports/monthly"
               className="px-5 py-1.5 font-body-md text-body-md font-medium rounded-lg transition-colors bg-bg-card text-primary shadow-sm"
             >
-              按月
+              {t('reportMonthly.tabMonthly')}
             </Link>
             <Link
               to="/reports/yearly"
               className="px-5 py-1.5 font-body-md text-body-md font-medium rounded-lg transition-colors text-on-surface-variant hover:text-primary"
             >
-              按年
+              {t('reportMonthly.tabYearly')}
             </Link>
           </div>
         </div>
@@ -209,7 +213,7 @@ export function ReportMonthly() {
 
       {isError && (
         <div className="bg-error-container text-on-error-container rounded-xl p-4 font-body-md text-body-md">
-          加载失败：{errMsg}
+          {t('reportMonthly.loadErrorPrefix')}{errMsg}
         </div>
       )}
 
@@ -223,7 +227,7 @@ export function ReportMonthly() {
             >
               account_balance
             </span>
-            <span className="font-body-md text-body-md">结余</span>
+            <span className="font-body-md text-body-md">{t('reportMonthly.netSavings')}</span>
           </div>
           <p className="font-label-mono text-label-mono text-text-primary text-3xl font-bold">
             ¥{formatMoney(netSavings)}
@@ -238,7 +242,7 @@ export function ReportMonthly() {
               {netChangePct === null ? '+0.0%' : `${netChangePct >= 0 ? '+' : ''}${netChangePct.toFixed(1)}%`}
             </span>
             <span className="font-caption-sm text-caption-sm text-on-surface-variant">
-              vs 上月
+              {t('reportMonthly.lastMonth')}
             </span>
           </div>
         </div>
@@ -251,7 +255,7 @@ export function ReportMonthly() {
             >
               trending_down
             </span>
-            <span className="font-body-md text-body-md font-medium">总收入</span>
+            <span className="font-body-md text-body-md font-medium">{t('reportMonthly.totalIncomeLabel')}</span>
           </div>
           <p className="font-label-mono text-label-mono text-primary text-3xl font-bold">
             ¥{formatMoney(totalIncome)}
@@ -264,7 +268,7 @@ export function ReportMonthly() {
               </div>
             ))}
             {incomeRanking.length === 0 && (
-              <span className="text-xs text-primary opacity-60">暂无收入</span>
+              <span className="text-xs text-primary opacity-60">{t('reportMonthly.noIncome')}</span>
             )}
           </div>
         </div>
@@ -277,7 +281,7 @@ export function ReportMonthly() {
             >
               trending_up
             </span>
-            <span className="font-body-md text-body-md font-medium">总支出</span>
+            <span className="font-body-md text-body-md font-medium">{t('reportMonthly.totalExpenseLabel')}</span>
           </div>
           <p className="font-label-mono text-label-mono text-error text-3xl font-bold">
             ¥{formatMoney(totalExpense)}
@@ -285,10 +289,10 @@ export function ReportMonthly() {
           <div className="mt-auto">
             {topExpense ? (
               <p className="text-xs text-error opacity-80">
-                最多分类：{topExpense.name}（¥{formatMoney(topExpense.total)}）
+                {t('reportMonthly.topCategoryPrefix')}{topExpense.name}（¥{formatMoney(topExpense.total)}）
               </p>
             ) : (
-              <span className="text-xs text-error opacity-60">暂无支出</span>
+              <span className="text-xs text-error opacity-60">{t('reportMonthly.noExpense')}</span>
             )}
           </div>
         </div>
@@ -298,24 +302,24 @@ export function ReportMonthly() {
       <div className="grid grid-cols-1 md:grid-cols-12 gap-6">
         <div className="bento-item bg-bg-card md:col-span-8 min-h-[300px] flex flex-col">
           <div className="flex justify-between items-center mb-4">
-            <h3 className="font-headline-md text-headline-md text-text-primary">每日收支趋势</h3>
+            <h3 className="font-headline-md text-headline-md text-text-primary">{t('reportMonthly.dailyTrend')}</h3>
             <div className="flex items-center gap-4" style={{ paddingRight: '2.5%' }}>
               <div className="flex items-center gap-1.5">
                 <span className="w-2.5 h-2.5 rounded-full bg-primary" />
                 <span className="font-caption-sm text-caption-sm text-on-surface-variant">
-                  收入
+                  {t('chart.line.income')}
                 </span>
               </div>
               <div className="flex items-center gap-1.5">
                 <span className="w-2.5 h-2.5 rounded-full bg-error" />
                 <span className="font-caption-sm text-caption-sm text-on-surface-variant">
-                  支出
+                  {t('chart.line.expense')}
                 </span>
               </div>
             </div>
           </div>
           {isLoading ? (
-            <p className="text-on-surface-variant font-body-md text-body-md text-center py-12">加载中…</p>
+            <p className="text-on-surface-variant font-body-md text-body-md text-center py-12">{t('common.loading')}</p>
           ) : (
             <LineChart data={dailyData} />
           )}
@@ -323,9 +327,9 @@ export function ReportMonthly() {
 
         {/* 支出占比（与下方支出配对的同一份数据，复用） */}
         <div className="bento-item bg-bg-card md:col-span-4 min-h-[300px] flex flex-col">
-          <h3 className="font-headline-md text-headline-md text-text-primary mb-6">支出占比</h3>
+          <h3 className="font-headline-md text-headline-md text-text-primary mb-6">{t('reportMonthly.expenseShare')}</h3>
           {expenseDonutSegments.length === 0 ? (
-            <p className="text-on-surface-variant text-center py-12">暂无支出记录</p>
+            <p className="text-on-surface-variant text-center py-12">{t('reportMonthly.noExpenseRecords')}</p>
           ) : (
             <div className="flex-1 relative flex items-center justify-center">
               <DonutChart
@@ -340,9 +344,9 @@ export function ReportMonthly() {
       {/* 收入占比 + 收入排行 */}
       <div className="grid grid-cols-1 md:grid-cols-12 gap-6">
         <div className="bento-item bg-bg-card md:col-span-4 min-h-[300px] flex flex-col">
-          <h3 className="font-headline-md text-headline-md text-text-primary mb-6">收入占比</h3>
+          <h3 className="font-headline-md text-headline-md text-text-primary mb-6">{t('reportMonthly.incomeShare')}</h3>
           {incomeDonutSegments.length === 0 ? (
-            <p className="text-on-surface-variant text-center py-12">暂无收入记录</p>
+            <p className="text-on-surface-variant text-center py-12">{t('reportMonthly.noIncomeRecords')}</p>
           ) : (
             <div className="flex-1 relative flex items-center justify-center">
               <DonutChart
@@ -354,9 +358,9 @@ export function ReportMonthly() {
         </div>
 
         <div className="bento-item bg-bg-card md:col-span-8 p-6 flex flex-col">
-          <h3 className="font-headline-md text-headline-md text-text-primary mb-4">收入排行</h3>
+          <h3 className="font-headline-md text-headline-md text-text-primary mb-4">{t('reportMonthly.incomeRanking')}</h3>
           {incomeRanking.length === 0 ? (
-            <p className="text-on-surface-variant text-center py-8">暂无收入记录</p>
+            <p className="text-on-surface-variant text-center py-8">{t('reportMonthly.noIncomeRecords')}</p>
           ) : (
             <div className="space-y-5 flex-1">
               {incomeRanking.map((cat) => renderCategoryRow(cat, totalIncome))}
@@ -368,9 +372,9 @@ export function ReportMonthly() {
       {/* 支出占比 + 支出排行（与收入配对布局一致） */}
       <div className="grid grid-cols-1 md:grid-cols-12 gap-6">
         <div className="bento-item bg-bg-card md:col-span-4 min-h-[300px] flex flex-col">
-          <h3 className="font-headline-md text-headline-md text-text-primary mb-6">支出占比</h3>
+          <h3 className="font-headline-md text-headline-md text-text-primary mb-6">{t('reportMonthly.expenseShare')}</h3>
           {expenseDonutSegments.length === 0 ? (
-            <p className="text-on-surface-variant text-center py-12">暂无支出记录</p>
+            <p className="text-on-surface-variant text-center py-12">{t('reportMonthly.noExpenseRecords')}</p>
           ) : (
             <div className="flex-1 relative flex items-center justify-center">
               <DonutChart
@@ -382,9 +386,9 @@ export function ReportMonthly() {
         </div>
 
         <div className="bento-item bg-bg-card md:col-span-8 p-6 flex flex-col">
-          <h3 className="font-headline-md text-headline-md text-text-primary mb-4">支出排行</h3>
+          <h3 className="font-headline-md text-headline-md text-text-primary mb-4">{t('reportMonthly.expenseRanking')}</h3>
           {expenseRanking.length === 0 ? (
-            <p className="text-on-surface-variant text-center py-8">暂无支出记录</p>
+            <p className="text-on-surface-variant text-center py-8">{t('reportMonthly.noExpenseRecords')}</p>
           ) : (
             <div className="space-y-5 flex-1">
               {expenseRanking.map((cat) => renderCategoryRow(cat, totalExpense))}

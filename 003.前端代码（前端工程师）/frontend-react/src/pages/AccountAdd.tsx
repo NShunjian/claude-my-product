@@ -4,24 +4,26 @@ import { usePageTitle, usePageBack } from '../components/PageTitleContext'
 import * as accountsApi from '../api/accounts'
 import type { AccountType } from '../api/accounts'
 import { RECORDS_CHANGED_EVENT } from '../lib/hooks'
+import { useLanguage } from '../i18n/LanguageContext'
 
 // UI 标签 + 后端 type 映射（前端主题键叫 wechat/alipay，后端叫 wallet）
-const ACCOUNT_TYPES: { value: AccountType; label: string }[] = [
-  { value: 'wallet', label: '微信支付' },
-  { value: 'wallet', label: '支付宝' },
-  { value: 'cash', label: '现金' },
-  { value: 'debit', label: '银行卡' },
-  { value: 'credit', label: '信用卡' },
-  { value: 'investment', label: '投资账户' },
-  { value: 'other', label: '其他' },
+const ACCOUNT_TYPES: { value: AccountType; labelKey: string }[] = [
+  { value: 'wallet', labelKey: 'accountAdd.type.wechat' },
+  { value: 'wallet', labelKey: 'accountAdd.type.alipay' },
+  { value: 'cash', labelKey: 'accountAdd.type.cash2' },
+  { value: 'debit', labelKey: 'accountAdd.type.bank' },
+  { value: 'credit', labelKey: 'accountAdd.type.credit2' },
+  { value: 'investment', labelKey: 'accountAdd.type.investment2' },
+  { value: 'other', labelKey: 'accountAdd.type.other2' },
 ]
 
 // 原型账户图标（5 个圆形按钮）
 const ICONS = ['account_balance_wallet', 'credit_card', 'account_balance', 'payments', 'phone_iphone']
 
 export function AccountAdd() {
-  usePageTitle('添加账户')
-  usePageBack('/accounts', '账户管理')
+  const { t } = useLanguage()
+  usePageTitle(t('pageTitle.accountAdd'))
+  usePageBack('/accounts', t('accounts.titleManage'))
   const navigate = useNavigate()
 
   const [name, setName] = useState('')
@@ -51,7 +53,7 @@ export function AccountAdd() {
       window.dispatchEvent(new CustomEvent(RECORDS_CHANGED_EVENT))
       navigate('/accounts')
     } catch (err) {
-      const msg = err instanceof Error ? err.message : '保存失败，请重试'
+      const msg = err instanceof Error ? err.message : t('accountAdd.saveFailPrefix')
       setErrorMsg(msg)
     } finally {
       setSubmitting(false)
@@ -70,7 +72,7 @@ export function AccountAdd() {
               htmlFor="account_name"
               className="block font-headline-md text-headline-md text-on-surface"
             >
-              账户名称
+              {t('accountAdd.name')}
             </label>
             <input
               id="account_name"
@@ -78,7 +80,7 @@ export function AccountAdd() {
               type="text"
               value={name}
               onChange={(e) => setName(e.target.value)}
-              placeholder="例如 招商银行卡"
+              placeholder={t('accountAdd.namePlaceholder')}
               className="w-full bg-transparent border-0 border-b-2 border-outline-variant focus:border-primary focus:ring-0 px-0 py-2 font-body-md text-body-md text-on-surface placeholder:text-outline transition-colors"
             />
           </div>
@@ -89,7 +91,7 @@ export function AccountAdd() {
               htmlFor="account_type"
               className="block font-headline-md text-headline-md text-on-surface"
             >
-              账户类型
+              {t('accountAdd.type')}
             </label>
             <div className="relative">
               <select
@@ -99,9 +101,9 @@ export function AccountAdd() {
                 onChange={(e) => setType(e.target.value as AccountType | '')}
                 className="w-full bg-transparent border-0 border-b-2 border-outline-variant focus:border-primary focus:ring-0 px-0 py-2 font-body-md text-body-md text-on-surface appearance-none transition-colors pr-8"
               >
-                <option value="" disabled>选择类型</option>
-                {ACCOUNT_TYPES.map((t, i) => (
-                  <option key={`${t.value}-${i}`} value={t.value}>{t.label}</option>
+                <option value="" disabled>{t('accountAdd.selectType')}</option>
+                {ACCOUNT_TYPES.map((at, i) => (
+                  <option key={`${at.value}-${i}`} value={at.value}>{t(at.labelKey)}</option>
                 ))}
               </select>
               <span className="material-symbols-outlined absolute right-0 top-1/2 -translate-y-1/2 pointer-events-none text-outline-variant">
@@ -116,7 +118,7 @@ export function AccountAdd() {
               htmlFor="initial_balance"
               className="block font-headline-md text-headline-md text-on-surface"
             >
-              初始余额
+              {t('accountAdd.balance')}
             </label>
             <div className="relative flex items-center">
               <span className="absolute left-0 text-on-surface-variant font-label-mono text-label-mono">
@@ -139,7 +141,7 @@ export function AccountAdd() {
           {/* 账户图标 */}
           <div className="space-y-3">
             <label className="block font-headline-md text-headline-md text-on-surface">
-              账户图标
+              {t('accountAdd.icon')}
             </label>
             <div className="flex flex-wrap gap-4">
               {ICONS.map((ic) => {
@@ -172,10 +174,10 @@ export function AccountAdd() {
           <div className="pt-4 flex items-center justify-between border-t border-divider">
             <div>
               <span className="block font-headline-md text-headline-md text-on-surface">
-                设为默认账户
+                {t('accountAdd.isDefault')}
               </span>
               <span className="font-caption-sm text-caption-sm text-on-surface-variant">
-                记账时默认选择此账户
+                {t('accountAdd.isDefaultHint')}
               </span>
             </div>
             <label className="relative inline-flex items-center cursor-pointer">
@@ -202,7 +204,7 @@ export function AccountAdd() {
               to="/accounts"
               className="flex-1 py-3 px-4 border border-outline text-on-surface font-headline-md text-headline-md rounded-lg hover:bg-surface-container-low transition-colors text-center"
             >
-              取消
+              {t('accountAdd.cancel')}
             </Link>
             <button
               type="submit"
@@ -217,7 +219,7 @@ export function AccountAdd() {
                   progress_activity
                 </span>
               )}
-              保存账户
+              {t('accountAdd.submitAccount')}
             </button>
           </div>
         </form>

@@ -1,12 +1,14 @@
 import { useEffect, useRef, useState } from 'react'
 import { useAuth } from '../auth/AuthContext'
 import { usePageTitle, usePageBack } from '../components/PageTitleContext'
+import { useLanguage } from '../i18n/LanguageContext'
 import * as usersApi from '../api/users'
 import type { Gender } from '../api/users'
 
 export function ProfileEdit() {
-  usePageTitle('编辑资料')
-  usePageBack('/settings', '设置')
+  const { t } = useLanguage()
+  usePageTitle(t('pageTitle.profileEdit'))
+  usePageBack('/settings', t('pageTitle.settings'))
 
   const { user, refreshUser } = useAuth()
 
@@ -40,12 +42,12 @@ export function ProfileEdit() {
     setProfileMsg(null)
     const trimmedName = displayName.trim()
     if (trimmedName.length === 0) {
-      setProfileMsg({ kind: 'err', text: '昵称不能为空' })
+      setProfileMsg({ kind: 'err', text: t('profileEdit.nameRequired') })
       return
     }
     const parsedAge = age.trim() === '' ? null : Number.parseInt(age, 10)
     if (parsedAge !== null && (!Number.isFinite(parsedAge) || parsedAge < 0 || parsedAge > 150)) {
-      setProfileMsg({ kind: 'err', text: '年龄需为 0-150 之间的整数' })
+      setProfileMsg({ kind: 'err', text: t('profileEdit.ageInvalid') })
       return
     }
     setSavingProfile(true)
@@ -56,9 +58,9 @@ export function ProfileEdit() {
         age: parsedAge,
       })
       await refreshUser()
-      setProfileMsg({ kind: 'ok', text: '资料已保存' })
+      setProfileMsg({ kind: 'ok', text: t('profileEdit.profileSaved') })
     } catch (err) {
-      const text = err instanceof Error ? err.message : '保存失败'
+      const text = err instanceof Error ? err.message : t('profileEdit.saveFailDefault')
       setProfileMsg({ kind: 'err', text })
     } finally {
       setSavingProfile(false)
@@ -68,19 +70,19 @@ export function ProfileEdit() {
   async function handleChangePassword(): Promise<void> {
     setPwdMsg(null)
     if (currentPwd.length === 0 || newPwd.length === 0 || confirmPwd.length === 0) {
-      setPwdMsg({ kind: 'err', text: '请填写所有密码字段' })
+      setPwdMsg({ kind: 'err', text: t('profileEdit.passwordFillAll') })
       return
     }
     if (newPwd !== confirmPwd) {
-      setPwdMsg({ kind: 'err', text: '两次输入的新密码不一致' })
+      setPwdMsg({ kind: 'err', text: t('profileEdit.passwordMismatch') })
       return
     }
     if (newPwd.length < 8) {
-      setPwdMsg({ kind: 'err', text: '新密码至少需要 8 位' })
+      setPwdMsg({ kind: 'err', text: t('profileEdit.passwordTooShort') })
       return
     }
     if (newPwd === currentPwd) {
-      setPwdMsg({ kind: 'err', text: '新密码不能与当前密码相同' })
+      setPwdMsg({ kind: 'err', text: t('profileEdit.passwordSame') })
       return
     }
     setSavingPwd(true)
@@ -89,9 +91,9 @@ export function ProfileEdit() {
       setCurrentPwd('')
       setNewPwd('')
       setConfirmPwd('')
-      setPwdMsg({ kind: 'ok', text: '密码已修改' })
+      setPwdMsg({ kind: 'ok', text: t('profileEdit.passwordChanged') })
     } catch (err) {
-      const text = err instanceof Error ? err.message : '修改失败'
+      const text = err instanceof Error ? err.message : t('profileEdit.passwordChangeFailDefault')
       setPwdMsg({ kind: 'err', text })
     } finally {
       setSavingPwd(false)
@@ -102,14 +104,14 @@ export function ProfileEdit() {
   function compressAvatar(file: File): Promise<string> {
     return new Promise((resolve, reject) => {
       if (!file.type.startsWith('image/')) {
-        reject(new Error('请选择图片文件'))
+        reject(new Error(t('profileEdit.avatarInvalidType')))
         return
       }
       const reader = new FileReader()
-      reader.onerror = () => reject(new Error('读取文件失败'))
+      reader.onerror = () => reject(new Error(t('profileEdit.avatarReadFail')))
       reader.onload = () => {
         const img = new Image()
-        img.onerror = () => reject(new Error('图片解析失败'))
+        img.onerror = () => reject(new Error(t('profileEdit.avatarParseFail')))
         img.onload = () => {
           const canvas = document.createElement('canvas')
           const MAX = 128
@@ -118,7 +120,7 @@ export function ProfileEdit() {
           canvas.height = Math.max(1, Math.round(img.height * ratio))
           const ctx = canvas.getContext('2d')
           if (!ctx) {
-            reject(new Error('Canvas 不可用'))
+            reject(new Error(t('profileEdit.avatarCanvasFail')))
             return
           }
           ctx.drawImage(img, 0, 0, canvas.width, canvas.height)
@@ -139,9 +141,9 @@ export function ProfileEdit() {
     try {
       const dataUrl = await compressAvatar(file)
       setAvatarPreview(dataUrl)
-      setAvatarMsg({ kind: 'ok', text: '已生成预览，点「保存头像」生效' })
+      setAvatarMsg({ kind: 'ok', text: t('profileEdit.avatarPreviewReady') })
     } catch (err) {
-      const text = err instanceof Error ? err.message : '图片处理失败'
+      const text = err instanceof Error ? err.message : t('profileEdit.avatarProcessFailDefault')
       setAvatarMsg({ kind: 'err', text })
     }
   }
@@ -149,7 +151,7 @@ export function ProfileEdit() {
   async function handleSaveAvatar(): Promise<void> {
     setAvatarMsg(null)
     if (!avatarPreview) {
-      setAvatarMsg({ kind: 'err', text: '请先选择图片' })
+      setAvatarMsg({ kind: 'err', text: t('profileEdit.avatarSelectFile') })
       return
     }
     setSavingAvatar(true)
@@ -157,9 +159,9 @@ export function ProfileEdit() {
       await usersApi.updateProfile({ avatar: avatarPreview })
       await refreshUser()
       setAvatarPreview(null)
-      setAvatarMsg({ kind: 'ok', text: '头像已更新' })
+      setAvatarMsg({ kind: 'ok', text: t('profileEdit.avatarUpdated') })
     } catch (err) {
-      const text = err instanceof Error ? err.message : '保存失败'
+      const text = err instanceof Error ? err.message : t('profileEdit.saveFailDefault')
       setAvatarMsg({ kind: 'err', text })
     } finally {
       setSavingAvatar(false)
@@ -186,9 +188,9 @@ export function ProfileEdit() {
       {/* 修改头像 */}
       <section className="bg-bg-card rounded-2xl border border-divider p-8 shadow-sm flex flex-col">
         <header className="mb-6">
-          <h3 className="text-xl font-bold text-text-primary mb-1">修改头像</h3>
+          <h3 className="text-xl font-bold text-text-primary mb-1">{t('profileEdit.avatarSection')}</h3>
           <p className="font-body-md text-body-md text-on-surface-variant">
-            更新您的个人资料照片。
+            {t('profileEdit.avatarDesc')}
           </p>
         </header>
 
@@ -197,7 +199,7 @@ export function ProfileEdit() {
             {avatarPreview || user?.avatar ? (
               <img
                 src={avatarPreview ?? user!.avatar!}
-                alt="头像"
+                alt={t('profileEdit.avatarAlt')}
                 className="w-full h-full object-cover"
               />
             ) : (
@@ -221,7 +223,7 @@ export function ProfileEdit() {
             >
               upload
             </span>
-            上传新头像
+            {t('profileEdit.uploadAvatar')}
           </button>
           <input
             ref={fileInputRef}
@@ -253,7 +255,7 @@ export function ProfileEdit() {
               className="px-6 py-2.5 bg-primary text-on-primary font-headline-md text-headline-md rounded-lg hover:bg-primary-container hover:text-on-primary-container transition-colors shadow-sm disabled:opacity-60 disabled:cursor-not-allowed inline-flex items-center gap-2"
             >
               {savingAvatar && spinner}
-              保存头像
+              {t('profileEdit.saveAvatar')}
             </button>
           </div>
         </div>
@@ -262,9 +264,9 @@ export function ProfileEdit() {
       {/* 个人资料 */}
       <section className="bg-bg-card rounded-2xl border border-divider p-8 shadow-sm flex flex-col">
         <header className="mb-6">
-          <h3 className="text-xl font-bold text-text-primary mb-1">个人资料</h3>
+          <h3 className="text-xl font-bold text-text-primary mb-1">{t('profileEdit.profileSection')}</h3>
           <p className="font-body-md text-body-md text-on-surface-variant">
-            管理您的基本身份信息。
+            {t('profileEdit.profileDesc')}
           </p>
         </header>
 
@@ -275,7 +277,7 @@ export function ProfileEdit() {
               htmlFor="displayName"
               className="block font-headline-md text-headline-md text-text-primary"
             >
-              昵称
+              {t('profileEdit.displayName')}
             </label>
             <div className="relative">
               <span className={iconWrap} style={iconStyle}>person</span>
@@ -284,7 +286,7 @@ export function ProfileEdit() {
                 type="text"
                 value={displayName}
                 onChange={(e) => setDisplayName(e.target.value)}
-                placeholder="请输入昵称"
+                placeholder={t('profileEdit.displayNamePlaceholder')}
                 className={inputBase}
               />
             </div>
@@ -293,7 +295,7 @@ export function ProfileEdit() {
           {/* 性别（分段控件） */}
           <div className="space-y-2">
             <span className="block font-headline-md text-headline-md text-text-primary">
-              性别
+              {t('profileEdit.gender')}
             </span>
             <div className="grid grid-cols-2 gap-4">
               <button
@@ -311,7 +313,7 @@ export function ProfileEdit() {
                 >
                   male
                 </span>
-                男
+                {t('profileEdit.gender.male')}
               </button>
               <button
                 type="button"
@@ -328,7 +330,7 @@ export function ProfileEdit() {
                 >
                   female
                 </span>
-                女
+                {t('profileEdit.gender.female')}
               </button>
             </div>
           </div>
@@ -339,7 +341,7 @@ export function ProfileEdit() {
               htmlFor="age"
               className="block font-headline-md text-headline-md text-text-primary"
             >
-              年龄
+              {t('profileEdit.age')}
             </label>
             <div className="relative">
               <span className={iconWrap} style={iconStyle}>calendar_month</span>
@@ -350,7 +352,7 @@ export function ProfileEdit() {
                 max={150}
                 value={age}
                 onChange={(e) => setAge(e.target.value)}
-                placeholder="请输入年龄"
+                placeholder={t('profileEdit.agePlaceholder')}
                 className={inputBase}
               />
             </div>
@@ -378,7 +380,7 @@ export function ProfileEdit() {
               className="px-6 py-2.5 bg-primary text-on-primary font-headline-md text-headline-md rounded-lg hover:bg-primary-container hover:text-on-primary-container transition-colors shadow-sm disabled:opacity-60 disabled:cursor-not-allowed inline-flex items-center gap-2"
             >
               {savingProfile && spinner}
-              保存资料
+              {t('profileEdit.saveProfile')}
             </button>
           </div>
         </div>
@@ -387,9 +389,9 @@ export function ProfileEdit() {
       {/* 安全设置 */}
       <section className="bg-bg-card rounded-2xl border border-divider p-8 shadow-sm flex flex-col">
         <header className="mb-6">
-          <h3 className="text-xl font-bold text-text-primary mb-1">安全设置</h3>
+          <h3 className="text-xl font-bold text-text-primary mb-1">{t('profileEdit.securitySection')}</h3>
           <p className="font-body-md text-body-md text-on-surface-variant">
-            更新您的密码以保持账户安全。
+            {t('profileEdit.securityDesc')}
           </p>
         </header>
 
@@ -399,7 +401,7 @@ export function ProfileEdit() {
               htmlFor="currentPwd"
               className="block font-headline-md text-headline-md text-text-primary"
             >
-              当前密码
+              {t('profileEdit.oldPassword')}
             </label>
             <div className="relative">
               <span className={iconWrap} style={iconStyle}>lock</span>
@@ -408,7 +410,7 @@ export function ProfileEdit() {
                 type="password"
                 value={currentPwd}
                 onChange={(e) => setCurrentPwd(e.target.value)}
-                placeholder="••••••••"
+                placeholder={t('profileEdit.oldPasswordPlaceholder')}
                 className={inputBase}
               />
             </div>
@@ -419,7 +421,7 @@ export function ProfileEdit() {
               htmlFor="newPwd"
               className="block font-headline-md text-headline-md text-text-primary"
             >
-              新密码
+              {t('profileEdit.newPassword')}
             </label>
             <div className="relative">
               <span className={iconWrap} style={iconStyle}>key</span>
@@ -428,7 +430,7 @@ export function ProfileEdit() {
                 type="password"
                 value={newPwd}
                 onChange={(e) => setNewPwd(e.target.value)}
-                placeholder="至少 8 位字符"
+                placeholder={t('profileEdit.newPasswordPlaceholder')}
                 className={inputBase}
               />
             </div>
@@ -439,7 +441,7 @@ export function ProfileEdit() {
               htmlFor="confirmPwd"
               className="block font-headline-md text-headline-md text-text-primary"
             >
-              确认新密码
+              {t('profileEdit.confirmPassword')}
             </label>
             <div className="relative">
               <span className={iconWrap} style={iconStyle}>shield</span>
@@ -448,7 +450,7 @@ export function ProfileEdit() {
                 type="password"
                 value={confirmPwd}
                 onChange={(e) => setConfirmPwd(e.target.value)}
-                placeholder="再次输入新密码"
+                placeholder={t('profileEdit.confirmPasswordPlaceholder')}
                 className={inputBase}
               />
             </div>
@@ -476,7 +478,7 @@ export function ProfileEdit() {
               className="px-6 py-2.5 bg-primary text-on-primary font-headline-md text-headline-md rounded-lg hover:bg-primary-container hover:text-on-primary-container transition-colors shadow-sm disabled:opacity-60 disabled:cursor-not-allowed inline-flex items-center gap-2"
             >
               {savingPwd && spinner}
-              保存密码
+              {t('profileEdit.savePassword')}
             </button>
           </div>
         </div>

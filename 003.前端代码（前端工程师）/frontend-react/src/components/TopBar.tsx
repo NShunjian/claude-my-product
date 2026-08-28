@@ -2,10 +2,12 @@ import { useContext } from 'react'
 import { Link, useLocation } from 'react-router-dom'
 import { PageTitleContext } from './PageTitleContext'
 import { useAuth } from '../auth/AuthContext'
+import { useLanguage } from '../i18n/LanguageContext'
 
 export function TopBar() {
   const { title, backTo, backLabel } = useContext(PageTitleContext)
   const { user } = useAuth()
+  const { t } = useLanguage()
   const location = useLocation()
   // Hide back link once we've already reached the back target (e.g. after
   // clicking ← 首页 and landing on /). Prevents stale back state from leaking
@@ -41,7 +43,7 @@ export function TopBar() {
           </span>
           <input
             className="pl-10 pr-4 py-2 bg-surface-container-lowest border border-divider rounded-full font-body-md text-body-md focus:outline-none focus:border-primary focus:ring-1 focus:ring-primary w-64 transition-colors text-text-primary placeholder-outline"
-            placeholder="搜索..."
+            placeholder={t('common.search') + '...'}
             type="text"
           />
         </div>
@@ -49,6 +51,7 @@ export function TopBar() {
         {/* Notifications */}
         <button
           type="button"
+          aria-label={t('topbar.notifications')}
           className="text-on-surface-variant hover:text-primary transition-colors opacity-80 hover:opacity-100"
         >
           <span className="material-symbols-outlined text-xl">notifications</span>
@@ -67,7 +70,7 @@ export function TopBar() {
           type="button"
           className="font-body-md text-body-md text-on-surface-variant hover:text-primary transition-colors hidden sm:block"
         >
-          帮助
+          {t('topbar.help')}
         </button>
 
         {/* Avatar */}
@@ -75,7 +78,7 @@ export function TopBar() {
           {user?.avatar ? (
             <img
               src={user.avatar}
-              alt="头像"
+              alt={t('topbar.avatarAlt')}
               className="w-full h-full object-cover rounded-full"
             />
           ) : (

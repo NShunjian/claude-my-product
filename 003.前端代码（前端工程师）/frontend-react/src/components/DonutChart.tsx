@@ -1,4 +1,5 @@
 import { useMemo, useRef, useState } from 'react'
+import { useLanguage } from '../i18n/LanguageContext'
 
 export interface DonutSegment {
   label: string
@@ -8,6 +9,7 @@ export interface DonutSegment {
 
 interface DonutChartProps {
   segments: DonutSegment[]
+  totalLabelKey?: string
   totalLabel?: string
   totalValue: string
 }
@@ -29,9 +31,12 @@ interface SegmentGeom {
  */
 export function DonutChart({
   segments,
-  totalLabel = '总计',
+  totalLabelKey = 'chart.donutTotal',
+  totalLabel,
   totalValue,
 }: DonutChartProps) {
+  const { t } = useLanguage()
+  const finalTotalLabel = totalLabel ?? t(totalLabelKey)
   const size = 280
   const stroke = 36
   const radius = (size - stroke) / 2
@@ -144,7 +149,7 @@ export function DonutChart({
       {/* 中心文字 */}
       <div className="absolute inset-0 flex flex-col items-center justify-center pointer-events-none">
         <span className="font-caption-sm text-caption-sm text-on-surface-variant">
-          {totalLabel}
+          {finalTotalLabel}
         </span>
         <span className="font-label-mono text-label-mono text-text-primary text-2xl font-bold">
           {totalValue}

@@ -3,6 +3,7 @@ import { usePageTitle, usePageBack } from '../components/PageTitleContext'
 import { useAccounts } from '../lib/hooks'
 import { toAccounts } from '../lib/finance-mappers'
 import { Link } from 'react-router-dom'
+import { useLanguage } from '../i18n/LanguageContext'
 
 function formatMoney(amount: number): string {
   return new Intl.NumberFormat('zh-CN', {
@@ -23,7 +24,8 @@ const ACCOUNT_THEME: Record<
 }
 
 export function Accounts() {
-  usePageTitle('账户管理')
+  const { t } = useLanguage()
+  usePageTitle(t('accounts.titleManage'))
   usePageBack(null)
 
   const accountsQ = useAccounts()
@@ -41,7 +43,7 @@ export function Accounts() {
         <div className="flex flex-col md:flex-row md:items-center justify-between gap-6">
           <div>
             <p className="font-caption-sm text-caption-sm text-on-surface-variant mb-1 uppercase tracking-wider">
-              资产净值
+              {t('accounts.netAssets')}
             </p>
             <div className="flex items-baseline gap-2">
               <span className="font-display-lg text-display-lg font-bold text-text-primary">
@@ -68,14 +70,14 @@ export function Accounts() {
             >
               add_circle
             </span>
-            添加账户
+            {t('accounts.addCta')}
           </Link>
         </div>
       </section>
 
       {isError && (
         <div className="bg-error-container text-on-error-container rounded-xl p-4 font-body-md text-body-md">
-          加载失败：{errMsg}
+          {t('accounts.loadErrorPrefix')}{errMsg}
         </div>
       )}
 
@@ -83,11 +85,11 @@ export function Accounts() {
       <section className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4 md:gap-6">
         {isLoading ? (
           <p className="col-span-full text-on-surface-variant font-body-md text-body-md text-center py-12">
-            加载中…
+            {t('accounts.loading')}
           </p>
         ) : accounts.length === 0 ? (
           <p className="col-span-full text-on-surface-variant font-body-md text-body-md text-center py-12">
-            暂无账户
+            {t('accounts.empty')}
           </p>
         ) : (
           accounts.map((acc) => {
@@ -113,7 +115,7 @@ export function Accounts() {
                   <button
                     type="button"
                     className="text-outline hover:text-on-surface-variant transition-colors opacity-0 group-hover:opacity-100 focus:opacity-100"
-                    aria-label="更多操作"
+                    aria-label={t('accounts.moreActions')}
                   >
                     <span className="material-symbols-outlined">more_horiz</span>
                   </button>

@@ -1,7 +1,10 @@
 import express, { type Application } from 'express'
 import helmet from 'helmet'
 import cors from 'cors'
+import pinoHttp from 'pino-http'
 import { env } from './config/env.js'
+import { logger } from './utils/logger.js'
+import { requestIdMiddleware } from './middleware/request-id.js'
 import { authRouter } from './routes/auth.routes.js'
 import { categoriesRouter } from './routes/categories.routes.js'
 import { accountsRouter } from './routes/accounts.routes.js'
@@ -24,6 +27,20 @@ export const createApp = (): Application => {
         cb(null, false)
       },
       credentials: true,
+    }),
+  )
+  // request-id 必须早于 pino-http,后者会读取 res.locals.requestId 写入 child logger
+  app.use(requestIdMiddleware)
+  // 结构化 access log(每个请求一行 JSON,带 requestId)
+  app.use(
+    pinoHttp({
+      logger,
+      genReqId: (req, res) => (res as { locals: { requestId?: string } }).locals.requestId ?? '',
+      customLogLevel: (_req, res, err) => {
+        if (err || res.statusCode >= 500) return 'error'
+        if (res.statusCode >= 400) return 'warn'
+        return 'info'
+      },
     }),
   )
   app.use(express.json({ limit: '128kb' })) // 64→128: 给 base64 头像留余地（30KB 图 ≈ 40KB base64 + JSON 包装）

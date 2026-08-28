@@ -4,6 +4,7 @@ import { usePageTitle, usePageBack } from '../components/PageTitleContext'
 import { DonutChart, type DonutSegment } from '../components/DonutChart'
 import { useYearlyReport } from '../lib/hooks'
 import { getCategoryPresentationById } from '../lib/category-presentation'
+import { useLanguage } from '../i18n/LanguageContext'
 import type { CategoryTotal, MonthlyPoint, YearlyReport } from '../api/reports'
 
 function formatMoney(amount: number): string {
@@ -27,7 +28,8 @@ function currentYear(): number {
 }
 
 export function ReportYearly() {
-  usePageTitle('报表')
+  const { t } = useLanguage()
+  usePageTitle(t('pageTitle.reportYearly'))
   usePageBack(null)
 
   const [filterYear, setFilterYear] = useState<number>(currentYear())
@@ -62,12 +64,29 @@ export function ReportYearly() {
       color: getCategoryPresentationById(cat.categoryId).colorHex,
     }))
     if (rest > 0) {
-      segs.push({ label: '其他', value: rest, color: '#E2E8F0' })
+      segs.push({ label: t('reportYearly.other'), value: rest, color: '#E2E8F0' })
     }
     return segs
-  }, [expenseByCategory, totalExpense])
+  }, [expenseByCategory, totalExpense, t])
 
-  const monthLabels = ['1月', '2月', '3月', '4月', '5月', '6月', '7月', '8月', '9月', '10月', '11月', '12月']
+  const monthKeys = useMemo(
+    () => [
+      'reportYearly.monthJan',
+      'reportYearly.monthFeb',
+      'reportYearly.monthMar',
+      'reportYearly.monthApr',
+      'reportYearly.monthMay',
+      'reportYearly.monthJun',
+      'reportYearly.monthJul',
+      'reportYearly.monthAug',
+      'reportYearly.monthSep',
+      'reportYearly.monthOct',
+      'reportYearly.monthNov',
+      'reportYearly.monthDec',
+    ],
+    [],
+  )
+  const monthLabels = monthKeys.map((k) => t(k))
 
   const isLoading = reportQ.loading
   const isError = !isLoading && !!reportQ.error
@@ -108,16 +127,16 @@ export function ReportYearly() {
       <div className="flex flex-wrap items-center justify-between gap-4">
         <div>
           <h2 className="font-headline-md text-headline-md text-text-primary leading-none mb-1.5">
-            年度统计
+            {t('reportYearly.title')}
           </h2>
-          <p className="font-body-md text-body-md text-on-surface-variant">{filterYear} 年</p>
+          <p className="font-body-md text-body-md text-on-surface-variant">{t('reportYearly.yearOnly').replace('{y}', String(filterYear))}</p>
         </div>
         <div className="flex items-center gap-3">
           <div className="flex items-center gap-2 px-4 py-2 rounded-xl bg-bg-card border border-divider">
             <button
               type="button"
               onClick={() => setFilterYear((y) => y - 1)}
-              aria-label="上一年"
+              aria-label={t('reportYearly.prevYear')}
               className="text-on-surface-variant hover:text-primary transition-colors"
             >
               <span className="material-symbols-outlined" style={{ fontSize: '20px' }}>
@@ -131,12 +150,12 @@ export function ReportYearly() {
               calendar_month
             </span>
             <span className="font-body-md text-body-md font-medium text-text-primary min-w-[72px] text-center">
-              {filterYear} 年
+              {t('reportYearly.yearOnly').replace('{y}', String(filterYear))}
             </span>
             <button
               type="button"
               onClick={() => setFilterYear((y) => y + 1)}
-              aria-label="下一年"
+              aria-label={t('reportYearly.nextYear')}
               className="text-on-surface-variant hover:text-primary transition-colors"
             >
               <span className="material-symbols-outlined" style={{ fontSize: '20px' }}>
@@ -150,13 +169,13 @@ export function ReportYearly() {
               to="/reports/monthly"
               className="px-5 py-1.5 font-body-md text-body-md font-medium rounded-lg transition-colors text-on-surface-variant hover:text-primary"
             >
-              月报
+              {t('reportYearly.tabMonthly')}
             </Link>
             <Link
               to="/reports/yearly"
               className="px-5 py-1.5 font-body-md text-body-md font-medium rounded-lg transition-colors bg-bg-card text-primary shadow-sm"
             >
-              年报
+              {t('reportYearly.tabYearly')}
             </Link>
           </div>
         </div>
@@ -164,7 +183,7 @@ export function ReportYearly() {
 
       {isError && (
         <div className="bg-error-container text-on-error-container rounded-xl p-4 font-body-md text-body-md">
-          加载失败：{errMsg}
+          {t('reportYearly.loadErrorPrefix')}{errMsg}
         </div>
       )}
 
@@ -183,7 +202,7 @@ export function ReportYearly() {
                 account_balance
               </span>
             </span>
-            <span className="font-body-md text-body-md">年度结余</span>
+            <span className="font-body-md text-body-md">{t('reportYearly.netSavingsLabel')}</span>
           </div>
           <p
             className={`font-label-mono text-label-mono text-3xl font-bold ${
@@ -207,7 +226,7 @@ export function ReportYearly() {
                 trending_down
               </span>
             </span>
-            <span className="font-body-md text-body-md font-medium">年度总收入</span>
+            <span className="font-body-md text-body-md font-medium">{t('reportYearly.totalIncomeLabel')}</span>
           </div>
           <p className="font-label-mono text-label-mono text-primary text-3xl font-bold">
             ¥{formatMoney(totalIncome)}
@@ -227,7 +246,7 @@ export function ReportYearly() {
                 trending_up
               </span>
             </span>
-            <span className="font-body-md text-body-md font-medium">年度总支出</span>
+            <span className="font-body-md text-body-md font-medium">{t('reportYearly.totalExpenseLabel')}</span>
           </div>
           <p className="font-label-mono text-label-mono text-error text-3xl font-bold">
             ¥{formatMoney(totalExpense)}
@@ -239,20 +258,20 @@ export function ReportYearly() {
       <div className="grid grid-cols-1 md:grid-cols-12 gap-6">
         <div className="bento-item bg-bg-card md:col-span-8 min-h-[420px] flex flex-col">
           <div className="flex justify-between items-center mb-6">
-            <h3 className="font-headline-md text-headline-md text-text-primary">年度收支趋势</h3>
+            <h3 className="font-headline-md text-headline-md text-text-primary">{t('reportYearly.monthlyTrend')}</h3>
             <div className="flex items-center gap-4">
               <div className="flex items-center gap-1.5">
                 <span className="w-2.5 h-2.5 rounded-full bg-secondary" />
-                <span className="font-caption-sm text-caption-sm text-on-surface-variant">收入</span>
+                <span className="font-caption-sm text-caption-sm text-on-surface-variant">{t('chart.line.income')}</span>
               </div>
               <div className="flex items-center gap-1.5">
                 <span className="w-2.5 h-2.5 rounded-full bg-gray-300" />
-                <span className="font-caption-sm text-caption-sm text-on-surface-variant">支出</span>
+                <span className="font-caption-sm text-caption-sm text-on-surface-variant">{t('chart.line.expense')}</span>
               </div>
             </div>
           </div>
           {isLoading ? (
-            <p className="text-on-surface-variant font-body-md text-body-md text-center py-12">加载中…</p>
+            <p className="text-on-surface-variant font-body-md text-body-md text-center py-12">{t('common.loading')}</p>
           ) : (
             <div className="flex-1 flex items-end gap-3 relative">
               <div className="absolute left-0 top-0 bottom-6 flex flex-col justify-between text-xs text-on-surface-variant font-caption-sm text-caption-sm pointer-events-none">
@@ -273,12 +292,12 @@ export function ReportYearly() {
                         <div
                           className="w-full bg-secondary rounded-t-sm transition-all"
                           style={{ height: `${incomeH}%`, minHeight: incomeH > 0 ? '2px' : 0 }}
-                          title={`收入 ¥${formatMoney(d.income)}`}
+                          title={t('reportYearly.incomeTip').replace('{amount}', formatMoney(d.income))}
                         />
                         <div
                           className="w-full bg-gray-300 transition-all"
                           style={{ height: `${expenseH}%`, minHeight: expenseH > 0 ? '2px' : 0 }}
-                          title={`支出 ¥${formatMoney(d.expense)}`}
+                          title={t('reportYearly.expenseTip').replace('{amount}', formatMoney(d.expense))}
                         />
                       </div>
                       <span className="absolute -bottom-5 font-caption-sm text-caption-sm text-on-surface-variant">
@@ -293,9 +312,9 @@ export function ReportYearly() {
         </div>
 
         <div className="bento-item bg-bg-card md:col-span-4 min-h-[420px] flex flex-col">
-          <h3 className="font-headline-md text-headline-md text-text-primary mb-4">年度支出构成</h3>
+          <h3 className="font-headline-md text-headline-md text-text-primary mb-4">{t('reportYearly.expenseBreakdown')}</h3>
           {donutSegments.length === 0 ? (
-            <p className="text-on-surface-variant text-center py-12">暂无支出记录</p>
+            <p className="text-on-surface-variant text-center py-12">{t('reportYearly.noExpenseRecords')}</p>
           ) : (
             <>
               <div className="flex-1 relative flex items-center justify-center min-h-[220px]">

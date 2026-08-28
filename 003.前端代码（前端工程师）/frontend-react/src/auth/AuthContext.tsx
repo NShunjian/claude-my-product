@@ -3,6 +3,7 @@ import type { ReactNode } from 'react'
 import * as authApi from '../api/auth'
 import type { Credentials, User } from '../api/auth'
 import { ApiError } from '../lib/api'
+import { useToast } from '../components/Toast'
 
 const TOKEN_KEY = 'qz_token'
 
@@ -25,6 +26,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const [token, setToken] = useState<string | null>(null)
   const [user, setUser] = useState<User | null>(null)
   const [loading, setLoading] = useState<boolean>(true)
+  const toast = useToast()
 
   useEffect(() => {
     const saved = localStorage.getItem(TOKEN_KEY)
@@ -43,6 +45,9 @@ export function AuthProvider({ children }: { children: ReactNode }) {
           localStorage.removeItem(TOKEN_KEY)
           setToken(null)
           setUser(null)
+        } else {
+          // 网络失败或后端 5xx：提示用户（401 会被 ProtectedRoute 重定向到登录页，由登录页自己处理）
+          toast.show('服务暂不可用')
         }
       })
       .finally(() => {

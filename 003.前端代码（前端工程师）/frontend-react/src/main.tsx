@@ -5,6 +5,7 @@ import App from './App'
 import { AuthProvider } from './auth/AuthContext'
 import { LanguageProvider } from './i18n/LanguageContext'
 import { setInitialHtmlTheme, ThemeProvider } from './theme/ThemeContext'
+import { ToastProvider } from './components/Toast'
 import { VersionProvider } from './version/VersionContext'
 import './index.css'
 
@@ -20,9 +21,11 @@ createRoot(rootEl).render(
       <LanguageProvider>
         <VersionProvider>
           <ThemeProvider>
-            <AuthProvider>
-              <App />
-            </AuthProvider>
+            <ToastProvider>
+              <AuthProvider>
+                <App />
+              </AuthProvider>
+            </ToastProvider>
           </ThemeProvider>
         </VersionProvider>
       </LanguageProvider>

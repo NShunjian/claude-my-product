@@ -17,7 +17,7 @@ export function Settings() {
   usePageTitle('设置')
   usePageBack(null)
 
-  const { user, loading: authLoading, logout } = useAuth()
+  const { user, logout } = useAuth()
   const navigate = useNavigate()
   const { mode: themeMode, setMode: setThemeMode } = useTheme()
   const { lang, setLang, t } = useLanguage()
@@ -61,7 +61,7 @@ export function Settings() {
 
       {/* 顶部：用户卡片 + 系统偏好 */}
       <div className="grid grid-cols-1 lg:grid-cols-12 gap-6">
-        {/* 用户卡片 */}
+        {/* 用户卡片 — 卡片骨架始终保留；有 user 时显示完整资料；me() 失败时只显示默认头像 + 账号「—」(由 AuthContext 触发全局 toast 提示) */}
         <div className="bento-item bg-bg-card lg:col-span-4 flex flex-col items-center text-center p-8">
           {/* 头像 + 设置·轻账 弧形文字 */}
           <div className="relative w-32 h-32 mb-4">
@@ -101,33 +101,36 @@ export function Settings() {
             </div>
           </div>
 
-          <h3 className="font-headline-md text-headline-md text-text-primary mb-1">
-            {authLoading
-              ? '加载中…'
-              : user
-                ? (user.displayName || user.username)
-                : '后端服务暂不可用'}
-          </h3>
-          <p className="font-body-md text-body-md text-on-surface-variant mb-1">
-            {t('settings.userCard.accountLabel')}：
-            {authLoading ? '加载中…' : user ? user.username : '—'}
-          </p>
-          <p className="font-body-md text-body-md text-on-surface-variant mb-1">
-            {t('settings.userCard.freeVersion')}
-          </p>
-          <p className="font-body-md text-body-md text-on-surface-variant mb-1">
-            {t('settings.userCard.genderLabel')}：{genderText}
-          </p>
-          <p className="font-body-md text-body-md text-on-surface-variant mb-6">
-            {t('settings.userCard.ageLabel')}：{ageText}
-          </p>
+          {user ? (
+            <>
+              <h3 className="font-headline-md text-headline-md text-text-primary mb-1">
+                {user.displayName || user.username}
+              </h3>
+              <p className="font-body-md text-body-md text-on-surface-variant mb-1">
+                {t('settings.userCard.accountLabel')}：{user.username}
+              </p>
+              <p className="font-body-md text-body-md text-on-surface-variant mb-1">
+                {t('settings.userCard.freeVersion')}
+              </p>
+              <p className="font-body-md text-body-md text-on-surface-variant mb-1">
+                {t('settings.userCard.genderLabel')}：{genderText}
+              </p>
+              <p className="font-body-md text-body-md text-on-surface-variant mb-6">
+                {t('settings.userCard.ageLabel')}：{ageText}
+              </p>
 
-          <Link
-            to="/profile/edit"
-            className="w-full block text-center py-2.5 px-4 border border-outline text-on-surface font-body-md text-body-md rounded-lg hover:bg-surface-container-low transition-colors"
-          >
-            {t('settings.userCard.editProfile')}
-          </Link>
+              <Link
+                to="/profile/edit"
+                className="w-full block text-center py-2.5 px-4 border border-outline text-on-surface font-body-md text-body-md rounded-lg hover:bg-surface-container-low transition-colors"
+              >
+                {t('settings.userCard.editProfile')}
+              </Link>
+            </>
+          ) : (
+            <p className="font-body-md text-body-md text-on-surface-variant">
+              {t('settings.userCard.accountLabel')}：—
+            </p>
+          )}
         </div>
 
         {/* 系统偏好 */}

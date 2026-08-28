@@ -32,14 +32,21 @@ export function CategoryBreakdown({
   type,
   totalAmount,
 }: CategoryBreakdownProps) {
+  // 遍历所有分类,按本月金额降序;金额为 0 的排在底部仍显示
+  const rows = [...categories]
+    .map((cat) => ({
+      cat,
+      total: transactions
+        .filter((t) => t.type === type && t.categoryId === cat.id)
+        .reduce((s, t) => s + t.amount, 0),
+    }))
+    .sort((a, b) => b.total - a.total)
+
   return (
     <div className="bg-bg-card rounded-xl border border-divider p-6 shadow-sm">
       <h3 className="font-headline-md text-headline-md text-text-primary mb-4">{title}</h3>
       <div className="space-y-4">
-        {categories.slice(0, 5).map((cat) => {
-          const catTotal = transactions
-            .filter((t) => t.type === type && t.categoryId === cat.id)
-            .reduce((s, t) => s + t.amount, 0)
+        {rows.map(({ cat, total: catTotal }) => {
           const pct = totalAmount > 0 ? (catTotal / totalAmount) * 100 : 0
           const color = COLORS[cat.colorToken] ?? '#727782'
 

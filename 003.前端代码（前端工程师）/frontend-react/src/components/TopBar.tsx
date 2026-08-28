@@ -1,9 +1,11 @@
 import { useContext } from 'react'
 import { Link, useLocation } from 'react-router-dom'
 import { PageTitleContext } from './PageTitleContext'
+import { useAuth } from '../auth/AuthContext'
 
 export function TopBar() {
   const { title, backTo, backLabel } = useContext(PageTitleContext)
+  const { user } = useAuth()
   const location = useLocation()
   // Hide back link once we've already reached the back target (e.g. after
   // clicking ← 首页 and landing on /). Prevents stale back state from leaking
@@ -70,9 +72,17 @@ export function TopBar() {
 
         {/* Avatar */}
         <div className="w-8 h-8 rounded-full bg-primary-light flex items-center justify-center ml-2 border border-divider overflow-hidden">
-          <span className="material-symbols-outlined text-primary" style={{ fontSize: '18px' }}>
-            account_circle
-          </span>
+          {user?.avatar ? (
+            <img
+              src={user.avatar}
+              alt="头像"
+              className="w-full h-full object-cover rounded-full"
+            />
+          ) : (
+            <span className="material-symbols-outlined text-primary" style={{ fontSize: '18px' }}>
+              account_circle
+            </span>
+          )}
         </div>
       </div>
     </header>

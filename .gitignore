@@ -14,3 +14,9 @@ coverage/
 
 # OS
 .DS_Store
+
+# E2E 脚本生成的截图（体积大，CI 可作为 artifact 上传，无需入仓）
+frontend-react/e2e/screenshots/
+# Python 字节码
+__pycache__/
+*.pyc

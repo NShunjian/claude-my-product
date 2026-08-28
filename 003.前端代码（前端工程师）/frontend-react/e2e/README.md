@@ -1,13 +1,14 @@
 # 轻账 E2E 验证脚本
 
 > **状态(2026-08-28)**：Phase B 整条链路(注册 → 快速记账 → 月报/年报/账户/流水/编辑资料/添加账户)的可视证据。
-> 当前脚本**临时放在** `/tmp/qz-e2e/run.py`,截图同目录。**为 CI 接入请把脚本和截图搬进本目录**:
+> 脚本和本 README 同在 `frontend-react/e2e/` 下,可直接 CI 接入:
 > ```
 > frontend-react/e2e/
 > ├── README.md          ← 本文件
-> ├── run.py             ← 脚本(建议从 /tmp/qz-e2e/run.py 搬过来)
-> └── screenshots/       ← 截图输出(建议 .gitignore 排除,体积大)
+> ├── run.py             ← Playwright 脚本(已搬入)
+> └── screenshots/       ← 截图输出(已在根 .gitignore 排除,不入仓)
 > ```
+> 旧位置 `/tmp/qz-e2e/` 可保留作调试备份;CI 一律从仓库内跑。
 
 ---
 
@@ -68,11 +69,12 @@ npm run dev          # vite on :5173
 ## 3. 怎么跑
 
 ```bash
-# 脚本当前路径(/tmp)
-python3 /tmp/qz-e2e/run.py
-
-# 搬进项目后
+# 从仓库根目录
 python3 "003.前端代码（前端工程师）/frontend-react/e2e/run.py"
+
+# 或 cd 进 e2e/ 直接跑
+cd "003.前端代码（前端工程师）/frontend-react/e2e"
+python3 run.py
 ```
 
 输出:

@@ -17,6 +17,12 @@ export function Settings() {
     navigate('/login')
   }
 
+  const genderText =
+    user?.gender === 'male' ? '男' :
+    user?.gender === 'female' ? '女' :
+    user?.gender === 'other' ? '其他' : '未设置'
+  const ageText = user?.age != null ? String(user.age) : '未设置'
+
   return (
     <div className="space-y-6">
       {/* 标题 */}
@@ -49,12 +55,20 @@ export function Settings() {
               </text>
             </svg>
             <div className="absolute inset-3 rounded-full bg-gradient-to-br from-primary-light to-primary flex items-center justify-center overflow-hidden">
-              <span
-                className="material-symbols-outlined text-white"
-                style={{ fontSize: '56px', fontVariationSettings: "'FILL' 0", fontWeight: 300 }}
-              >
-                person
-              </span>
+              {user?.avatar ? (
+                <img
+                  src={user.avatar}
+                  alt="头像"
+                  className="w-full h-full object-cover rounded-full"
+                />
+              ) : (
+                <span
+                  className="material-symbols-outlined text-white"
+                  style={{ fontSize: '56px', fontVariationSettings: "'FILL' 0", fontWeight: 300 }}
+                >
+                  person
+                </span>
+              )}
             </div>
           </div>
 
@@ -66,10 +80,10 @@ export function Settings() {
           </p>
           <p className="font-body-md text-body-md text-on-surface-variant mb-1">免费版用户</p>
           <p className="font-body-md text-body-md text-on-surface-variant mb-1">
-            性别：男
+            性别：{genderText}
           </p>
           <p className="font-body-md text-body-md text-on-surface-variant mb-6">
-            年龄：25
+            年龄：{ageText}
           </p>
 
           <Link

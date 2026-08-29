@@ -198,7 +198,14 @@ export function Home() {
             <p className="text-on-surface-variant font-body-md text-body-md text-center py-8">{t('home.empty')}</p>
           ) : (
             groupedTxns.map((group, idx) => (
-              <div key={group.date} className={idx === groupedTxns.length - 1 ? '' : 'mb-6'}>
+              <div
+                key={group.date}
+                className={
+                  idx === 0
+                    ? ''
+                    : `pt-4 border-t border-divider ${idx === groupedTxns.length - 1 ? '' : 'pb-2'}`
+                }
+              >
                 <div className="flex justify-between items-center mb-2">
                   <span className="font-caption-sm text-caption-sm text-on-surface-variant font-semibold">
                     {group.label}

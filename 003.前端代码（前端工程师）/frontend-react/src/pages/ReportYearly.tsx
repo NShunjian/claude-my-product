@@ -60,22 +60,16 @@ export function ReportYearly() {
     return report.expenseByCategory.slice().sort((a, b) => b.total - a.total)
   }, [report])
 
-  const topCategories = expenseByCategory.slice(0, 2)
+  // 环形图下方显示全部分类(与首页/月报一致,按金额降序)
+  const topCategories = expenseByCategory
 
   const donutSegments: DonutSegment[] = useMemo(() => {
-    const top = expenseByCategory.slice(0, 5)
-    const topTotal = top.reduce((s, x) => s + x.total, 0)
-    const rest = Math.max(0, totalExpense - topTotal)
-    const segs: DonutSegment[] = top.map((cat) => ({
+    return expenseByCategory.map((cat) => ({
       label: cat.name,
       value: cat.total,
       color: getCategoryPresentationById(cat.categoryId).colorHex,
     }))
-    if (rest > 0) {
-      segs.push({ label: t('reportYearly.other'), value: rest, color: '#E2E8F0' })
-    }
-    return segs
-  }, [expenseByCategory, totalExpense, t])
+  }, [expenseByCategory])
 
   const monthKeys = useMemo(
     () => [

@@ -14,6 +14,9 @@ export type ColorToken =
   | 'cat-purple'
   | 'cat-teal'
   | 'cat-brown'
+  | 'cat-orange'
+  | 'cat-cyan'
+  | 'cat-indigo'
   | 'secondary'
   | 'outline'
 

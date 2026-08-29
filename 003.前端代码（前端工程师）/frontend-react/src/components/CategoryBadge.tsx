@@ -12,6 +12,9 @@ const COLOR_MAP: Record<Category['colorToken'], string> = {
   'cat-purple': '#805AD5',
   'cat-teal': '#319795',
   'cat-brown': '#8B6E4E',
+  'cat-orange': '#F59E0B',
+  'cat-cyan': '#06B6D4',
+  'cat-indigo': '#6366F1',
   secondary: '#006d40',
   outline: '#727782',
 }

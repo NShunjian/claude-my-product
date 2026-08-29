@@ -10,6 +10,9 @@ const COLOR_MAP: Record<string, { solid: string; tint: string; label: string }> 
   'cat-purple': { solid: '#805AD5', tint: 'rgba(128 90 213 / 0.12)', label: '#6b46c1' },
   'cat-teal': { solid: '#319795', tint: 'rgba(49 121 149 / 0.12)', label: '#0f766e' },
   'cat-brown': { solid: '#8B6E4E', tint: 'rgba(139 110 78 / 0.12)', label: '#78350f' },
+  'cat-orange': { solid: '#F59E0B', tint: 'rgba(245 158 11 / 0.12)', label: '#b45309' },
+  'cat-cyan': { solid: '#06B6D4', tint: 'rgba(6 182 212 / 0.12)', label: '#0e7490' },
+  'cat-indigo': { solid: '#6366F1', tint: 'rgba(99 102 241 / 0.12)', label: '#4338ca' },
   secondary: { solid: '#10b981', tint: 'rgba(16 185 129 / 0.14)', label: '#047857' },
   outline: { solid: '#727782', tint: 'rgba(114 119 130 / 0.10)', label: '#414750' },
 }

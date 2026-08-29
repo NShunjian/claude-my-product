@@ -74,28 +74,27 @@ export function ReportMonthly() {
       ? ((netSavings - lastMonth.netSavings) / Math.abs(lastMonth.netSavings)) * 100
       : null
 
-  // 收入排行（按总额降序）
+  // 收入排行（按总额降序,显示全部分类）
   const incomeRanking = useMemo(() => {
     if (!report) return []
     return report.incomeByCategory
       .slice()
       .sort((a, b) => b.total - a.total)
-      .slice(0, 3)
   }, [report])
 
+  // 支出排行（按总额降序,显示全部分类）
   const expenseRanking = useMemo(() => {
     if (!report) return []
     return report.expenseByCategory
       .slice()
       .sort((a, b) => b.total - a.total)
-      .slice(0, 3)
   }, [report])
 
   const topExpense = expenseRanking[0]
 
-  // 环形图（支出前 5）
+  // 环形图(所有有数据的分类,与排行一致)
   const expenseDonutSegments = useMemo<DonutSegment[]>(() => {
-    return expenseRanking.slice(0, 5).map((cat) => ({
+    return expenseRanking.map((cat) => ({
       label: cat.name,
       value: cat.total,
       color: getCategoryPresentationById(cat.categoryId).colorHex,
@@ -310,9 +309,9 @@ export function ReportMonthly() {
         </div>
       </div>
 
-      {/* 折线图（col-8）+ 支出占比（col-4） */}
+      {/* 每日收支（整宽） */}
       <div className="grid grid-cols-1 md:grid-cols-12 gap-6">
-        <div className="bento-item bg-bg-card md:col-span-8 min-h-[300px] flex flex-col">
+        <div className="bento-item bg-bg-card md:col-span-12 min-h-[300px] flex flex-col">
           <div className="flex justify-between items-center mb-4">
             <h3 className="font-headline-md text-headline-md text-text-primary">{t('reportMonthly.dailyTrend')}</h3>
             <div className="flex items-center gap-4" style={{ paddingRight: '2.5%' }}>
@@ -336,26 +335,11 @@ export function ReportMonthly() {
             <LineChart data={dailyData} />
           )}
         </div>
-
-        {/* 支出占比（与下方支出配对的同一份数据，复用） */}
-        <div className="bento-item bg-bg-card md:col-span-4 min-h-[300px] flex flex-col">
-          <h3 className="font-headline-md text-headline-md text-text-primary mb-6">{t('reportMonthly.expenseShare')}</h3>
-          {expenseDonutSegments.length === 0 ? (
-            <p className="text-on-surface-variant text-center py-12">{t('reportMonthly.noExpenseRecords')}</p>
-          ) : (
-            <div className="flex-1 relative flex items-center justify-center">
-              <DonutChart
-                segments={expenseDonutSegments}
-                totalValue={`¥${Math.round(totalExpense).toLocaleString('zh-CN')}`}
-              />
-            </div>
-          )}
-        </div>
       </div>
 
       {/* 收入占比 + 收入排行 */}
       <div className="grid grid-cols-1 md:grid-cols-12 gap-6">
-        <div className="bento-item bg-bg-card md:col-span-4 min-h-[300px] flex flex-col">
+        <div className="bento-item bg-bg-card md:col-span-4 h-[420px] flex flex-col">
           <h3 className="font-headline-md text-headline-md text-text-primary mb-6">{t('reportMonthly.incomeShare')}</h3>
           {incomeDonutSegments.length === 0 ? (
             <p className="text-on-surface-variant text-center py-12">{t('reportMonthly.noIncomeRecords')}</p>
@@ -383,7 +367,7 @@ export function ReportMonthly() {
 
       {/* 支出占比 + 支出排行（与收入配对布局一致） */}
       <div className="grid grid-cols-1 md:grid-cols-12 gap-6">
-        <div className="bento-item bg-bg-card md:col-span-4 min-h-[300px] flex flex-col">
+        <div className="bento-item bg-bg-card md:col-span-4 h-[420px] flex flex-col">
           <h3 className="font-headline-md text-headline-md text-text-primary mb-6">{t('reportMonthly.expenseShare')}</h3>
           {expenseDonutSegments.length === 0 ? (
             <p className="text-on-surface-variant text-center py-12">{t('reportMonthly.noExpenseRecords')}</p>

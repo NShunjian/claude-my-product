@@ -27,23 +27,28 @@ const COLOR_HEX: Record<ColorToken, string> = {
   'cat-purple': '#805AD5',
   'cat-teal': '#319795',
   'cat-brown': '#8B6E4E',
+  'cat-orange': '#F59E0B',
+  'cat-cyan': '#06B6D4',
+  'cat-indigo': '#6366F1',
   secondary: '#10b981',
   outline: '#727782',
 }
 
 const TABLE: Record<string, Omit<CategoryPresentation, 'colorHex'>> = {
+  // 支出：每类独立颜色（医疗青绿、教育琥珀，避免混淆）
   'expense-餐饮': { icon: 'restaurant', colorToken: 'cat-blue' },
-  'expense-交通': { icon: 'directions_bus', colorToken: 'cat-blue' },
+  'expense-交通': { icon: 'directions_bus', colorToken: 'cat-cyan' },
   'expense-购物': { icon: 'shopping_bag', colorToken: 'cat-pink' },
   'expense-娱乐': { icon: 'sports_esports', colorToken: 'cat-purple' },
   'expense-居住': { icon: 'home', colorToken: 'cat-brown' },
   'expense-医疗': { icon: 'medical_services', colorToken: 'cat-teal' },
-  'expense-教育': { icon: 'school', colorToken: 'cat-teal' },
-  'expense-通讯': { icon: 'phone_iphone', colorToken: 'outline' },
+  'expense-教育': { icon: 'school', colorToken: 'cat-orange' },
+  'expense-通讯': { icon: 'phone_iphone', colorToken: 'cat-indigo' },
   'expense-其他': { icon: 'more_horiz', colorToken: 'outline' },
+  // 收入：每类独立颜色
   'income-工资':  { icon: 'payments', colorToken: 'secondary' },
-  'income-兼职':  { icon: 'work', colorToken: 'cat-blue' },
-  'income-理财':  { icon: 'trending_up', colorToken: 'cat-blue' },
+  'income-兼职':  { icon: 'work', colorToken: 'cat-cyan' },
+  'income-理财':  { icon: 'trending_up', colorToken: 'cat-indigo' },
   'income-红包':  { icon: 'card_giftcard', colorToken: 'cat-pink' },
   'income-其他':  { icon: 'more_horiz', colorToken: 'outline' },
 }

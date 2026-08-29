@@ -5,6 +5,8 @@ import com.qingzhang.auth.dto.Credentials;
 import com.qingzhang.auth.dto.UserDTO;
 import com.qingzhang.common.ApiResponse;
 import com.qingzhang.common.BizException;
+import com.qingzhang.common.ErrorCode;
+import com.qingzhang.users.UsersService;
 import jakarta.servlet.http.HttpServletRequest;
 import jakarta.validation.Valid;
 import org.springframework.web.bind.annotation.GetMapping;
@@ -21,18 +23,19 @@ import java.util.Map;
  *   POST /api/auth/register  {username,password} -> {code:0, data:{user,token}}
  *   POST /api/auth/login     {username,password} -> {code:0, data:{user,token}}
  *   GET  /api/auth/me        Authorization: Bearer .. -> {code:0, data:{user}}
+ *           ↑ /api/users/me 是 canonical,/api/auth/me 是 read-only 别名
  *   POST /api/auth/logout    -> {code:0, data:{ok:true}}    (JWT 无状态)
  */
 @RestController
 @RequestMapping("/api/auth")
 public class AuthController {
 
-    private static final int CODE_UNAUTHORIZED = 1401;
-
     private final AuthService service;
+    private final UsersService usersService;
 
-    public AuthController(AuthService service) {
+    public AuthController(AuthService service, UsersService usersService) {
         this.service = service;
+        this.usersService = usersService;
     }
 
     @PostMapping("/register")
@@ -49,9 +52,10 @@ public class AuthController {
     public ApiResponse<UserDTO> me(HttpServletRequest req) {
         Long userId = (Long) req.getAttribute(JwtAuthFilter.USER_ID_ATTR);
         if (userId == null) {
-            throw new BizException(CODE_UNAUTHORIZED, "未登录");
+            throw new BizException(ErrorCode.UNAUTHORIZED, "未登录");
         }
-        return ApiResponse.ok(service.me(userId));
+        // 委托到 UsersService,保证两个路径返回同一份 UserDTO(避免后续字段漂移)
+        return ApiResponse.ok(usersService.getMe(userId));
     }
 
     @PostMapping("/logout")

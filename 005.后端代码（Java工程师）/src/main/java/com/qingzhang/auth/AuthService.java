@@ -4,97 +4,94 @@ import com.qingzhang.auth.dto.AuthResponse;
 import com.qingzhang.auth.dto.Credentials;
 import com.qingzhang.auth.dto.UserDTO;
 import com.qingzhang.common.BizException;
+import com.qingzhang.users.entity.User;
+import com.qingzhang.users.mapper.UserMapper;
 import org.springframework.security.crypto.bcrypt.BCryptPasswordEncoder;
 import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
 
 import java.time.Instant;
 import java.util.UUID;
-import java.util.concurrent.ConcurrentHashMap;
-import java.util.concurrent.atomic.AtomicLong;
 
 /**
- * 内存用户存 + 注册/登录/me 业务。
+ * 注册/登录/me 业务(DB 持久化版)。
  *
- * ponytail: ConcurrentHashMap 临时兜底;接 MySQL 后这个 map 替换成 UserMapper,
- * 业务方法签名保持稳定,controller 不动。
+ * 错误码区间:10xx(用户模块,见 ErrorCode / 模块常量)。
  */
 @Service
 public class AuthService {
 
-    private record UserRow(long id,
-                           String uuid,
-                           String username,
-                           String displayName,
-                           String avatar,
-                           String gender,
-                           Integer age,
-                           Instant createdAt,
-                           String passwordHash) {}
-
-    /** 业务码区间:10xx 用户模块。 */
-    private static final int CODE_USERNAME_TAKEN = 1001;
+    private static final int CODE_USERNAME_TAKEN     = 1001;
     private static final int CODE_INVALID_CREDENTIALS = 1002;
-    private static final int CODE_USER_NOT_FOUND = 1003;
+    private static final int CODE_USER_NOT_FOUND      = 1003;
 
-    private final ConcurrentHashMap<String, UserRow> byUsername = new ConcurrentHashMap<>();
-    private final AtomicLong idGen = new AtomicLong(1);
-    private final BCryptPasswordEncoder encoder = new BCryptPasswordEncoder();
+    private final UserMapper userMapper;
     private final JwtUtil jwtUtil;
+    private final BCryptPasswordEncoder encoder = new BCryptPasswordEncoder();
 
-    public AuthService(JwtUtil jwtUtil) {
+    public AuthService(UserMapper userMapper, JwtUtil jwtUtil) {
+        this.userMapper = userMapper;
         this.jwtUtil = jwtUtil;
     }
 
+    @Transactional(rollbackFor = Exception.class)
     public AuthResponse register(Credentials c) {
-        String username = c.username();
-        if (byUsername.containsKey(username)) {
+        Long existing = userMapper.selectCount(
+                com.baomidou.mybatisplus.core.toolkit.Wrappers.<User>lambdaQuery()
+                        .eq(User::getUsername, c.username())
+        );
+        if (existing != null && existing > 0) {
             throw new BizException(CODE_USERNAME_TAKEN, "用户名已被占用");
         }
-        long id = idGen.getAndIncrement();
         Instant now = Instant.now();
-        UserRow row = new UserRow(
-                id,
-                UUID.randomUUID().toString(),
-                username,
-                null,
-                null,
-                null,
-                null,
-                now,
-                encoder.encode(c.password())
-        );
-        byUsername.put(username, row);
-        String token = jwtUtil.issue(id);
-        return new AuthResponse(toDto(row), token);
+        User u = User.builder()
+                .uuid(UUID.randomUUID().toString())
+                .username(c.username())
+                .passwordHash(encoder.encode(c.password()))
+                .status((byte) 1)
+                .createdAt(now)
+                .updatedAt(now)
+                .build();
+        userMapper.insert(u);
+        String token = jwtUtil.issue(u.getId());
+        return new AuthResponse(toDto(u), token);
     }
 
     public AuthResponse login(Credentials c) {
-        UserRow row = byUsername.get(c.username());
-        if (row == null || !encoder.matches(c.password(), row.passwordHash())) {
+        User u = userMapper.selectOne(
+                com.baomidou.mybatisplus.core.toolkit.Wrappers.<User>lambdaQuery()
+                        .eq(User::getUsername, c.username())
+        );
+        if (u == null || !encoder.matches(c.password(), u.getPasswordHash())) {
             throw new BizException(CODE_INVALID_CREDENTIALS, "用户名或密码错误");
         }
-        String token = jwtUtil.issue(row.id);
-        return new AuthResponse(toDto(row), token);
+        // best-effort 更新最近登录时间(失败也不影响登录)
+        try {
+            u.setLastLoginAt(Instant.now());
+            userMapper.updateById(u);
+        } catch (Exception ignored) {}
+        String token = jwtUtil.issue(u.getId());
+        return new AuthResponse(toDto(u), token);
     }
 
     public UserDTO me(long userId) {
-        UserRow row = byUsername.values().stream()
-                .filter(u -> u.id() == userId)
-                .findFirst()
-                .orElseThrow(() -> new BizException(CODE_USER_NOT_FOUND, "用户不存在"));
-        return toDto(row);
+        User u = userMapper.selectById(userId);
+        if (u == null) {
+            throw new BizException(CODE_USER_NOT_FOUND, "用户不存在");
+        }
+        return toDto(u);
     }
 
-    private UserDTO toDto(UserRow row) {
+    public UserDTO toDto(User u) {
         return new UserDTO(
-                row.id(),
-                row.uuid(),
-                row.username(),
-                row.displayName(),
-                row.avatar(),
-                row.gender(),
-                row.age(),
-                row.createdAt()
+                u.getId(),
+                u.getUuid(),
+                u.getUsername(),
+                u.getDisplayName(),
+                u.getAvatar(),
+                u.getGender(),
+                u.getAge(),
+                u.getCreatedAt()
         );
     }
 }

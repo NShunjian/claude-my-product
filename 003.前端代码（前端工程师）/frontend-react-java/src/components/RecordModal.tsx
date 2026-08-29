@@ -298,7 +298,7 @@ export function RecordModal({
             </div>
 
             {/* 分类网格 */}
-            <div className="px-6 py-6 bg-bg-card">
+            <div className="px-6 py-6 bg-bg-card overflow-y-auto" style={{ maxHeight: '40vh' }}>
               {categories.length === 0 ? (
                 <p className="text-on-surface-variant font-body-md text-body-md text-center py-4">
                   {t('recordModal.categoryLoading')}

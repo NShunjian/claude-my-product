@@ -1,0 +1,24 @@
+#!/usr/bin/env bash
+# 一键启动 — 仅后端 Spring Boot (http://localhost:4001)
+#
+# 用法:
+#   ./start-backend [start|stop|status]
+
+set -u
+# 解析软链,找到真实脚本目录(支持从 /usr/local/bin 软链调用)
+SCRIPT_REAL="$(readlink -f "$0" 2>/dev/null || python3 -c 'import os,sys; print(os.path.realpath(sys.argv[1]))' "$0")"
+SCRIPT_DIR="$(cd "$(dirname "$SCRIPT_REAL")" && pwd)"
+source "$SCRIPT_DIR/lib-qz.sh"
+
+case "${1:-start}" in
+  stop)   qz_stop_backend ;;
+  status) echo "── 状态 ──"; qz_status ;;
+  start|"")
+    qz_start_backend
+    echo
+    echo "── 入口 ──"
+    echo "  后端  http://localhost:$BACKEND_PORT"
+    echo "  日志  $BACKEND_LOG"
+    echo "  停服  ./start-backend stop" ;;
+  *) echo "用法: $0 {start|stop|status}"; exit 1 ;;
+esac

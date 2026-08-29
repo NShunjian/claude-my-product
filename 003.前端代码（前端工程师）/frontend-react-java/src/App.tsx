@@ -10,6 +10,8 @@ import { ReportMonthly } from './pages/ReportMonthly'
 import { ReportYearly } from './pages/ReportYearly'
 import { Accounts } from './pages/Accounts'
 import { AccountAdd } from './pages/AccountAdd'
+import { Books } from './pages/Books'
+import { BookMembers } from './pages/BookMembers'
 import { Settings } from './pages/Settings'
 import { ProfileEdit } from './pages/ProfileEdit'
 
@@ -32,6 +34,8 @@ export default function App() {
           <Route path="/reports/yearly" element={<ReportYearly />} />
           <Route path="/accounts" element={<Accounts />} />
           <Route path="/accounts/new" element={<AccountAdd />} />
+          <Route path="/books" element={<Books />} />
+          <Route path="/books/:uuid/members" element={<BookMembers />} />
           <Route path="/settings" element={<Settings />} />
           <Route path="/profile/edit" element={<ProfileEdit />} />
         </Route>

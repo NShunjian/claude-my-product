@@ -18,8 +18,8 @@ const STORAGE_KEY = 'qz_lang'
 export interface LanguageContextValue {
   lang: LangType
   setLang: (lang: LangType) => void
-  /** 翻译;缺翻译时回落到 zh-CN,再缺回落 key */
-  t: (key: string) => string
+  /** 翻译;缺翻译时回落到 zh-CN,再缺回落 key;支持 {name} / {count} 占位符替换 */
+  t: (key: string, params?: Record<string, string | number>) => string
 }
 
 const LanguageContext = createContext<LanguageContextValue | undefined>(undefined)
@@ -29,6 +29,14 @@ function readStoredLang(): LangType {
   const v = window.localStorage.getItem(STORAGE_KEY)
   if (v === 'zh-CN' || v === 'en' || v === 'zh-TW') return v
   return 'zh-CN'
+}
+
+function interpolate(template: string, params?: Record<string, string | number>): string {
+  if (!params) return template
+  return template.replace(/\{(\w+)\}/g, (_, k) => {
+    const v = params[k]
+    return v == null ? `{${k}}` : String(v)
+  })
 }
 
 export function LanguageProvider({ children }: { children: ReactNode }) {
@@ -42,11 +50,11 @@ export function LanguageProvider({ children }: { children: ReactNode }) {
   }, [])
 
   const t = useCallback(
-    (key: string): string => {
+    (key: string, params?: Record<string, string | number>): string => {
       const cur = DICTS[lang]
-      if (cur[key]) return cur[key]
+      if (cur[key]) return interpolate(cur[key], params)
       const fallback = DICTS['zh-CN']
-      if (fallback[key]) return fallback[key]
+      if (fallback[key]) return interpolate(fallback[key], params)
       return key
     },
     [lang],

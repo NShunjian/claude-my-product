@@ -3,16 +3,26 @@ import { Link, useLocation } from 'react-router-dom'
 import { PageTitleContext } from './PageTitleContext'
 import { useAuth } from '../auth/AuthContext'
 import { useLanguage } from '../i18n/LanguageContext'
+import { useCurrentBook } from '../lib/book-context'
 
 export function TopBar() {
   const { title, backTo, backLabel } = useContext(PageTitleContext)
   const { user } = useAuth()
   const { t } = useLanguage()
   const location = useLocation()
+  const { currentBook, books, setCurrentBook, loading: booksLoading } = useCurrentBook()
   // Hide back link once we've already reached the back target (e.g. after
   // clicking ← 首页 and landing on /). Prevents stale back state from leaking
   // across pages.
   const showBack = !!backTo && backTo !== location.pathname
+
+  async function onBookChange(uuid: string): Promise<void> {
+    try {
+      await setCurrentBook(uuid)
+    } catch (err) {
+      console.error('[TopBar] switch book failed', err)
+    }
+  }
 
   return (
     <header
@@ -36,6 +46,36 @@ export function TopBar() {
       </div>
 
       <div className="flex items-center gap-4">
+        {/* 当前账本选择器 */}
+        {currentBook && (
+          <div className="relative">
+            <span
+              className="material-symbols-outlined absolute left-3 top-1/2 -translate-y-1/2 text-on-surface-variant text-xl pointer-events-none"
+              aria-hidden="true"
+            >
+              menu_book
+            </span>
+            <select
+              value={currentBook.uuid}
+              onChange={(e) => onBookChange(e.target.value)}
+              disabled={booksLoading || books.length === 0}
+              aria-label={t('topbar.bookSwitcher.label')}
+              className="appearance-none pl-10 pr-9 py-2 bg-surface-container-lowest border border-divider rounded-full font-body-md text-body-md focus:outline-none focus:border-primary focus:ring-1 focus:ring-primary text-text-primary cursor-pointer max-w-[200px]"
+            >
+              {books.map((b) => (
+                <option key={b.uuid} value={b.uuid}>
+                  {b.name}
+                </option>
+              ))}
+            </select>
+            <span
+              className="material-symbols-outlined absolute right-2 top-1/2 -translate-y-1/2 pointer-events-none text-on-surface-variant"
+              style={{ fontSize: '20px' }}
+            >
+              expand_more
+            </span>
+          </div>
+        )}
         {/* Search */}
         <div className="relative hidden md:block">
           <span className="material-symbols-outlined absolute left-3 top-1/2 -translate-y-1/2 text-on-surface-variant text-xl">

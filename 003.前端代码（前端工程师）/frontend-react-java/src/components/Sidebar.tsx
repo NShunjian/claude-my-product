@@ -11,6 +11,7 @@ interface NavItem {
 
 const NAV_ITEMS: NavItem[] = [
   { labelKey: 'sidebar.home', icon: 'dashboard', to: '/' },
+  { labelKey: 'sidebar.books', icon: 'menu_book', to: '/books' },
   { labelKey: 'sidebar.reports', icon: 'bar_chart', to: '/reports/monthly' },
   { labelKey: 'sidebar.accounts', icon: 'account_balance_wallet', to: '/accounts' },
   { labelKey: 'sidebar.settings', icon: 'settings', to: '/settings' },

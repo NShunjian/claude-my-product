@@ -210,7 +210,8 @@ export function RecordModal({
           borderTopLeftRadius: 20,
           borderTopRightRadius: 20,
           boxShadow: '0 -8px 32px rgba(0,0,0,0.18)',
-          maxHeight: '92vh',
+          // ponytail: dvh 优先,旧浏览器回落到 vh;不然 iOS Safari 地址栏会让 sheet 溢出底部
+          maxHeight: 'min(92vh, 92dvh)',
         }}
       >
         {showSuccess ? (
@@ -412,7 +413,10 @@ export function RecordModal({
             </div>
 
             {/* 数字键盘 */}
-            <div className="px-4 pb-4 grid grid-cols-4 gap-2 bg-bg-card">
+            <div
+              className="px-4 pb-4 grid grid-cols-4 gap-2 bg-bg-card"
+              style={{ paddingBottom: 'max(1rem, env(safe-area-inset-bottom))' }}
+            >
               {KEYS.map((k, idx) => {
                 const isZero = k.value === '0'
                 if (k.isConfirm) {

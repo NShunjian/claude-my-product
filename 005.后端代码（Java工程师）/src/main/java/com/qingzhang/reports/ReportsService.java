@@ -1,6 +1,8 @@
 package com.qingzhang.reports;
 
 import com.baomidou.mybatisplus.core.toolkit.Wrappers;
+import com.qingzhang.books.BooksService;
+import com.qingzhang.books.entity.Book;
 import com.qingzhang.categories.entity.Category;
 import com.qingzhang.categories.mapper.CategoryMapper;
 import com.qingzhang.common.BizException;
@@ -18,7 +20,6 @@ import java.time.LocalDate;
 import java.time.YearMonth;
 import java.time.format.DateTimeParseException;
 import java.util.ArrayList;
-import java.util.Comparator;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
@@ -33,6 +34,7 @@ import java.util.stream.Collectors;
  *   1. 所有聚合走 SQL,不在 Java 内存里跑循环。
  *   2. 分类汇总后,需要再用 CategoryMapper 反查一次拿到 name/icon/color(uuid 形式)。
  *   3. dailyData/monthlyData 缺失的日子/月补 0,确保前端能拿到完整序列。
+ *   4. V1.1:可按 bookId 过滤;空 → 用户所有账本;非空 → 必须是可访问账本。
  */
 @Service
 public class ReportsService {
@@ -42,31 +44,36 @@ public class ReportsService {
 
     private final ReportMapper reportMapper;
     private final CategoryMapper categoryMapper;
+    private final BooksService booksService;
 
-    public ReportsService(ReportMapper reportMapper, CategoryMapper categoryMapper) {
+    public ReportsService(ReportMapper reportMapper,
+                          CategoryMapper categoryMapper,
+                          BooksService booksService) {
         this.reportMapper = reportMapper;
         this.categoryMapper = categoryMapper;
+        this.booksService = booksService;
     }
 
     // ===== 月报 =====
 
-    public MonthlyReportResponse monthly(long userId, String monthStr) {
+    public MonthlyReportResponse monthly(long userId, String monthStr, String bookUuid) {
         YearMonth ym = parseMonth(monthStr);
         LocalDate from = ym.atDay(1);
         LocalDate to   = ym.atEndOfMonth();
+        Long bookId = resolveBookId(userId, bookUuid);
 
-        BigDecimal totalIncome  = zeroOnNull(reportMapper.sumByMonth(userId, from, to).get("total_income"));
-        BigDecimal totalExpense = zeroOnNull(reportMapper.sumByMonth(userId, from, to).get("total_expense"));
+        BigDecimal totalIncome  = zeroOnNull(reportMapper.sumByMonth(userId, bookId, from, to).get("total_income"));
+        BigDecimal totalExpense = zeroOnNull(reportMapper.sumByMonth(userId, bookId, from, to).get("total_expense"));
         BigDecimal netSavings   = totalIncome.subtract(totalExpense);
 
         // 上月(可能跨年,用 YearMonth.minusMonths)
         YearMonth prevYm = ym.minusMonths(1);
-        BigDecimal prevIncome  = zeroOnNull(reportMapper.sumByMonth(userId, prevYm.atDay(1), prevYm.atEndOfMonth()).get("total_income"));
-        BigDecimal prevExpense = zeroOnNull(reportMapper.sumByMonth(userId, prevYm.atDay(1), prevYm.atEndOfMonth()).get("total_expense"));
+        BigDecimal prevIncome  = zeroOnNull(reportMapper.sumByMonth(userId, bookId, prevYm.atDay(1), prevYm.atEndOfMonth()).get("total_income"));
+        BigDecimal prevExpense = zeroOnNull(reportMapper.sumByMonth(userId, bookId, prevYm.atDay(1), prevYm.atEndOfMonth()).get("total_expense"));
 
-        List<CategoryTotal> incomeByCat  = categoryTotals(userId, "income",  from, to);
-        List<CategoryTotal> expenseByCat = categoryTotals(userId, "expense", from, to);
-        List<DailyPoint> dailyData = dailyData(ym, reportMapper.dailySum(userId, from, to));
+        List<CategoryTotal> incomeByCat  = categoryTotals(userId, "income",  bookId, from, to);
+        List<CategoryTotal> expenseByCat = categoryTotals(userId, "expense", bookId, from, to);
+        List<DailyPoint> dailyData = dailyData(ym, reportMapper.dailySum(userId, bookId, from, to));
 
         MonthlyReportResponse.LastMonth lastMonth =
                 new MonthlyReportResponse.LastMonth(prevIncome, prevExpense, prevIncome.subtract(prevExpense));
@@ -81,18 +88,19 @@ public class ReportsService {
 
     // ===== 年报 =====
 
-    public YearlyReportResponse yearly(long userId, int year) {
+    public YearlyReportResponse yearly(long userId, int year, String bookUuid) {
         if (year < 1900 || year > 9999) {
             throw new BizException(CODE_BAD_YEAR, "year 必须在 1900-9999 之间");
         }
         LocalDate from = LocalDate.of(year, 1, 1);
         LocalDate to   = LocalDate.of(year, 12, 31);
+        Long bookId = resolveBookId(userId, bookUuid);
 
-        BigDecimal totalIncome  = zeroOnNull(reportMapper.sumByMonth(userId, from, to).get("total_income"));
-        BigDecimal totalExpense = zeroOnNull(reportMapper.sumByMonth(userId, from, to).get("total_expense"));
+        BigDecimal totalIncome  = zeroOnNull(reportMapper.sumByMonth(userId, bookId, from, to).get("total_income"));
+        BigDecimal totalExpense = zeroOnNull(reportMapper.sumByMonth(userId, bookId, from, to).get("total_expense"));
 
-        List<CategoryTotal> expenseByCat = categoryTotals(userId, "expense", from, to);
-        List<MonthlyPoint> monthlyData = monthlyData(year, reportMapper.monthlySum(userId, from, to));
+        List<CategoryTotal> expenseByCat = categoryTotals(userId, "expense", bookId, from, to);
+        List<MonthlyPoint> monthlyData = monthlyData(year, reportMapper.monthlySum(userId, bookId, from, to));
 
         return new YearlyReportResponse(
                 year, totalIncome, totalExpense,
@@ -112,9 +120,15 @@ public class ReportsService {
         }
     }
 
+    /** bookId 解析:空 → null(不限账本);非空 → 必须可访问,取 internal book id。 */
+    private Long resolveBookId(long userId, String bookUuid) {
+        if (bookUuid == null || bookUuid.isBlank()) return null;
+        return booksService.mustAccessibleBook(userId, bookUuid).getId();
+    }
+
     /** 分类汇总 + 反查 name/icon/color。 */
-    private List<CategoryTotal> categoryTotals(long userId, String type, LocalDate from, LocalDate to) {
-        List<Map<String, Object>> rows = reportMapper.sumByCategory(userId, type, from, to);
+    private List<CategoryTotal> categoryTotals(long userId, String type, Long bookId, LocalDate from, LocalDate to) {
+        List<Map<String, Object>> rows = reportMapper.sumByCategory(userId, type, bookId, from, to);
         if (rows.isEmpty()) return List.of();
 
         // 收集涉及的 categoryId

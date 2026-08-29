@@ -16,6 +16,7 @@ import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
+import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
 
 import java.util.List;
@@ -41,9 +42,10 @@ public class AccountsController {
     }
 
     @GetMapping
-    public ApiResponse<Map<String, Object>> list(HttpServletRequest req) {
+    public ApiResponse<Map<String, Object>> list(HttpServletRequest req,
+                                                  @RequestParam(required = false) String bookId) {
         long userId = userId(req);
-        List<AccountResponse> items = service.list(userId);
+        List<AccountResponse> items = service.list(userId, bookId);
         return ApiResponse.ok(Map.of("items", items));
     }
 

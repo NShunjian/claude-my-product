@@ -11,7 +11,7 @@ import java.math.BigDecimal;
  * POST /api/accounts 入参。
  *
  * 业务校验(非空/格式/范围)走 JSR-380;
- * 业务规则(is_default 单选)在 service 校验。
+ * 业务规则(is_default 单选、bookId 归属)在 service 校验。
  */
 public record CreateAccountRequest(
         @NotBlank @Size(max = 20) String name,
@@ -21,5 +21,6 @@ public record CreateAccountRequest(
         @Size(min = 3, max = 3) String currency,
         Boolean isDefault,
         Integer sortOrder,
-        @Size(max = 255) String note
+        @Size(max = 255) String note,
+        @Size(max = 36) String bookId
 ) {}

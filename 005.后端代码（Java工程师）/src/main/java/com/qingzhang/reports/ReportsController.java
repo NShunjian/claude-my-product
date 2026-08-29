@@ -13,10 +13,10 @@ import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
 
 /**
- *   GET /api/reports/monthly?month=YYYY-MM        -> MonthlyReport
- *   GET /api/reports/yearly?year=YYYY              -> YearlyReport
+ *   GET /api/reports/monthly?month=YYYY-MM[&bookId=...]  -> MonthlyReport
+ *   GET /api/reports/yearly?year=YYYY[&bookId=...]        -> YearlyReport
  *
- * spec §7.1-7.2
+ * spec §7.1-7.2。V1.1 bookId 可选:缺省走用户所有账本。
  */
 @RestController
 @RequestMapping("/api/reports")
@@ -30,16 +30,18 @@ public class ReportsController {
 
     @GetMapping("/monthly")
     public ApiResponse<MonthlyReportResponse> monthly(HttpServletRequest req,
-                                                      @RequestParam String month) {
+                                                      @RequestParam String month,
+                                                      @RequestParam(required = false) String bookId) {
         long userId = userId(req);
-        return ApiResponse.ok(service.monthly(userId, month));
+        return ApiResponse.ok(service.monthly(userId, month, bookId));
     }
 
     @GetMapping("/yearly")
     public ApiResponse<YearlyReportResponse> yearly(HttpServletRequest req,
-                                                    @RequestParam int year) {
+                                                    @RequestParam int year,
+                                                    @RequestParam(required = false) String bookId) {
         long userId = userId(req);
-        return ApiResponse.ok(service.yearly(userId, year));
+        return ApiResponse.ok(service.yearly(userId, year, bookId));
     }
 
     private static long userId(HttpServletRequest req) {

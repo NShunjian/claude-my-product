@@ -3,6 +3,7 @@ package com.qingzhang.records;
 import com.baomidou.mybatisplus.core.toolkit.Wrappers;
 import com.qingzhang.accounts.entity.Account;
 import com.qingzhang.accounts.mapper.AccountMapper;
+import com.qingzhang.books.BooksService;
 import com.qingzhang.books.entity.Book;
 import com.qingzhang.books.mapper.BookMapper;
 import com.qingzhang.categories.entity.Category;
@@ -41,10 +42,12 @@ import java.util.stream.Collectors;
  *   3014  SAME_ACCOUNT_TRANSFER
  *   3015  INVALID_RECORD_DATE
  *   3016  ACCOUNT_NOT_FOUND
+ *   3017  ACCOUNT_NOT_IN_BOOK
  *
  * 设计要点:
  *   1. 真实账户余额走 v_account_balance 视图实时算,本服务不维护 current_balance 冗余。
  *   2. 转账联动由视图自然处理 —— account_id 端减、to_account_id 端加。
+ *   3. V1.1:账目必须挂在 book_id 上;account/toAccount 必须与 book 匹配(spec §6.2)。
  */
 @Service
 public class RecordsService {
@@ -57,20 +60,24 @@ public class RecordsService {
     private static final int CODE_SAME_ACCOUNT_TRANSFER  = 3014;
     private static final int CODE_INVALID_RECORD_DATE    = 3015;
     private static final int CODE_ACCOUNT_NOT_FOUND      = 3016;
+    private static final int CODE_ACCOUNT_NOT_IN_BOOK    = 3017;
 
     private final RecordMapper recordMapper;
     private final CategoryMapper categoryMapper;
     private final AccountMapper accountMapper;
     private final BookMapper bookMapper;
+    private final BooksService booksService;
 
     public RecordsService(RecordMapper recordMapper,
                           CategoryMapper categoryMapper,
                           AccountMapper accountMapper,
-                          BookMapper bookMapper) {
+                          BookMapper bookMapper,
+                          BooksService booksService) {
         this.recordMapper = recordMapper;
         this.categoryMapper = categoryMapper;
         this.accountMapper = accountMapper;
         this.bookMapper = bookMapper;
+        this.booksService = booksService;
     }
 
     // ===== 列表 =====
@@ -87,6 +94,13 @@ public class RecordsService {
         String type       = filters.get("type");
         String categoryId = filters.get("categoryId");
         String accountId  = filters.get("accountId");
+        String bookUuid   = filters.get("bookId");
+
+        // bookId 过滤:空 → 用户所有账本;非空 → 必须可访问
+        if (bookUuid != null && !bookUuid.isBlank()) {
+            Long bid = booksService.mustAccessibleBook(userId, bookUuid).getId();
+            q.eq(Record::getBookId, bid);
+        }
 
         if (month != null && !month.isBlank()) {
             LocalDate[] range = monthRange(month);
@@ -125,7 +139,12 @@ public class RecordsService {
             throw new BizException(CODE_INVALID_TYPE, "type 必须是 expense / income / transfer");
         }
 
+        // 解析账本:bookId 空 → 用户默认账本;非空 → 必须可访问
+        Book book = resolveBookForCreate(userId, req.bookId());
+
+        // 校验账户归属该账本(V1.1)
         Account account = mustAccount(userId, req.accountId());
+        assertAccountInBook(account, book, "accountId");
         String accountUuid = account.getUuid();
 
         String categoryUuid = null;
@@ -149,24 +168,24 @@ public class RecordsService {
                 throw new BizException(CODE_SAME_ACCOUNT_TRANSFER, "转出与转入账户不可相同");
             }
             Account to = mustAccount(userId, req.toAccountId());
+            assertAccountInBook(to, book, "toAccountId");
             toAccountUuid = to.getUuid();
             toAccountId = to.getId();
         }
 
         LocalDate recordDate = parseRecordDate(req.recordDate());
         Instant now = Instant.now();
-        Book defaultBook = mustDefaultBook(userId);
 
         Record r = Record.builder()
                 .uuid(UUID.randomUUID().toString())
                 .userId(userId)
-                .bookId(defaultBook.getId())
+                .bookId(book.getId())
                 .type(type)
                 .categoryId(categoryId)
                 .accountId(account.getId())
                 .toAccountId(toAccountId)
                 .amount(req.amount())
-                .currency(defaultBook.getCurrency())
+                .currency(book.getCurrency())
                 .note(req.note())
                 .recordDate(recordDate)
                 .source("manual")
@@ -204,6 +223,10 @@ public class RecordsService {
         String accountUuid = null;
         if (req.accountId() != null && !req.accountId().isBlank()) {
             Account a = mustAccount(userId, req.accountId());
+            // 校验新账户属于当前账目所在账本
+            Book b = bookMapper.selectById(r.getBookId());
+            if (b == null) throw new BizException(ErrorCode.INTERNAL, "账目关联的账本不存在");
+            assertAccountInBook(a, b, "accountId");
             r.setAccountId(a.getId());
             accountUuid = a.getUuid();
         }
@@ -220,6 +243,9 @@ public class RecordsService {
                     throw new BizException(CODE_SAME_ACCOUNT_TRANSFER, "转出与转入账户不可相同");
                 }
                 Account to = mustAccount(userId, req.toAccountId());
+                Book b = bookMapper.selectById(r.getBookId());
+                if (b == null) throw new BizException(ErrorCode.INTERNAL, "账目关联的账本不存在");
+                assertAccountInBook(to, b, "toAccountId");
                 r.setToAccountId(to.getId());
                 toAccountUuid = to.getUuid();
             }
@@ -234,7 +260,7 @@ public class RecordsService {
         r.setUpdatedAt(Instant.now());
         recordMapper.updateById(r);
 
-        // 把没变化的 uuid 补回来(读 DB 当前值)
+        // 把没变化 uuid 补回来(读 DB 当前值)
         return toResponses(userId, List.of(r)).get(0);
     }
 
@@ -292,12 +318,21 @@ public class RecordsService {
         return c;
     }
 
-    private Book mustDefaultBook(long userId) {
-        Book b = bookMapper.selectOne(Wrappers.<Book>lambdaQuery()
-                .eq(Book::getOwnerId, userId)
-                .eq(Book::getIsDefault, (byte) 1));
-        if (b == null) throw new BizException(ErrorCode.INTERNAL, "未找到默认账本");
-        return b;
+    /** V1.1:账户必须挂在当前账目所在账本下。 */
+    private void assertAccountInBook(Account a, Book book, String field) {
+        // 允许 book_id=null(账户未挂账本,默认归个人)与 book.id 匹配都通过。
+        if (a.getBookId() != null && !a.getBookId().equals(book.getId())) {
+            throw new BizException(CODE_ACCOUNT_NOT_IN_BOOK,
+                    field + " 关联的账户不属于该账本: " + a.getUuid());
+        }
+    }
+
+    /** 创建账目时决定归属账本:空 → 用户默认账本;非空 → 必须可访问。 */
+    private Book resolveBookForCreate(long userId, String bookUuid) {
+        if (bookUuid == null || bookUuid.isBlank()) {
+            return booksService.defaultBookOf(userId);
+        }
+        return booksService.mustAccessibleBook(userId, bookUuid);
     }
 
     private static LocalDate parseRecordDate(String s) {

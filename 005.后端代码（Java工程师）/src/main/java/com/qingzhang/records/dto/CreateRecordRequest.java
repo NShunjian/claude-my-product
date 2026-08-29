@@ -14,6 +14,8 @@ import java.math.BigDecimal;
  * 前端是按 type 字段做 discriminator 的 union 类型;后端这边用一份 record 容纳三种形态,
  * 字段都按"可有可无"标 nullable,真正的 type → 必填字段校验放到 Service 层做
  * (避免 Jackson 多态序列化 + JSR-380 嵌套校验的复杂性)。
+ *
+ * V1.1:可选 bookId,缺省走用户默认账本。
  */
 public record CreateRecordRequest(
         @JsonProperty("type")          @NotBlank  String type,
@@ -23,5 +25,6 @@ public record CreateRecordRequest(
         @JsonProperty("amount")        @NotNull @DecimalMin(value = "0.01") BigDecimal amount,
         @JsonProperty("recordDate")    @NotBlank  String recordDate,
         @JsonProperty("note")          @Size(max = 50) String note,
-        @JsonProperty("clientId")      @Size(max = 64) String clientId
+        @JsonProperty("clientId")      @Size(max = 64) String clientId,
+        @JsonProperty("bookId")        @Size(max = 36) String bookId
 ) {}

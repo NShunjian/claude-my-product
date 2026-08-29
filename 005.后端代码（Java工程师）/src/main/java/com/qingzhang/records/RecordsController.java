@@ -48,7 +48,8 @@ public class RecordsController {
                                                  @RequestParam(required = false) String to,
                                                  @RequestParam(required = false) String type,
                                                  @RequestParam(required = false) String categoryId,
-                                                 @RequestParam(required = false) String accountId) {
+                                                 @RequestParam(required = false) String accountId,
+                                                 @RequestParam(required = false) String bookId) {
         long userId = userId(req);
         if (type != null && !type.equals("expense") && !type.equals("income") && !type.equals("transfer")) {
             throw new BizException(ErrorCode.VALIDATION_FAILED, "type 必须是 expense / income / transfer");
@@ -60,6 +61,7 @@ public class RecordsController {
         filters.put("type",       type);
         filters.put("categoryId", categoryId);
         filters.put("accountId",  accountId);
+        filters.put("bookId",     bookId);
         List<RecordResponse> items = service.list(userId, filters);
         return ApiResponse.ok(Map.of("items", items));
     }

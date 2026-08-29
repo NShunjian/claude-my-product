@@ -38,6 +38,8 @@ export interface ListRecordsParams {
   type?: RecordType
   categoryId?: string
   accountId?: string
+  /** V1.1:缺省走用户所有账本 */
+  bookId?: string
 }
 
 type CreateInput =
@@ -49,6 +51,7 @@ type CreateInput =
       recordDate: string
       note?: string
       clientId?: string
+      bookId?: string
     }
   | {
       type: 'income'
@@ -58,6 +61,7 @@ type CreateInput =
       recordDate: string
       note?: string
       clientId?: string
+      bookId?: string
     }
   | {
       type: 'transfer'
@@ -67,6 +71,7 @@ type CreateInput =
       recordDate: string
       note?: string
       clientId?: string
+      bookId?: string
     }
 
 export type UpdateRecordInput = Partial<{
@@ -86,6 +91,7 @@ function buildQuery(p: ListRecordsParams): string {
   if (p.type) sp.set('type', p.type)
   if (p.categoryId) sp.set('categoryId', p.categoryId)
   if (p.accountId) sp.set('accountId', p.accountId)
+  if (p.bookId) sp.set('bookId', p.bookId)
   const s = sp.toString()
   return s ? `?${s}` : ''
 }

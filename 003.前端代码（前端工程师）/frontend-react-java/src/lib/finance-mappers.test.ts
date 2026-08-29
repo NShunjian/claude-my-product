@@ -162,6 +162,7 @@ describe('finance-mappers', () => {
         icon: '🍔',
         color: '#4299E1',
         sortOrder: 0,
+        isPreset: true,
       }
       const out = toCategory(c)
       expect(out.id).toBe('expense-餐饮')
@@ -230,7 +231,7 @@ describe('finance-mappers', () => {
 
     it('toCategories maps each', () => {
       const cs: ApiCategory[] = [
-        { id: 'expense-餐饮', type: 'expense', name: '餐饮', icon: '🍔', color: '#4299E1', sortOrder: 0 },
+        { id: 'expense-餐饮', type: 'expense', name: '餐饮', icon: '🍔', color: '#4299E1', sortOrder: 0, isPreset: true },
       ]
       expect(toCategories(cs)).toHaveLength(1)
     })

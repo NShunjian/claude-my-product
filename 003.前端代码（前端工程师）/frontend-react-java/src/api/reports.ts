@@ -50,16 +50,19 @@ export interface YearlyReport {
 
 export interface YearlyReportResponse extends YearlyReport {}
 
-export async function getMonthlyReport(month: string): Promise<MonthlyReport> {
-  const res = await request<MonthlyReportResponse>(
-    `/api/reports/monthly?month=${encodeURIComponent(month)}`,
-  )
+export async function getMonthlyReport(
+  month: string,
+  bookId?: string,
+): Promise<MonthlyReport> {
+  const sp = new URLSearchParams({ month })
+  if (bookId) sp.set('bookId', bookId)
+  const res = await request<MonthlyReportResponse>(`/api/reports/monthly?${sp.toString()}`)
   return res
 }
 
-export async function getYearlyReport(year: number): Promise<YearlyReport> {
-  const res = await request<YearlyReportResponse>(
-    `/api/reports/yearly?year=${encodeURIComponent(String(year))}`,
-  )
+export async function getYearlyReport(year: number, bookId?: string): Promise<YearlyReport> {
+  const sp = new URLSearchParams({ year: String(year) })
+  if (bookId) sp.set('bookId', bookId)
+  const res = await request<YearlyReportResponse>(`/api/reports/yearly?${sp.toString()}`)
   return res
 }

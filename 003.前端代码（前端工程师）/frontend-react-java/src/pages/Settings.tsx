@@ -6,6 +6,11 @@ import { LANGS, useLanguage, type Lang } from '../i18n/LanguageContext'
 import { useTheme, type ThemeMode } from '../theme/ThemeContext'
 import { useVersion } from '../version/VersionContext'
 import { exportAll, exportByCategory, exportMonthly } from '../lib/export'
+import * as categoriesApi from '../api/categories'
+import type { Category, CategoryType } from '../api/categories'
+import { useCategories } from '../lib/hooks'
+import { useToast } from '../components/Toast'
+import { ApiError } from '../lib/api'
 
 const THEME_OPTIONS: { mode: ThemeMode; labelKey: string }[] = [
   { mode: 'system', labelKey: 'settings.prefs.theme.system' },
@@ -224,6 +229,9 @@ export function Settings() {
         </div>
       </div>
 
+      {/* 中部:分类管理(用户级全局自定义分类) */}
+      <CategoriesSection />
+
       {/* 中部：数据管理 */}
       <div className="bento-item bg-bg-card p-8">
         <div className="flex items-center gap-3 mb-8">
@@ -393,6 +401,285 @@ export function Settings() {
           </div>
         </div>
       </div>
+    </div>
+  )
+}
+
+/**
+ * 自定义分类管理(V1.1):
+ *   - 用户级全局,跨账本可见
+ *   - 预设(is_preset=1)只读,只列出来参考
+ *   - 自定义可新增/重命名/改 icon 颜色/删除(软删)
+ */
+function CategoriesSection() {
+  const { t } = useLanguage()
+  const toast = useToast()
+  const { data: expenseCats, reload: reloadExpense } = useCategories('expense')
+  const { data: incomeCats, reload: reloadIncome } = useCategories('income')
+  const [tab, setTab] = useState<CategoryType>('expense')
+  const [showNew, setShowNew] = useState(false)
+  const [newName, setNewName] = useState('')
+  const [newIcon, setNewIcon] = useState('🏷️')
+  const [newColor, setNewColor] = useState('#A0AEC0')
+  const [busy, setBusy] = useState(false)
+  const [editing, setEditing] = useState<Category | null>(null)
+  const [editName, setEditName] = useState('')
+  const [editColor, setEditColor] = useState('')
+
+  const items = tab === 'expense' ? expenseCats : incomeCats
+
+  async function reload(): Promise<void> {
+    if (tab === 'expense') await reloadExpense()
+    else await reloadIncome()
+  }
+
+  async function handleCreate(): Promise<void> {
+    if (!newName.trim()) return
+    setBusy(true)
+    try {
+      await categoriesApi.createCategory({
+        type: tab,
+        name: newName.trim(),
+        icon: newIcon || '🏷️',
+        color: newColor,
+      })
+      setShowNew(false)
+      setNewName('')
+      setNewIcon('🏷️')
+      setNewColor('#A0AEC0')
+      toast.show(t('settings.categories.create.success'))
+      await reload()
+    } catch (err) {
+      const msg = err instanceof ApiError ? err.message : String(err)
+      toast.show(`${t('settings.categories.create.failPrefix')}${msg}`)
+    } finally {
+      setBusy(false)
+    }
+  }
+
+  function openEdit(c: Category): void {
+    setEditing(c)
+    setEditName(c.name)
+    setEditColor(c.color)
+  }
+
+  async function handleSaveEdit(): Promise<void> {
+    if (!editing) return
+    setBusy(true)
+    try {
+      await categoriesApi.updateCategory(editing.id, {
+        name: editName.trim() || undefined,
+        color: editColor || undefined,
+      })
+      setEditing(null)
+      toast.show(t('settings.categories.edit.success'))
+      await reload()
+    } catch (err) {
+      const msg = err instanceof ApiError ? err.message : String(err)
+      toast.show(`${t('settings.categories.edit.failPrefix')}${msg}`)
+    } finally {
+      setBusy(false)
+    }
+  }
+
+  async function handleDelete(c: Category): Promise<void> {
+    if (!window.confirm(t('settings.categories.delete.confirm', { name: c.name }))) return
+    setBusy(true)
+    try {
+      await categoriesApi.deleteCategory(c.id)
+      toast.show(t('settings.categories.delete.success'))
+      await reload()
+    } catch (err) {
+      const msg = err instanceof ApiError ? err.message : String(err)
+      toast.show(`${t('settings.categories.delete.failPrefix')}${msg}`)
+    } finally {
+      setBusy(false)
+    }
+  }
+
+  return (
+    <div className="bento-item bg-bg-card p-8">
+      <div className="flex items-center justify-between mb-6">
+        <div className="flex items-center gap-3">
+          <span
+            className="w-9 h-9 rounded-full flex items-center justify-center bg-primary-light text-primary"
+          >
+            <span
+              className="material-symbols-outlined"
+              style={{ fontSize: '20px', fontVariationSettings: "'FILL' 1" }}
+            >
+              category
+            </span>
+          </span>
+          <h3 className="font-headline-md text-headline-md text-text-primary">
+            {t('settings.categories.title')}
+          </h3>
+        </div>
+        <button
+          type="button"
+          onClick={() => setShowNew((v) => !v)}
+          className="inline-flex items-center gap-2 px-3 py-1.5 text-sm bg-primary text-on-primary rounded-lg hover:bg-primary-container transition-colors"
+        >
+          <span className="material-symbols-outlined" style={{ fontSize: '18px' }}>add</span>
+          {t('settings.categories.create.toggle')}
+        </button>
+      </div>
+
+      <div className="flex gap-2 mb-4">
+        {(['expense', 'income'] as CategoryType[]).map((k) => (
+          <button
+            key={k}
+            type="button"
+            onClick={() => setTab(k)}
+            className={`px-3 py-1.5 text-sm rounded-md transition-colors ${
+              tab === k
+                ? 'bg-primary-light text-primary font-semibold'
+                : 'text-on-surface-variant hover:text-text-primary'
+            }`}
+          >
+            {t(`settings.categories.tab.${k}`)}
+          </button>
+        ))}
+      </div>
+
+      {showNew && (
+        <div className="border border-divider rounded-lg p-4 mb-4 grid grid-cols-1 md:grid-cols-4 gap-3">
+          <label className="flex flex-col gap-1 md:col-span-2">
+            <span className="text-xs text-on-surface-variant">{t('settings.categories.field.name')}</span>
+            <input
+              value={newName}
+              onChange={(e) => setNewName(e.target.value)}
+              maxLength={20}
+              className="border border-outline rounded-lg px-3 py-1.5 text-sm bg-surface-container-lowest focus:border-primary"
+            />
+          </label>
+          <label className="flex flex-col gap-1">
+            <span className="text-xs text-on-surface-variant">{t('settings.categories.field.icon')}</span>
+            <input
+              value={newIcon}
+              onChange={(e) => setNewIcon(e.target.value)}
+              maxLength={32}
+              className="border border-outline rounded-lg px-3 py-1.5 text-sm bg-surface-container-lowest focus:border-primary"
+            />
+          </label>
+          <label className="flex flex-col gap-1">
+            <span className="text-xs text-on-surface-variant">{t('settings.categories.field.color')}</span>
+            <input
+              type="color"
+              value={newColor}
+              onChange={(e) => setNewColor(e.target.value)}
+              className="border border-outline rounded-lg h-9 w-full bg-surface-container-lowest"
+            />
+          </label>
+          <div className="md:col-span-4 flex justify-end gap-2">
+            <button
+              type="button"
+              onClick={() => setShowNew(false)}
+              className="px-3 py-1.5 text-sm border border-outline rounded-lg"
+            >
+              {t('common.cancel')}
+            </button>
+            <button
+              type="button"
+              onClick={handleCreate}
+              disabled={busy || !newName.trim()}
+              className="px-3 py-1.5 text-sm bg-primary text-on-primary rounded-lg disabled:opacity-50"
+            >
+              {t('common.save')}
+            </button>
+          </div>
+        </div>
+      )}
+
+      <div className="divide-y divide-divider">
+        {items?.map((c) => (
+          <div key={c.id} className="flex items-center gap-3 py-3">
+            <span
+              className="w-8 h-8 rounded-full flex items-center justify-center flex-shrink-0"
+              style={{ backgroundColor: c.color + '33' }}
+            >
+              <span style={{ fontSize: '18px' }}>{c.icon}</span>
+            </span>
+            <div className="flex-1 min-w-0">
+              <p className="text-sm text-text-primary truncate">{c.name}</p>
+              <p className="text-xs text-on-surface-variant truncate">{c.color}</p>
+            </div>
+            <div className="flex items-center gap-2 flex-shrink-0">
+              {c.isPreset ? (
+                <span className="px-2 py-0.5 rounded-full text-xs bg-surface-container-low text-on-surface-variant">
+                  {t('settings.categories.presetBadge')}
+                </span>
+              ) : (
+                <>
+                  <button
+                    type="button"
+                    onClick={() => openEdit(c)}
+                    className="px-3 py-1.5 text-sm border border-outline rounded-lg hover:bg-surface-container-low"
+                  >
+                    {t('common.edit')}
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => handleDelete(c)}
+                    disabled={busy}
+                    className="px-3 py-1.5 text-sm border border-error text-error rounded-lg hover:bg-error hover:text-white disabled:opacity-50"
+                  >
+                    {t('common.delete')}
+                  </button>
+                </>
+              )}
+            </div>
+          </div>
+        ))}
+        {items && items.length === 0 && (
+          <p className="text-sm text-on-surface-variant py-6 text-center">{t('common.empty')}</p>
+        )}
+      </div>
+
+      {editing && (
+        <div className="fixed inset-0 z-50 bg-black/40 flex items-center justify-center p-4">
+          <div className="bg-bg-card rounded-xl p-6 w-full max-w-md">
+            <h3 className="font-headline-md text-headline-md text-text-primary mb-4">
+              {t('settings.categories.edit.title')}
+            </h3>
+            <label className="flex flex-col gap-1 mb-3">
+              <span className="text-xs text-on-surface-variant">{t('settings.categories.field.name')}</span>
+              <input
+                value={editName}
+                onChange={(e) => setEditName(e.target.value)}
+                maxLength={20}
+                className="border border-outline rounded-lg px-3 py-2 text-sm bg-surface-container-lowest focus:border-primary"
+              />
+            </label>
+            <label className="flex flex-col gap-1 mb-4">
+              <span className="text-xs text-on-surface-variant">{t('settings.categories.field.color')}</span>
+              <input
+                type="color"
+                value={editColor}
+                onChange={(e) => setEditColor(e.target.value)}
+                className="border border-outline rounded-lg h-10 w-full bg-surface-container-lowest"
+              />
+            </label>
+            <div className="flex justify-end gap-2">
+              <button
+                type="button"
+                onClick={() => setEditing(null)}
+                className="px-4 py-2 text-sm border border-outline rounded-lg"
+              >
+                {t('common.cancel')}
+              </button>
+              <button
+                type="button"
+                onClick={handleSaveEdit}
+                disabled={busy}
+                className="px-4 py-2 text-sm bg-primary text-on-primary rounded-lg disabled:opacity-50"
+              >
+                {t('common.save')}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   )
 }

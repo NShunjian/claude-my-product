@@ -11,6 +11,7 @@ describe('getCategoryPresentation', () => {
       icon: '🍔',
       color: '#4299E1',
       sortOrder: 0,
+      isPreset: true,
     }
     const out = getCategoryPresentation(c)
     expect(out.icon).toBe('restaurant')
@@ -26,6 +27,7 @@ describe('getCategoryPresentation', () => {
       icon: '💰',
       color: '#10b981',
       sortOrder: 0,
+      isPreset: true,
     }
     const out = getCategoryPresentation(c)
     expect(out.icon).toBe('payments')
@@ -41,6 +43,7 @@ describe('getCategoryPresentation', () => {
       icon: '❓',
       color: '#000000',
       sortOrder: 99,
+      isPreset: false,
     }
     const out = getCategoryPresentation(c)
     expect(out.icon).toBe('more_horiz')

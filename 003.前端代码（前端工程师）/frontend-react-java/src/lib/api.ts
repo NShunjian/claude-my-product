@@ -71,23 +71,19 @@ export async function request<T>(path: string, options: RequestInit = {}): Promi
 
   const res = await fetch(API_BASE + path, { ...options, headers })
 
-  // HTTP 非 2xx —— 后端仍可能返了信封(GlobalExceptionHandler 统一返 ApiResponse),
-  // 也可能没返(网关错误 / 401 由前端 filter 截断),宽松解析。
-  if (!res.ok) {
-    if (res.status === 401) {
-      notifyAuthInvalid()
-    }
-    const body = (await res.json().catch(() => ({}))) as Partial<ApiEnvelope<unknown>>
-    const code = body.code ?? 'INTERNAL'
-    const message = body.message ?? `HTTP ${res.status}`
-    throw new ApiError(code as number | string, message, res.status)
+  // 不管 HTTP 状态码,先读信封。
+  // 后端把 1401「未登录」返成 HTTP 400 + envelope {code:1401},得看 envelope 不只看状态码。
+  const env = (await res.json().catch(() => ({}))) as Partial<ApiEnvelope<T>>
+  const code = env.code ?? 'INTERNAL'
+  const message = env.message ?? `HTTP ${res.status}`
+
+  // 全局鉴权失效:任何 1401 都触发(不管 HTTP 是 200 / 400 / 401)
+  if (code === 1401) {
+    notifyAuthInvalid()
   }
 
-  // HTTP 2xx —— 必须按信封读 data。
-  const env = (await res.json()) as ApiEnvelope<T>
-  if (env.code !== 0) {
-    // 200 但 code!=0:业务流未走 @ExceptionHandler 的场景(理论上不会发生,留兜底)
-    throw new ApiError(env.code, env.message, res.status)
+  if (!res.ok || code !== 0) {
+    throw new ApiError(code as number | string, message, res.status)
   }
   return env.data as T
 }

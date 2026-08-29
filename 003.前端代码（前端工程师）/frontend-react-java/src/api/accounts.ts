@@ -30,6 +30,8 @@ export interface CreateAccountInput {
   isDefault?: boolean
   sortOrder?: number
   note?: string | null
+  /** V1.1:可选;缺省走当前默认账本 */
+  bookId?: string
 }
 
 export interface UpdateAccountInput {
@@ -48,8 +50,11 @@ export interface AccountEnvelope {
   account: Account
 }
 
-export async function listAccounts(): Promise<Account[]> {
-  const res = await request<ListAccountsResponse>('/api/accounts')
+export async function listAccounts(params: { bookId?: string } = {}): Promise<Account[]> {
+  const sp = new URLSearchParams()
+  if (params.bookId) sp.set('bookId', params.bookId)
+  const qs = sp.toString()
+  const res = await request<ListAccountsResponse>(`/api/accounts${qs ? `?${qs}` : ''}`)
   return res.items
 }
 

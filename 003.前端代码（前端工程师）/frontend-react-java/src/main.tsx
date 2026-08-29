@@ -5,6 +5,7 @@ import App from './App'
 import { AuthProvider } from './auth/AuthContext'
 import { ErrorBoundary } from './components/ErrorBoundary'
 import { LanguageProvider } from './i18n/LanguageContext'
+import { BookProvider } from './lib/book-context'
 import { setInitialHtmlTheme, ThemeProvider } from './theme/ThemeContext'
 import { ToastProvider } from './components/Toast'
 import { VersionProvider } from './version/VersionContext'
@@ -25,7 +26,9 @@ createRoot(rootEl).render(
             <ThemeProvider>
               <ToastProvider>
                 <AuthProvider>
-                  <App />
+                  <BookProvider>
+                    <App />
+                  </BookProvider>
                 </AuthProvider>
               </ToastProvider>
             </ThemeProvider>

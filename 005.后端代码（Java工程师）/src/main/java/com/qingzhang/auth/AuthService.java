@@ -1,8 +1,11 @@
 package com.qingzhang.auth;
 
+import com.baomidou.mybatisplus.core.toolkit.Wrappers;
 import com.qingzhang.auth.dto.AuthResponse;
 import com.qingzhang.auth.dto.Credentials;
 import com.qingzhang.auth.dto.UserDTO;
+import com.qingzhang.books.entity.Book;
+import com.qingzhang.books.mapper.BookMapper;
 import com.qingzhang.common.BizException;
 import com.qingzhang.users.entity.User;
 import com.qingzhang.users.mapper.UserMapper;
@@ -26,18 +29,20 @@ public class AuthService {
     private static final int CODE_USER_NOT_FOUND      = 1003;
 
     private final UserMapper userMapper;
+    private final BookMapper bookMapper;
     private final JwtUtil jwtUtil;
     private final BCryptPasswordEncoder encoder = new BCryptPasswordEncoder();
 
-    public AuthService(UserMapper userMapper, JwtUtil jwtUtil) {
+    public AuthService(UserMapper userMapper, BookMapper bookMapper, JwtUtil jwtUtil) {
         this.userMapper = userMapper;
+        this.bookMapper = bookMapper;
         this.jwtUtil = jwtUtil;
     }
 
     @Transactional(rollbackFor = Exception.class)
     public AuthResponse register(Credentials c) {
         Long existing = userMapper.selectCount(
-                com.baomidou.mybatisplus.core.toolkit.Wrappers.<User>lambdaQuery()
+                Wrappers.<User>lambdaQuery()
                         .eq(User::getUsername, c.username())
         );
         if (existing != null && existing > 0) {
@@ -53,13 +58,28 @@ public class AuthService {
                 .updatedAt(now)
                 .build();
         userMapper.insert(u);
+        // 注册即开默认账本(spec PRD V1.0.1 §5.2:V1.0 每用户一个个人账本)
+        Book defaultBook = Book.builder()
+                .uuid(UUID.randomUUID().toString())
+                .ownerId(u.getId())
+                .name("个人账本")
+                .description("默认个人账本")
+                .type("personal")
+                .currency("CNY")
+                .isDefault((byte) 1)
+                .isArchived((byte) 0)
+                .sortOrder(0)
+                .createdAt(now)
+                .updatedAt(now)
+                .build();
+        bookMapper.insert(defaultBook);
         String token = jwtUtil.issue(u.getId());
         return new AuthResponse(toDto(u), token);
     }
 
     public AuthResponse login(Credentials c) {
         User u = userMapper.selectOne(
-                com.baomidou.mybatisplus.core.toolkit.Wrappers.<User>lambdaQuery()
+                Wrappers.<User>lambdaQuery()
                         .eq(User::getUsername, c.username())
         );
         if (u == null || !encoder.matches(c.password(), u.getPasswordHash())) {

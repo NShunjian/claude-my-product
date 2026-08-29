@@ -12,7 +12,7 @@ import java.util.Map;
  * ponytail: 接 DB / 安全/业务后保留,仅作存活探针。
  */
 @RestController
-@RequestMapping("/api/v1")
+@RequestMapping("/api")
 public class VersionController {
 
     @GetMapping("/version")

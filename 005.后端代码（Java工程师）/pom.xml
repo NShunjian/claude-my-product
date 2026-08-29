@@ -19,7 +19,9 @@
 
     <properties>
         <java.version>21</java.version>
+        <maven.compiler.release>21</maven.compiler.release>
         <mybatis-plus.version>3.5.9</mybatis-plus.version>
+        <flyway.version>10.20.1</flyway.version>
     </properties>
 
     <dependencies>
@@ -39,12 +41,26 @@
             <artifactId>mybatis-plus-spring-boot3-starter</artifactId>
             <version>${mybatis-plus.version}</version>
         </dependency>
+        <!-- 移除 mybatis-plus-extension 显式依赖:3.5.9 已移除 PaginationInnerInterceptor,
+             Page<T> 分页由 BaseMapper 自动处理;此处留空注释供后人避坑。 -->
 
-        <!-- MySQL driver (kept here so compile never needs DB running) -->
+        <!-- MySQL driver -->
         <dependency>
             <groupId>com.mysql</groupId>
             <artifactId>mysql-connector-j</artifactId>
             <scope>runtime</scope>
+        </dependency>
+
+        <!-- Flyway: schema migration on boot -->
+        <dependency>
+            <groupId>org.flywaydb</groupId>
+            <artifactId>flyway-core</artifactId>
+            <version>${flyway.version}</version>
+        </dependency>
+        <dependency>
+            <groupId>org.flywaydb</groupId>
+            <artifactId>flyway-mysql</artifactId>
+            <version>${flyway.version}</version>
         </dependency>
 
         <!-- BCrypt (只取 codec,不全套 Spring Security) -->
@@ -78,8 +94,13 @@
             <artifactId>spring-boot-starter-test</artifactId>
             <scope>test</scope>
         </dependency>
+        <dependency>
+            <groupId>com.h2database</groupId>
+            <artifactId>h2</artifactId>
+            <scope>test</scope>
+        </dependency>
 
-        <!-- Lombok (cut boilerplate) -->
+        <!-- Lombok -->
         <dependency>
             <groupId>org.projectlombok</groupId>
             <artifactId>lombok</artifactId>

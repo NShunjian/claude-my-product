@@ -6,6 +6,20 @@ spring:
     name: qingzhang-java-backend
   profiles:
     active: dev
+  jackson:
+    default-property-inclusion: non_null
+    time-zone: UTC
+
+mybatis-plus:
+  configuration:
+    map-underscore-to-camel-case: true
+    log-impl: org.apache.ibatis.logging.nologging.NoLoggingImpl
+  global-config:
+    db-config:
+      logic-delete-field: deletedAt
+      logic-delete-value: "NOW()"
+      logic-not-delete-value: "NULL"
+      id-type: AUTO
 
 # JWT —— 与 Node 端互通需要保持完全相同;
 # 密钥务必 ≥ 32 字节(HS256 要求)。占位值启动即报,提示你改成与 Node .env 一致的密钥。

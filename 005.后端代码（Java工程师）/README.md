@@ -1,6 +1,6 @@
 # 轻账 — Java 后端 (V1)
 
-为「轻账」提供 REST API。技术栈:**Spring Boot 3.5 + JDK 26 + Maven + MyBatis-Plus + MySQL 8.0 + Flyway + JJWT + BCrypt**。
+为「轻账」提供 REST API。技术栈:**Spring Boot 3.5 + JDK 26 + Maven + MyBatis-Plus + MySQL 9.7.2 + Flyway + JJWT + BCrypt**。
 
 ## 当前状态(V1 已完成)
 
@@ -20,7 +20,7 @@ Java 后端**完全替代**了之前的 Node 后端(原 :4000),前端 `frontend-
 
 ## 运行
 
-依赖:**JDK 26**、**MySQL 8.0**、**Maven 3.9+**。
+依赖:**JDK 26**、**MySQL 9.7.2**、**Maven 3.9+**。
 
 ```sh
 # 1. 启动 MySQL(docker compose,端口 3307 避主机冲突)

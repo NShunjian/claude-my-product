@@ -1,6 +1,8 @@
 package com.qingzhang.auth;
 
 import com.baomidou.mybatisplus.core.toolkit.Wrappers;
+import com.qingzhang.accounts.entity.Account;
+import com.qingzhang.accounts.mapper.AccountMapper;
 import com.qingzhang.auth.dto.AuthResponse;
 import com.qingzhang.auth.dto.Credentials;
 import com.qingzhang.auth.dto.UserDTO;
@@ -13,7 +15,9 @@ import org.springframework.security.crypto.bcrypt.BCryptPasswordEncoder;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
+import java.math.BigDecimal;
 import java.time.Instant;
+import java.util.List;
 import java.util.UUID;
 
 /**
@@ -30,12 +34,14 @@ public class AuthService {
 
     private final UserMapper userMapper;
     private final BookMapper bookMapper;
+    private final AccountMapper accountMapper;
     private final JwtUtil jwtUtil;
     private final BCryptPasswordEncoder encoder = new BCryptPasswordEncoder();
 
-    public AuthService(UserMapper userMapper, BookMapper bookMapper, JwtUtil jwtUtil) {
+    public AuthService(UserMapper userMapper, BookMapper bookMapper, AccountMapper accountMapper, JwtUtil jwtUtil) {
         this.userMapper = userMapper;
         this.bookMapper = bookMapper;
+        this.accountMapper = accountMapper;
         this.jwtUtil = jwtUtil;
     }
 
@@ -73,6 +79,8 @@ public class AuthService {
                 .updatedAt(now)
                 .build();
         bookMapper.insert(defaultBook);
+        // 注册即送 5 个默认账户(跟 demo 数据一致),避免新用户记账页账户选择为空
+        seedDefaultAccounts(u.getId(), defaultBook.getId(), now);
         String token = jwtUtil.issue(u.getId());
         return new AuthResponse(toDto(u), token);
     }
@@ -113,5 +121,38 @@ public class AuthService {
                 u.getAge(),
                 u.getCreatedAt()
         );
+    }
+
+    /**
+     * 新用户默认账户:跟 mysql97 demo 数据一致 —— 5 个常见账户,
+     * 微信支付置为默认(V1.0 移动端最常用)。
+     */
+    private void seedDefaultAccounts(long userId, long bookId, Instant now) {
+        List<Account> seeds = List.of(
+                Account.builder().userId(userId).bookId(bookId).name("微信支付").type("wallet").icon("💳")
+                        .initialBalance(BigDecimal.ZERO).currentBalance(BigDecimal.ZERO).currency("CNY")
+                        .isDefault((byte) 1).isArchived((byte) 0).sortOrder(0)
+                        .createdAt(now).updatedAt(now).build(),
+                Account.builder().userId(userId).bookId(bookId).name("支付宝").type("wallet").icon("💳")
+                        .initialBalance(BigDecimal.ZERO).currentBalance(BigDecimal.ZERO).currency("CNY")
+                        .isDefault((byte) 0).isArchived((byte) 0).sortOrder(1)
+                        .createdAt(now).updatedAt(now).build(),
+                Account.builder().userId(userId).bookId(bookId).name("现金").type("cash").icon("💵")
+                        .initialBalance(BigDecimal.ZERO).currentBalance(BigDecimal.ZERO).currency("CNY")
+                        .isDefault((byte) 0).isArchived((byte) 0).sortOrder(2)
+                        .createdAt(now).updatedAt(now).build(),
+                Account.builder().userId(userId).bookId(bookId).name("银行卡").type("debit").icon("🏦")
+                        .initialBalance(BigDecimal.ZERO).currentBalance(BigDecimal.ZERO).currency("CNY")
+                        .isDefault((byte) 0).isArchived((byte) 0).sortOrder(3)
+                        .createdAt(now).updatedAt(now).build(),
+                Account.builder().userId(userId).bookId(bookId).name("信用卡").type("credit").icon("💳")
+                        .initialBalance(BigDecimal.ZERO).currentBalance(BigDecimal.ZERO).currency("CNY")
+                        .isDefault((byte) 0).isArchived((byte) 0).sortOrder(4)
+                        .createdAt(now).updatedAt(now).build()
+        );
+        for (Account a : seeds) {
+            a.setUuid(UUID.randomUUID().toString());
+            accountMapper.insert(a);
+        }
     }
 }

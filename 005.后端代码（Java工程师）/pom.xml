@@ -115,6 +115,16 @@
                 <groupId>org.apache.maven.plugins</groupId>
                 <artifactId>maven-compiler-plugin</artifactId>
                 <configuration>
+                    <!--
+                      ponytail: 显式 source/target 而非仅 release,
+                      是因为 JDK 26 的 javac 在某些组合下会忽略 release 标志
+                      直接发射 v70 (Java 26) 字节码,而 Spring 3.5.x 的 ASM
+                      只识别到 v65 (Java 21),会导致 mvn spring-boot:run / package
+                      报 "Unsupported class file major version 70"。
+                      强制 source/target=21 保证任何 JDK 下都输出 v65。
+                    -->
+                    <source>21</source>
+                    <target>21</target>
                     <annotationProcessorPaths>
                         <path>
                             <groupId>org.projectlombok</groupId>

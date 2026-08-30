@@ -82,7 +82,13 @@ export async function request<T>(path: string, opts: RequestOptions = {}): Promi
   // 但 401/403 拦截器直接写 response,不带 ApiResponse envelope
   if (res.status === 401) {
     clearAuth()
-    throw new ApiError(401, '未登录或登录已过期', 401)
+    // 通知 AuthProvider:token 被服务端作废(V12 token_version 不匹配 / 账号禁用 / 角色没了),
+    // 让它清 context state + 跳登录页。仅 dispatch 不 navigate —— 跳转由 React 层做,
+    // 避免在 api client 里耦合 router。
+    window.dispatchEvent(new CustomEvent('admin-auth-expired', {
+      detail: { message: '登录已过期,请重新登录' },
+    }))
+    throw new ApiError(401, '登录已过期', 401)
   }
 
   let parsed: ApiResponse<T>

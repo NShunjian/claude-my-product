@@ -1,4 +1,5 @@
 import { createContext, useCallback, useContext, useEffect, useState, type ReactNode } from 'react'
+import { useNavigate } from 'react-router-dom'
 import { clearAuth, getToken, request, setToken } from '../api/client'
 import type { AdminMeResponse, AuthLoginResponse, AuthUserDto } from '../api/types'
 
@@ -16,6 +17,7 @@ interface AuthState {
 const AdminAuthContext = createContext<AuthState | null>(null)
 
 export function AdminAuthProvider({ children }: { children: ReactNode }) {
+  const navigate = useNavigate()
   const [user, setUser] = useState<AuthUserDto | null>(null)
   const [permissions, setPermissions] = useState<string[]>([])
   const [roleCodes, setRoleCodes] = useState<string[]>([])
@@ -59,6 +61,18 @@ export function AdminAuthProvider({ children }: { children: ReactNode }) {
     clearAuth()
     setUser(null); setPermissions([]); setRoleCodes([]); setIsSuperAdmin(false)
   }, [])
+
+  // 监听 api/client.ts 派发的 'admin-auth-expired' 事件 —— 服务端 token 被作废
+  // (V12 token_version 不匹配 / 账号禁用 / 角色没了) 时自动清 context + 跳登录。
+  // 不重复 navigate:已登录页时跳一次就行。
+  useEffect(() => {
+    function onExpired() {
+      logout()
+      navigate('/login', { replace: true })
+    }
+    window.addEventListener('admin-auth-expired', onExpired)
+    return () => window.removeEventListener('admin-auth-expired', onExpired)
+  }, [logout, navigate])
 
   return (
     <AdminAuthContext.Provider

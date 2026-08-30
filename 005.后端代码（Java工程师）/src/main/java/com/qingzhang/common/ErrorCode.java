@@ -27,6 +27,7 @@ public final class ErrorCode {
     public static final int ADMIN_AUTH_REQUIRED     = 1411;
     public static final int ADMIN_PERMISSION_DENIED = 1403;
     public static final int ADMIN_USER_NOT_FOUND    = 1410;
+    public static final int ADMIN_USER_CONFLICT     = 1413;
     public static final int ADMIN_USER_DISABLED     = 1412;
     public static final int ADMIN_ROLE_NOT_FOUND    = 1420;
     public static final int ADMIN_TARGET_NOT_FOUND  = 1490;

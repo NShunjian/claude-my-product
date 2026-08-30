@@ -8,6 +8,8 @@ import com.qingzhang.admin.audit.AdminAuditService;
 import com.qingzhang.admin.dto.AdminResetPasswordResponse;
 import com.qingzhang.admin.dto.AdminUserDetailResponse;
 import com.qingzhang.admin.dto.AdminUserListItem;
+import com.qingzhang.admin.dto.CreateAdminUserRequest;
+import com.qingzhang.admin.dto.CreateAdminUserResponse;
 import com.qingzhang.admin.entity.AdminRole;
 import com.qingzhang.admin.entity.AdminUser;
 import com.qingzhang.admin.entity.AdminUserRole;
@@ -29,11 +31,11 @@ import java.security.SecureRandom;
 import java.time.Instant;
 import java.util.List;
 import java.util.Map;
-import java.util.Set;
+import java.util.UUID;
 import java.util.stream.Collectors;
 
 /**
- * 用户管理业务 —— 列、详情、改状态、重置密码、授/撤角色。
+ * 用户管理业务 —— 列、详情、创建、改状态、重置密码、授/撤角色。
  * 所有变更通过 AdminAuditService 记录审计日志。
  *
  * ponytail: 不引复杂权限规则 —— "不能禁自己"、"super_admin 不能被授予" 几条硬规则
@@ -44,7 +46,6 @@ import java.util.stream.Collectors;
 public class AdminUserService {
 
     private static final Logger log = LoggerFactory.getLogger(AdminUserService.class);
-    private static final Set<String> PROTECTED_ROLE_CODES = Set.of("super_admin", "admin", "viewer");
     // 排除易混字符:I L O 0 1 —— 生成的密码易读、易输入
     private static final String ALPHABET = "ABCDEFGHJKMNPQRSTUVWXYZabcdefghjkmnpqrstuvwxyz23456789";
 
@@ -122,6 +123,87 @@ public class AdminUserService {
                 u.getCreatedAt(),
                 principal.roleCodes()
         );
+    }
+
+    /**
+     * 创建新管理员账号(super_admin 调用)。
+     * - username 唯一校验
+     * - 密码后端生成 12 位随机 + BCrypt,明文随响应返回一次(创建者当面转给新管理员)
+     * - 可选 roleCode:非空时校验存在 + 非 super_admin + 立即授权
+     * - 审计 user.create
+     */
+    @Transactional(rollbackFor = Exception.class)
+    public CreateAdminUserResponse create(CreateAdminUserRequest req, AdminActor actor) {
+        String username = req.username().trim();
+
+        // 1. username 已存在 → 失败
+        AdminUser conflict = adminUserMapper.selectOne(
+                new QueryWrapper<AdminUser>().eq("username", username));
+        if (conflict != null) {
+            auditService.recordFailure(actor.userId(), actor.username(),
+                    "user.create", "user", null,
+                    "用户名已存在: " + username, actor.ip(), actor.userAgent());
+            throw new BizException(ErrorCode.ADMIN_USER_CONFLICT, "用户名已存在: " + username);
+        }
+
+        Instant now = Instant.now();
+        String initialPassword = generatePassword(12);
+        AdminUser u = AdminUser.builder()
+                .uuid(UUID.randomUUID().toString())
+                .username(username)
+                .passwordHash(encoder.encode(initialPassword))
+                .displayName(req.displayName() == null || req.displayName().isBlank()
+                        ? username : req.displayName().trim())
+                .status((byte) 1)
+                .createdAt(now)
+                .updatedAt(now)
+                .build();
+        adminUserMapper.insert(u);
+        long newUserId = u.getId();
+
+        // 2. 可选授权
+        List<String> grantedRoles = List.of();
+        if (req.roleCode() != null && !req.roleCode().isBlank()) {
+            String roleCode = req.roleCode().trim();
+            // 与 grantRole 一致的硬规则:API 不能授 super_admin
+            if ("super_admin".equals(roleCode)) {
+                auditService.recordFailure(actor.userId(), actor.username(),
+                        "user.create", "user", newUserId,
+                        "不允许通过 API 创建并授予 super_admin", actor.ip(), actor.userAgent());
+                throw new BizException(ErrorCode.ADMIN_PERMISSION_DENIED,
+                        "不允许通过 API 创建并授予 super_admin");
+            }
+            AdminRole role = roleMapper.selectOne(
+                    new QueryWrapper<AdminRole>().eq("code", roleCode));
+            if (role == null) {
+                auditService.recordFailure(actor.userId(), actor.username(),
+                        "user.create", "user", newUserId,
+                        "角色不存在: " + roleCode, actor.ip(), actor.userAgent());
+                throw new BizException(ErrorCode.ADMIN_ROLE_NOT_FOUND, "角色不存在: " + roleCode);
+            }
+            AdminUserRole link = new AdminUserRole();
+            link.setAdminUserId(newUserId);
+            link.setRoleId(role.getId());
+            link.setGrantedAt(now);
+            link.setGrantedBy(actor.userId());
+            userRoleMapper.insert(link);
+            grantedRoles = List.of(roleCode);
+        }
+
+        // 3. 审计 success
+        Map<String, Object> afterSnap = new java.util.LinkedHashMap<>();
+        afterSnap.put("username", username);
+        afterSnap.put("displayName", u.getDisplayName());
+        afterSnap.put("status", 1);
+        afterSnap.put("roles", grantedRoles);
+        auditService.recordSuccess(actor.userId(), actor.username(),
+                "user.create", "user", newUserId,
+                null, afterSnap, actor.ip(), actor.userAgent());
+
+        log.info("[admin] user created: actor={} newUser={} id={} roles={}",
+                actor.username(), username, newUserId, grantedRoles);
+
+        return new CreateAdminUserResponse(newUserId, username, initialPassword);
     }
 
     /** 启用/禁用管理员。审计: user.enable / user.disable。 */

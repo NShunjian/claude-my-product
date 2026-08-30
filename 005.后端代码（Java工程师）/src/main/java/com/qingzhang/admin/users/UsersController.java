@@ -6,6 +6,8 @@ import com.qingzhang.admin.dto.AdminResetPasswordResponse;
 import com.qingzhang.admin.dto.AdminUpdateUserStatusRequest;
 import com.qingzhang.admin.dto.AdminUserDetailResponse;
 import com.qingzhang.admin.dto.AdminUserListItem;
+import com.qingzhang.admin.dto.CreateAdminUserRequest;
+import com.qingzhang.admin.dto.CreateAdminUserResponse;
 import com.qingzhang.admin.dto.Page;
 import com.qingzhang.admin.entity.AdminUser;
 import com.qingzhang.admin.mapper.AdminUserMapper;
@@ -31,6 +33,7 @@ import java.util.Map;
 
 /**
  *   GET    /api/admin/users                              -> Page<AdminUserListItem>
+ *   POST   /api/admin/users                              -> CreateAdminUserResponse   (super_admin only)
  *   GET    /api/admin/users/{id}                         -> AdminUserDetailResponse
  *   PATCH  /api/admin/users/{id}/status                  -> {status}
  *   POST   /api/admin/users/{id}/reset-password          -> AdminResetPasswordResponse
@@ -69,6 +72,13 @@ public class UsersController {
     @RequiresPermission("user:detail")
     public ApiResponse<AdminUserDetailResponse> detail(@PathVariable long id) {
         return ApiResponse.ok(service.detail(id));
+    }
+
+    @PostMapping
+    @RequiresPermission("user:create")
+    public ApiResponse<CreateAdminUserResponse> create(HttpServletRequest req,
+                                                        @Valid @RequestBody CreateAdminUserRequest body) {
+        return ApiResponse.ok(service.create(body, actor(req)));
     }
 
     @PatchMapping("/{id}/status")

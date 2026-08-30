@@ -20,14 +20,18 @@ qz_root() {
 ROOT="$(qz_root)"
 BACKEND_DIR="$ROOT/005.后端代码（Java工程师）"
 FRONTEND_DIR="$ROOT/003.前端代码（前端工程师）/frontend-react-java"
+ADMIN_FRONTEND_DIR="$ROOT/006.admin-frontend"
 
 BACKEND_PORT=4001
 FRONTEND_PORT=5173
+ADMIN_FRONTEND_PORT=5174
 
 BACKEND_LOG="/tmp/qz-backend.log"
 FRONTEND_LOG="/tmp/qz-frontend.log"
+ADMIN_FRONTEND_LOG="/tmp/qz-admin-frontend.log"
 BACKEND_PIDFILE="/tmp/qz-backend.pid"
 FRONTEND_PIDFILE="/tmp/qz-frontend.pid"
+ADMIN_FRONTEND_PIDFILE="/tmp/qz-admin-frontend.pid"
 CLASSPATH_CACHE="/tmp/qz-m2-classpath.txt"
 
 # === 端口→PID(无监听时返回非零) ===
@@ -106,6 +110,23 @@ qz_start_frontend() {
   qz_wait_port $FRONTEND_PORT "前端" 30 "$FRONTEND_LOG"
 }
 
+# === 管理后台前端 ===
+qz_start_admin_frontend() {
+  if pid=$(port_pid $ADMIN_FRONTEND_PORT); then
+    echo "  ⏭  管理后台已在运行 :$ADMIN_FRONTEND_PORT (pid=$pid)"
+    return 0
+  fi
+  echo "  (管理后台 :$ADMIN_FRONTEND_PORT 无监听,准备启动)"
+
+  echo "  → 安装依赖 + 启动管理后台 (Vite, React 19)..."
+  if [[ ! -d "$ADMIN_FRONTEND_DIR/node_modules" ]]; then
+    ( cd "$ADMIN_FRONTEND_DIR" && npm install --silent ) || { echo "  ✗ npm install 失败"; return 1; }
+  fi
+
+  ( cd "$ADMIN_FRONTEND_DIR" && nohup npm run dev > "$ADMIN_FRONTEND_LOG" 2>&1 & echo $! > "$ADMIN_FRONTEND_PIDFILE" )
+  qz_wait_port $ADMIN_FRONTEND_PORT "管理后台" 30 "$ADMIN_FRONTEND_LOG"
+}
+
 # === 全部停掉 ===
 qz_stop() {
   qz_stop_backend
@@ -132,10 +153,22 @@ qz_stop_frontend() {
   [[ -n "${pid:-}" ]] && kill "$pid" 2>/dev/null && echo "  ✓ 已停 前端 :$FRONTEND_PORT pid=$pid"
 }
 
+qz_stop_admin_frontend() {
+  if [[ -f "$ADMIN_FRONTEND_PIDFILE" ]]; then
+    pid=$(cat "$ADMIN_FRONTEND_PIDFILE" 2>/dev/null || true)
+    [[ -n "${pid:-}" ]] && kill "$pid" 2>/dev/null && echo "  ✓ 已停 管理后台 pid=$pid"
+    rm -f "$ADMIN_FRONTEND_PIDFILE"
+  fi
+  pid=$(port_pid "$ADMIN_FRONTEND_PORT" || true)
+  [[ -n "${pid:-}" ]] && kill "$pid" 2>/dev/null && echo "  ✓ 已停 管理后台 :$ADMIN_FRONTEND_PORT pid=$pid"
+}
+
 # === 状态 ===
 qz_status() {
   pid=$(port_pid $BACKEND_PORT)
   [[ -n "$pid" ]] && echo "  后端 :$BACKEND_PORT pid=$pid" || echo "  后端 :$BACKEND_PORT (未运行)"
   pid=$(port_pid $FRONTEND_PORT)
   [[ -n "$pid" ]] && echo "  前端 :$FRONTEND_PORT pid=$pid" || echo "  前端 :$FRONTEND_PORT (未运行)"
+  pid=$(port_pid $ADMIN_FRONTEND_PORT)
+  [[ -n "$pid" ]] && echo "  管理后台 :$ADMIN_FRONTEND_PORT pid=$pid" || echo "  管理后台 :$ADMIN_FRONTEND_PORT (未运行)"
 }

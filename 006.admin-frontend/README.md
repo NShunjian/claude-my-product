@@ -6,15 +6,16 @@
 
 **一键启停 (从仓库根):**
 ```bash
-./start-admin.sh           # 启动 → http://localhost:5174
-./start-admin.sh status    # 查端口占用
-./start-admin.sh stop      # 停止 (按端口 5174 杀进程)
+./start-admin           # 启动 → http://localhost:5174
+./start-admin status    # 查端口/进程状态
+./start-admin stop      # 停止
 ```
 
-启动脚本自动:
-- 检查依赖 (缺则 `npm install`)
-- 检查 `.env.local` (缺则从 `.env.example` 复制)
-- 检查端口 5174 是否被占用 (占用则提示先 stop)
+启动脚本 (与 `./start-backend` / `./start-frontend-react-java` 同风格) 自动:
+- 检查端口 5174 占用 (占用则提示已运行)
+- 安装依赖 (缺 `node_modules` 时)
+- nohup 后台启动 + 写 PID 文件到 `/tmp/qz-admin-frontend.pid`
+- 等待端口就绪并打印入口/日志路径
 
 **手动启动:**
 ```bash

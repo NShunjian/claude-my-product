@@ -29,8 +29,11 @@ import org.springframework.transaction.annotation.Transactional;
 
 import java.security.SecureRandom;
 import java.time.Instant;
+import java.util.ArrayList;
+import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.Set;
 import java.util.UUID;
 import java.util.stream.Collectors;
 
@@ -69,13 +72,24 @@ public class AdminUserService {
         this.auditService = auditService;
     }
 
-    /** 列用户 —— 支持 search (username LIKE)、status 过滤,分页。 */
+    /** 列用户 —— 支持 search (username LIKE)、status 过滤,分页。
+     *
+     *  actor: 用于决定是否过滤主 super_admin。vice_super_admin 调用时,
+     *         自动过滤掉所有持 super_admin 角色的用户(主超管对其隐身)。*/
     public com.qingzhang.admin.dto.Page<AdminUserListItem> list(String search,
                                                                 Byte status,
                                                                 long page,
-                                                                long size) {
+                                                                long size,
+                                                                AdminActor actor) {
         long p = Math.max(1, page);
         long s = Math.min(Math.max(1, size), 100);
+
+        boolean hideSuperAdmin = actor != null
+                && !hasRole(actor.userId(), "super_admin")
+                && hasRole(actor.userId(), "vice_super_admin");
+
+        // 1. 取 super_admin 用户 ID 集合(给 vice_super_admin 看时用来排除)
+        Set<Long> superAdminIds = hideSuperAdmin ? collectUserIdsByRole("super_admin") : Set.of();
 
         QueryWrapper<AdminUser> q = new QueryWrapper<>();
         if (search != null && !search.isBlank()) {
@@ -84,10 +98,16 @@ public class AdminUserService {
         if (status != null) {
             q.eq("status", status);
         }
+        if (!superAdminIds.isEmpty()) {
+            q.notIn("id", superAdminIds);
+        }
         q.orderByDesc("id");
 
         IPage<AdminUser> mp = adminUserMapper.selectPage(new Page<>(p, s), q);
         long total = mp.getTotal();
+
+        List<Long> ids = mp.getRecords().stream().map(AdminUser::getId).toList();
+        Map<Long, List<String>> rolesByUser = batchLoadRoleCodes(ids);
 
         List<AdminUserListItem> items = mp.getRecords().stream().map(u -> new AdminUserListItem(
                 u.getId(),
@@ -98,15 +118,63 @@ public class AdminUserService {
                 u.getLastLoginAt(),
                 u.getCreatedAt(),
                 0,  // recordCount —— v1 不预聚合
-                0   // bookCount   —— v1 不预聚合
+                0,  // bookCount   —— v1 不预聚合
+                rolesByUser.getOrDefault(u.getId(), List.of())
         )).collect(Collectors.toList());
 
         return new com.qingzhang.admin.dto.Page<>(items, total, s, p);
     }
 
-    /** 详情 —— 管理员基本字段 + 当前角色集合。avatar/gender/age/email/phone 管理员用不上,固定 null。 */
+    /** 一次性把当前所有 active role 的 user-id 拿出来 —— 给 list() 做隐藏过滤用。 */
+    private Set<Long> collectUserIdsByRole(String roleCode) {
+        AdminRole role = roleMapper.selectOne(
+                new QueryWrapper<AdminRole>().eq("code", roleCode)
+                        .eq("status", 1).isNull("deleted_at"));
+        if (role == null) return Set.of();
+        List<AdminUserRole> links = userRoleMapper.selectList(
+                new QueryWrapper<AdminUserRole>().eq("role_id", role.getId()));
+        return links.stream().map(AdminUserRole::getAdminUserId).collect(Collectors.toSet());
+    }
+
+    /** 批量拿 user → role codes。一次 user_role 查 + 一次 role 查,避免 N+1。 */
+    private Map<Long, List<String>> batchLoadRoleCodes(List<Long> userIds) {
+        if (userIds.isEmpty()) return Map.of();
+        List<AdminUserRole> links = userRoleMapper.selectList(
+                new QueryWrapper<AdminUserRole>().in("admin_user_id", userIds));
+        if (links.isEmpty()) return Map.of();
+
+        Set<Long> roleIds = links.stream().map(AdminUserRole::getRoleId).collect(Collectors.toSet());
+        Map<Long, String> codeById = roleMapper.selectBatchIds(roleIds).stream()
+                .filter(r -> r.getStatus() != null && r.getStatus() == (byte) 1)
+                .filter(r -> r.getDeletedAt() == null)
+                .collect(Collectors.toMap(AdminRole::getId, AdminRole::getCode));
+
+        Map<Long, List<String>> out = new HashMap<>();
+        for (AdminUserRole link : links) {
+            String code = codeById.get(link.getRoleId());
+            if (code == null) continue;
+            out.computeIfAbsent(link.getAdminUserId(), k -> new ArrayList<>()).add(code);
+        }
+        return out;
+    }
+
+    /** 详情 —— 管理员基本字段 + 当前角色集合。avatar/gender/age/email/phone 管理员用不上,固定 null。
+     *
+     *  vice_super_admin 调用时,如果目标持 super_admin → ADMIN_USER_NOT_FOUND(隐身)。*/
     public AdminUserDetailResponse detail(long userId) {
         AdminUser u = mustAdminUser(userId);
+        // 隐身:副超管看不到主超管的详情(数据层过滤,与 list 一致)
+        AdminRole superRole = roleMapper.selectOne(
+                new QueryWrapper<AdminRole>().eq("code", "super_admin"));
+        if (superRole != null) {
+            Long link = userRoleMapper.selectCount(
+                    new QueryWrapper<AdminUserRole>()
+                            .eq("admin_user_id", userId)
+                            .eq("role_id", superRole.getId()));
+            if (link != null && link > 0) {
+                throw new BizException(ErrorCode.ADMIN_USER_NOT_FOUND, "管理员不存在: id=" + userId);
+            }
+        }
         AdminPrincipal principal = permissionService.resolveForAdminUser(userId);
         return new AdminUserDetailResponse(
                 u.getId(),
@@ -266,13 +334,21 @@ public class AdminUserService {
         return new AdminResetPasswordResponse(newPassword);
     }
 
-    /** 授予 admin 角色。审计: user.grant_role。 */
+    /** 授予 admin 角色。审计: user.grant_role。
+     *
+     *  V4 后的规则矩阵:
+     *    - super_admin 授 super_admin → transfer(同事务 grant target + revoke actor)
+     *    - super_admin 授 vice_super_admin → 普通授权
+     *    - super_admin 授 admin/vice_admin/viewer → 普通授权
+     *    - vice_super_admin 授 admin/vice_admin/viewer → 普通授权
+     *    - vice_super_admin 授 super_admin/vice_super_admin → 拒(主超管独占)
+     *    - 其它角色没有 role:grant 权限,前面 @RequiresPermission 拦截
+     */
     @Transactional(rollbackFor = Exception.class)
     public void grantRole(long userId, String roleCode, AdminActor actor) {
         if (roleCode == null || roleCode.isBlank()) {
             throw new BizException(ErrorCode.ADMIN_ROLE_NOT_FOUND, "角色 code 不能为空");
         }
-        // V6 split:userId 现指 admin_users.id(从 1000 起),不再查 users 表
         mustAdminUser(userId);
         AdminRole role = roleMapper.selectOne(
                 new QueryWrapper<AdminRole>().eq("code", roleCode));
@@ -282,20 +358,64 @@ public class AdminUserService {
                     "角色不存在: " + roleCode, actor.ip(), actor.userAgent());
             throw new BizException(ErrorCode.ADMIN_ROLE_NOT_FOUND, "角色不存在: " + roleCode);
         }
-        // 禁止通过 API 授予 super_admin —— 只能 bootstrap 或 DB
-        if ("super_admin".equals(roleCode)) {
+
+        boolean actorIsSuper = hasRole(actor.userId(), "super_admin");
+        boolean actorIsViceSuper = hasRole(actor.userId(), "vice_super_admin");
+
+        // 1. super_admin 不能授给自己 —— 必须 transfer 给别人
+        if ("super_admin".equals(roleCode) && actor.userId() == userId) {
             auditService.recordFailure(actor.userId(), actor.username(),
                     "user.grant_role", "user", userId,
-                    "不允许通过 API 授予 super_admin", actor.ip(), actor.userAgent());
-            throw new BizException(ErrorCode.ADMIN_PERMISSION_DENIED, "不允许通过 API 授予 super_admin");
+                    "超级管理员不能授权给自己", actor.ip(), actor.userAgent());
+            throw new BizException(ErrorCode.ADMIN_PERMISSION_DENIED,
+                    "超级管理员不能授权给自己,请用转移接口");
+        }
+        // 2. vice_super_admin / super_admin 这两个角色只有 super_admin 能授
+        if (("super_admin".equals(roleCode) || "vice_super_admin".equals(roleCode))
+                && !actorIsSuper) {
+            auditService.recordFailure(actor.userId(), actor.username(),
+                    "user.grant_role", "user", userId,
+                    "只有超级管理员才能授权 " + roleCode, actor.ip(), actor.userAgent());
+            throw new BizException(ErrorCode.ADMIN_PERMISSION_DENIED,
+                    "只有超级管理员才能授权 " + roleCode);
+        }
+        // 3. 其它角色(vice_super_admin 之外的)必须有 super_admin 或 vice_super_admin 角色
+        //    @RequiresPermission("role:grant") 已在 controller 层拦了 admin/viewer,
+        //    但这里再守一道:确保 actor 至少有 super 或 vice_super 之一
+        if (!actorIsSuper && !actorIsViceSuper) {
+            auditService.recordFailure(actor.userId(), actor.username(),
+                    "user.grant_role", "user", userId,
+                    "无权授予角色", actor.ip(), actor.userAgent());
+            throw new BizException(ErrorCode.ADMIN_PERMISSION_DENIED, "无权授予角色");
         }
 
+        // 4. transfer 路径:super_admin 授 super_admin → 同事务 grant target + revoke actor
+        if ("super_admin".equals(roleCode) && actorIsSuper) {
+            AdminRole superRole = roleMapper.selectOne(
+                    new QueryWrapper<AdminRole>().eq("code", "super_admin"));
+            if (superRole != null) {
+                Long currentSuperAdminCount = userRoleMapper.selectCount(
+                        new QueryWrapper<AdminUserRole>().eq("role_id", superRole.getId()));
+                // 系统应保持唯一 super_admin。若除 actor 外还存在另一个,必须先撤销多余的。
+                if (currentSuperAdminCount != null && currentSuperAdminCount > 1) {
+                    auditService.recordFailure(actor.userId(), actor.username(),
+                            "user.grant_role", "user", userId,
+                            "系统已存在多个超级管理员,请先撤销多余的超级管理员",
+                            actor.ip(), actor.userAgent());
+                    throw new BizException(ErrorCode.ADMIN_PERMISSION_DENIED,
+                            "系统已存在多个超级管理员,请先撤销多余的超级管理员");
+                }
+            }
+            doTransferSuperAdmin(userId, actor);
+            return;
+        }
+
+        // 5. 普通授权路径
         Long existing = userRoleMapper.selectCount(
                 new QueryWrapper<AdminUserRole>()
                         .eq("admin_user_id", userId)
                         .eq("role_id", role.getId()));
         if (existing != null && existing > 0) {
-            // 已授权 —— idempotent,记 audit 但不报错
             auditService.recordSuccess(actor.userId(), actor.username(),
                     "user.grant_role", "user", userId,
                     Map.of("roles", List.of(roleCode)), Map.of("roles", List.of(roleCode)),
@@ -315,6 +435,39 @@ public class AdminUserService {
                 actor.ip(), actor.userAgent());
     }
 
+    /** super_admin transfer:grant target + revoke actor,同一 @Transactional 内。 */
+    private void doTransferSuperAdmin(long targetUserId, AdminActor actor) {
+        AdminRole superRole = roleMapper.selectOne(
+                new QueryWrapper<AdminRole>().eq("code", "super_admin"));
+        if (superRole == null) {
+            throw new BizException(ErrorCode.ADMIN_ROLE_NOT_FOUND, "super_admin 角色不存在");
+        }
+        // grant target
+        Long existing = userRoleMapper.selectCount(
+                new QueryWrapper<AdminUserRole>()
+                        .eq("admin_user_id", targetUserId)
+                        .eq("role_id", superRole.getId()));
+        if (existing == null || existing == 0) {
+            AdminUserRole link = new AdminUserRole();
+            link.setAdminUserId(targetUserId);
+            link.setRoleId(superRole.getId());
+            link.setGrantedAt(Instant.now());
+            link.setGrantedBy(actor.userId());
+            userRoleMapper.insert(link);
+        }
+        // revoke actor(自己)
+        userRoleMapper.delete(
+                new QueryWrapper<AdminUserRole>()
+                        .eq("admin_user_id", actor.userId())
+                        .eq("role_id", superRole.getId()));
+
+        auditService.recordSuccess(actor.userId(), actor.username(),
+                "user.transfer_super_admin", "user", targetUserId,
+                Map.of("roles", List.of("super_admin")), Map.of("roles", List.of()),
+                actor.ip(), actor.userAgent());
+        log.info("[admin] super_admin transfer: from={} to={}", actor.username(), targetUserId);
+    }
+
     /** 撤销 admin 角色。审计: user.revoke_role。 */
     @Transactional(rollbackFor = Exception.class)
     public void revokeRole(long userId, String roleCode, AdminActor actor) {
@@ -323,6 +476,13 @@ public class AdminUserService {
         }
         // V6 split:userId 现指 admin_users.id
         mustAdminUser(userId);
+        // 通用规则:不能撤销自己的角色 —— super_admin / vice_super_admin / admin / vice_admin / viewer 一律
+        if (actor.userId() == userId) {
+            auditService.recordFailure(actor.userId(), actor.username(),
+                    "user.revoke_role", "user", userId,
+                    "不能撤销自己的角色", actor.ip(), actor.userAgent());
+            throw new BizException(ErrorCode.ADMIN_PERMISSION_DENIED, "不能撤销自己的角色");
+        }
         AdminRole role = roleMapper.selectOne(
                 new QueryWrapper<AdminRole>().eq("code", roleCode));
         if (role == null) {

@@ -56,6 +56,7 @@ export interface AdminUserListItem {
   createdAt: string
   recordCount: number
   bookCount: number
+  roles: string[]
 }
 export interface AdminUserDetailResponse {
   id: number

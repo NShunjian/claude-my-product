@@ -1,6 +1,7 @@
 import { NavLink, Outlet, useNavigate } from 'react-router-dom'
 import { useAdminAuth } from '../auth/AdminAuthContext'
 import { usePermissions } from '../auth/usePermissions'
+import RoleBadge from '../components/RoleBadge'
 
 interface NavItem {
   to: string
@@ -21,7 +22,7 @@ const NAV: NavItem[] = [
 
 export function AdminLayout() {
   const { user, logout, isSuperAdmin } = useAdminAuth()
-  const { has } = usePermissions()
+  const { has, roleCodes } = usePermissions()
   const navigate = useNavigate()
 
   function onLogout() {
@@ -30,6 +31,10 @@ export function AdminLayout() {
   }
 
   const items = NAV.filter((n) => !n.code || has(n.code))
+  // 头部展示当前登录者的角色标签 —— 多角色时按"权限大小"全显示
+  const displayRoles = roleCodes.length > 0
+    ? roleCodes
+    : (isSuperAdmin ? ['super_admin'] : [])
 
   return (
     <div className="min-h-screen flex bg-bg-page">
@@ -57,13 +62,13 @@ export function AdminLayout() {
         <header className="h-14 bg-bg-card border-b border-divider px-6 flex items-center justify-end gap-4">
           <span className="text-sm text-on-surface-variant">
             {user?.displayName ?? user?.username}
-            {isSuperAdmin && (
-              <span className="ml-2 px-1.5 py-0.5 rounded bg-warning text-white text-xs">SUPER</span>
-            )}
           </span>
+          {displayRoles.map((rc) => (
+            <RoleBadge key={rc} code={rc} size="sm" />
+          ))}
           <button
             onClick={onLogout}
-            className="text-sm text-on-surface-variant hover:text-error transition-colors"
+            className="text-sm text-on-surface-variant hover:text-error transition-colors ml-2"
           >
             登出
           </button>

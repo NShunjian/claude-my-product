@@ -61,15 +61,16 @@ public class UsersController {
 
     @GetMapping
     @RequiresPermission("user:list")
-    public ApiResponse<Page<AdminUserListItem>> list(@RequestParam(required = false) String search,
+    public ApiResponse<Page<AdminUserListItem>> list(HttpServletRequest req,
+                                                     @RequestParam(required = false) String search,
                                                      @RequestParam(required = false) Byte status,
                                                      @RequestParam(defaultValue = "1") long page,
                                                      @RequestParam(defaultValue = "20") long size) {
-        return ApiResponse.ok(service.list(search, status, page, size));
+        return ApiResponse.ok(service.list(search, status, page, size, actor(req)));
     }
 
     @GetMapping("/{id}")
-    @RequiresPermission("user:detail")
+    @RequiresPermission("user:view")
     public ApiResponse<AdminUserDetailResponse> detail(@PathVariable long id) {
         return ApiResponse.ok(service.detail(id));
     }
@@ -98,7 +99,7 @@ public class UsersController {
     }
 
     @PostMapping("/{id}/roles")
-    @RequiresPermission("user:grant_role")
+    @RequiresPermission("role:grant")
     public ApiResponse<Map<String, Object>> grantRole(HttpServletRequest req,
                                                        @PathVariable long id,
                                                        @Valid @RequestBody AdminGrantRoleRequest body) {
@@ -107,7 +108,7 @@ public class UsersController {
     }
 
     @DeleteMapping("/{id}/roles/{roleCode}")
-    @RequiresPermission("user:grant_role")
+    @RequiresPermission("role:revoke")
     public ApiResponse<Map<String, Object>> revokeRole(HttpServletRequest req,
                                                         @PathVariable long id,
                                                         @PathVariable String roleCode) {

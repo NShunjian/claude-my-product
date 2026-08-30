@@ -88,7 +88,7 @@ public class AdminAuditLogsService {
         return new AdminAuditLogDetailResponse(
                 log.getUuid(),
                 log.getActorUsername(),
-                log.getActorUserId(),
+                log.getActorAdminUserId(),
                 log.getAction(),
                 log.getTargetType(),
                 log.getTargetId(),

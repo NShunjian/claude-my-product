@@ -3,8 +3,6 @@ package com.qingzhang.auth;
 import com.baomidou.mybatisplus.core.toolkit.Wrappers;
 import com.qingzhang.accounts.entity.Account;
 import com.qingzhang.accounts.mapper.AccountMapper;
-import com.qingzhang.admin.security.AdminPermissionService;
-import com.qingzhang.admin.security.AdminPrincipal;
 import com.qingzhang.auth.dto.AuthResponse;
 import com.qingzhang.auth.dto.Credentials;
 import com.qingzhang.auth.dto.UserDTO;
@@ -38,19 +36,16 @@ public class AuthService {
     private final BookMapper bookMapper;
     private final AccountMapper accountMapper;
     private final JwtUtil jwtUtil;
-    private final AdminPermissionService adminPermissionService;
     private final BCryptPasswordEncoder encoder = new BCryptPasswordEncoder();
 
     public AuthService(UserMapper userMapper,
                        BookMapper bookMapper,
                        AccountMapper accountMapper,
-                       JwtUtil jwtUtil,
-                       AdminPermissionService adminPermissionService) {
+                       JwtUtil jwtUtil) {
         this.userMapper = userMapper;
         this.bookMapper = bookMapper;
         this.accountMapper = accountMapper;
         this.jwtUtil = jwtUtil;
-        this.adminPermissionService = adminPermissionService;
     }
 
     @Transactional(rollbackFor = Exception.class)
@@ -107,14 +102,10 @@ public class AuthService {
             userMapper.updateById(u);
         } catch (Exception ignored) {}
 
-        // 加载 admin RBAC —— 走 AdminPermissionService (A4 重构抽出)
-        AdminPrincipal principal = adminPermissionService.resolveForUser(u.getId());
-        List<String> roleCodes = principal.roleCodes();
-        List<String> permissions = principal.permissions();
-        boolean isSuperAdmin = principal.isSuperAdmin();
-
-        String token = jwtUtil.issue(u.getId(), permissions, roleCodes, isSuperAdmin);
-        return new AuthResponse(toDto(u), token, permissions, roleCodes, isSuperAdmin);
+        // V6 split:admin 账号已搬到 admin_users 表,users 表里的普通用户不再可能持有 admin 角色
+        // —— 所以这里直接 issue 一个无 RBAC 的 token,前端 /me 拿到 user-only 视图
+        String token = jwtUtil.issue(u.getId(), List.of(), List.of(), false);
+        return AuthResponse.plain(toDto(u), token);
     }
 
     public UserDTO me(long userId) {

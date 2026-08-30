@@ -9,7 +9,11 @@ import java.time.Instant;
 public class AdminAuditLog {
     @TableId(type = IdType.AUTO) private Long id;
     private String uuid;
-    private Long actorUserId;
+
+    /** V6 split:列名 actor_admin_user_id,引用 admin_users.id(从 1000 起) */
+    @TableField("actor_admin_user_id")
+    private Long actorAdminUserId;
+
     private String actorUsername;
     private String action;
     private String targetType;

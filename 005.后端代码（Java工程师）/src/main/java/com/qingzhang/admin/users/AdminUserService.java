@@ -8,16 +8,16 @@ import com.qingzhang.admin.dto.AdminResetPasswordResponse;
 import com.qingzhang.admin.dto.AdminUserDetailResponse;
 import com.qingzhang.admin.dto.AdminUserListItem;
 import com.qingzhang.admin.entity.AdminRole;
+import com.qingzhang.admin.entity.AdminUser;
 import com.qingzhang.admin.entity.AdminUserRole;
 import com.qingzhang.admin.mapper.AdminRoleMapper;
+import com.qingzhang.admin.mapper.AdminUserMapper;
 import com.qingzhang.admin.mapper.AdminUserRoleMapper;
 import com.qingzhang.admin.security.AdminActor;
 import com.qingzhang.admin.security.AdminPermissionService;
 import com.qingzhang.admin.security.AdminPrincipal;
 import com.qingzhang.common.BizException;
 import com.qingzhang.common.ErrorCode;
-import com.qingzhang.users.entity.User;
-import com.qingzhang.users.mapper.UserMapper;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.security.crypto.bcrypt.BCryptPasswordEncoder;
@@ -46,7 +46,7 @@ public class AdminUserService {
     // 排除易混字符:I L O 0 1 —— 生成的密码易读、易输入
     private static final String ALPHABET = "ABCDEFGHJKMNPQRSTUVWXYZabcdefghjkmnpqrstuvwxyz23456789";
 
-    private final UserMapper userMapper;
+    private final AdminUserMapper adminUserMapper;
     private final AdminRoleMapper roleMapper;
     private final AdminUserRoleMapper userRoleMapper;
     private final AdminPermissionService permissionService;
@@ -54,12 +54,12 @@ public class AdminUserService {
     private final BCryptPasswordEncoder encoder = new BCryptPasswordEncoder();
     private final SecureRandom random = new SecureRandom();
 
-    public AdminUserService(UserMapper userMapper,
+    public AdminUserService(AdminUserMapper adminUserMapper,
                             AdminRoleMapper roleMapper,
                             AdminUserRoleMapper userRoleMapper,
                             AdminPermissionService permissionService,
                             AdminAuditService auditService) {
-        this.userMapper = userMapper;
+        this.adminUserMapper = adminUserMapper;
         this.roleMapper = roleMapper;
         this.userRoleMapper = userRoleMapper;
         this.permissionService = permissionService;
@@ -74,7 +74,7 @@ public class AdminUserService {
         long p = Math.max(1, page);
         long s = Math.min(Math.max(1, size), 100);
 
-        QueryWrapper<User> q = new QueryWrapper<>();
+        QueryWrapper<AdminUser> q = new QueryWrapper<>();
         if (search != null && !search.isBlank()) {
             q.like("username", search.trim());
         }
@@ -83,7 +83,7 @@ public class AdminUserService {
         }
         q.orderByDesc("id");
 
-        IPage<User> mp = userMapper.selectPage(new Page<>(p, s), q);
+        IPage<AdminUser> mp = adminUserMapper.selectPage(new Page<>(p, s), q);
         long total = mp.getTotal();
 
         List<AdminUserListItem> items = mp.getRecords().stream().map(u -> new AdminUserListItem(
@@ -101,20 +101,20 @@ public class AdminUserService {
         return new com.qingzhang.admin.dto.Page<>(items, total, s, p);
     }
 
-    /** 详情 —— 用户基本字段 + 当前 admin 角色集合。 */
+    /** 详情 —— 管理员基本字段 + 当前角色集合。avatar/gender/age/email/phone 管理员用不上,固定 null。 */
     public AdminUserDetailResponse detail(long userId) {
-        User u = mustUser(userId);
-        AdminPrincipal principal = permissionService.resolveForUser(userId);
+        AdminUser u = mustAdminUser(userId);
+        AdminPrincipal principal = permissionService.resolveForAdminUser(userId);
         return new AdminUserDetailResponse(
                 u.getId(),
                 u.getUuid(),
                 u.getUsername(),
                 u.getDisplayName(),
-                u.getAvatar(),
-                u.getGender(),
-                u.getAge(),
-                u.getEmail(),
-                u.getPhone(),
+                null,  // avatar —— 管理员无头像
+                null,  // gender
+                null,  // age
+                null,  // email
+                null,  // phone
                 u.getStatus(),
                 u.getLastLoginAt(),
                 u.getCreatedAt(),
@@ -122,10 +122,10 @@ public class AdminUserService {
         );
     }
 
-    /** 启用/禁用用户。审计: user.enable / user.disable。 */
+    /** 启用/禁用管理员。审计: user.enable / user.disable。 */
     @Transactional(rollbackFor = Exception.class)
     public Byte updateStatus(long userId, boolean enabled, AdminActor actor) {
-        User u = mustUser(userId);
+        AdminUser u = mustAdminUser(userId);
 
         // 不能禁自己
         if (!enabled && u.getId() == actor.userId()) {
@@ -154,7 +154,7 @@ public class AdminUserService {
         Byte before = u.getStatus();
         u.setStatus((byte) (enabled ? 1 : 0));
         u.setUpdatedAt(Instant.now());
-        userMapper.updateById(u);
+        adminUserMapper.updateById(u);
 
         String action = enabled ? "user.enable" : "user.disable";
         Map<String, Object> beforeSnap = Map.of("status", before);
@@ -169,11 +169,11 @@ public class AdminUserService {
     /** 重置密码 —— 12 位随机密码,BCrypt 入库,返回明文。审计: user.reset_password。 */
     @Transactional(rollbackFor = Exception.class)
     public AdminResetPasswordResponse resetPassword(long userId, AdminActor actor) {
-        User u = mustUser(userId);
+        AdminUser u = mustAdminUser(userId);
         String newPassword = generatePassword(12);
         u.setPasswordHash(encoder.encode(newPassword));
         u.setUpdatedAt(Instant.now());
-        userMapper.updateById(u);
+        adminUserMapper.updateById(u);
 
         auditService.recordSuccess(actor.userId(), actor.username(),
                 "user.reset_password", "user", userId,
@@ -188,7 +188,8 @@ public class AdminUserService {
         if (roleCode == null || roleCode.isBlank()) {
             throw new BizException(ErrorCode.ADMIN_ROLE_NOT_FOUND, "角色 code 不能为空");
         }
-        mustUser(userId);
+        // V6 split:userId 现指 admin_users.id(从 1000 起),不再查 users 表
+        mustAdminUser(userId);
         AdminRole role = roleMapper.selectOne(
                 new QueryWrapper<AdminRole>().eq("code", roleCode));
         if (role == null) {
@@ -207,7 +208,7 @@ public class AdminUserService {
 
         Long existing = userRoleMapper.selectCount(
                 new QueryWrapper<AdminUserRole>()
-                        .eq("user_id", userId)
+                        .eq("admin_user_id", userId)
                         .eq("role_id", role.getId()));
         if (existing != null && existing > 0) {
             // 已授权 —— idempotent,记 audit 但不报错
@@ -218,7 +219,7 @@ public class AdminUserService {
             return;
         }
         AdminUserRole link = new AdminUserRole();
-        link.setUserId(userId);
+        link.setAdminUserId(userId);
         link.setRoleId(role.getId());
         link.setGrantedAt(Instant.now());
         link.setGrantedBy(actor.userId());
@@ -236,7 +237,8 @@ public class AdminUserService {
         if (roleCode == null || roleCode.isBlank()) {
             throw new BizException(ErrorCode.ADMIN_ROLE_NOT_FOUND, "角色 code 不能为空");
         }
-        mustUser(userId);
+        // V6 split:userId 现指 admin_users.id
+        mustAdminUser(userId);
         AdminRole role = roleMapper.selectOne(
                 new QueryWrapper<AdminRole>().eq("code", roleCode));
         if (role == null) {
@@ -255,7 +257,7 @@ public class AdminUserService {
         }
         Long deleted = (long) userRoleMapper.delete(
                 new QueryWrapper<AdminUserRole>()
-                        .eq("user_id", userId)
+                        .eq("admin_user_id", userId)
                         .eq("role_id", role.getId()));
         if (deleted == 0) {
             // 没授权过 —— 不报错,记 audit
@@ -273,10 +275,11 @@ public class AdminUserService {
 
     // -------- helpers --------
 
-    private User mustUser(long userId) {
-        User u = userMapper.selectById(userId);
+    /** V6 split:所有 userId 语义指向 admin_users.id(从 1000 起)。 */
+    private AdminUser mustAdminUser(long adminUserId) {
+        AdminUser u = adminUserMapper.selectById(adminUserId);
         if (u == null) {
-            throw new BizException(ErrorCode.ADMIN_USER_NOT_FOUND, "用户不存在: id=" + userId);
+            throw new BizException(ErrorCode.ADMIN_USER_NOT_FOUND, "管理员不存在: id=" + adminUserId);
         }
         return u;
     }
@@ -287,7 +290,7 @@ public class AdminUserService {
         if (role == null) return false;
         Long c = userRoleMapper.selectCount(
                 new QueryWrapper<AdminUserRole>()
-                        .eq("user_id", userId)
+                        .eq("admin_user_id", userId)
                         .eq("role_id", role.getId()));
         return c != null && c > 0;
     }

@@ -13,10 +13,11 @@ import java.io.IOException;
 
 /**
  * 把 Authorization: Bearer <token> 里的 claims 解析出来放到请求属性:
- *   userId        — long
+ *   userId        — long (V6 split 后:可能是 users.id 或 admin_users.id,值域已分离)
  *   permissions   — List<String>
  *   roleCodes     — List<String>
  *   isSuperAdmin  — boolean
+ *   actorType     — "user" | "admin_user"
  *
  * 不阻断请求(没 token 也放过)—— 鉴权由 controller 决定哪些接口要 userId;
  * 缺失或非法 token 时仅记 WARN,留 controller 用 BizException 返 401。
@@ -32,6 +33,7 @@ public class JwtAuthFilter extends OncePerRequestFilter {
     public static final String PERMISSIONS_ATTR    = "permissions";
     public static final String ROLE_CODES_ATTR     = "roleCodes";
     public static final String IS_SUPER_ADMIN_ATTR = "isSuperAdmin";
+    public static final String ACTOR_TYPE_ATTR     = "actorType";
 
     private final JwtUtil jwtUtil;
 
@@ -52,6 +54,7 @@ public class JwtAuthFilter extends OncePerRequestFilter {
                 req.setAttribute(PERMISSIONS_ATTR, c.permissions());
                 req.setAttribute(ROLE_CODES_ATTR, c.roleCodes());
                 req.setAttribute(IS_SUPER_ADMIN_ATTR, c.isSuperAdmin());
+                req.setAttribute(ACTOR_TYPE_ATTR, c.actorType());
             } catch (Exception ex) {
                 log.warn("[jwt] token 解析失败: {}", ex.getMessage());
             }

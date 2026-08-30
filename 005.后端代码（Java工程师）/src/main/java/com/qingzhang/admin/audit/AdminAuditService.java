@@ -33,7 +33,7 @@ public class AdminAuditService {
     }
 
     /** 记录一次成功的 admin 操作。before / after 可为 null —— 仅审计"操作存在",无需 diff。 */
-    public void recordSuccess(long actorUserId,
+    public void recordSuccess(long actorAdminUserId,
                               String actorUsername,
                               String action,
                               String targetType,
@@ -44,7 +44,7 @@ public class AdminAuditService {
                               String userAgent) {
         AdminAuditLog entry = AdminAuditLog.builder()
                 .uuid(UUID.randomUUID().toString())
-                .actorUserId(actorUserId)
+                .actorAdminUserId(actorAdminUserId)
                 .actorUsername(actorUsername)
                 .action(action)
                 .targetType(targetType)
@@ -66,7 +66,7 @@ public class AdminAuditService {
     }
 
     /** 记录一次失败的 admin 操作 (例如尝试改一个不存在的用户)。 */
-    public void recordFailure(long actorUserId,
+    public void recordFailure(long actorAdminUserId,
                               String actorUsername,
                               String action,
                               String targetType,
@@ -76,7 +76,7 @@ public class AdminAuditService {
                               String userAgent) {
         AdminAuditLog entry = AdminAuditLog.builder()
                 .uuid(UUID.randomUUID().toString())
-                .actorUserId(actorUserId)
+                .actorAdminUserId(actorAdminUserId)
                 .actorUsername(actorUsername)
                 .action(action)
                 .targetType(targetType)

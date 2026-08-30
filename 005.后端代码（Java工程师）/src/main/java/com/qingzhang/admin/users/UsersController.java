@@ -6,14 +6,14 @@ import com.qingzhang.admin.dto.AdminUpdateUserStatusRequest;
 import com.qingzhang.admin.dto.AdminUserDetailResponse;
 import com.qingzhang.admin.dto.AdminUserListItem;
 import com.qingzhang.admin.dto.Page;
+import com.qingzhang.admin.entity.AdminUser;
+import com.qingzhang.admin.mapper.AdminUserMapper;
 import com.qingzhang.admin.security.AdminActor;
 import com.qingzhang.admin.security.RequiresPermission;
 import com.qingzhang.auth.JwtAuthFilter;
 import com.qingzhang.common.ApiResponse;
 import com.qingzhang.common.BizException;
 import com.qingzhang.common.ErrorCode;
-import com.qingzhang.users.entity.User;
-import com.qingzhang.users.mapper.UserMapper;
 import jakarta.servlet.http.HttpServletRequest;
 import jakarta.validation.Valid;
 import org.springframework.web.bind.annotation.DeleteMapping;
@@ -38,17 +38,20 @@ import java.util.Map;
  *
  * AdminAuthInterceptor 已注册到 /api/admin/** (Batch A4);@RequiresPermission 进一步
  * 细化权限码。actor() 帮手方法抽 userId/username/ip/userAgent 给 service 写审计。
+ *
+ * V6 split:所有 userId 语义现在指向 admin_users.id(JWT sub 解析后已切换),所以
+ * actor() 取 username 走 AdminUserMapper;role 授/撤同样作用于 admin_users 行。
  */
 @RestController("adminUsersController")
 @RequestMapping("/api/admin/users")
 public class UsersController {
 
     private final AdminUserService service;
-    private final UserMapper userMapper;  // 仅用于取 username 填 AdminActor
+    private final AdminUserMapper adminUserMapper;  // 仅用于取 username 填 AdminActor
 
-    public UsersController(AdminUserService service, UserMapper userMapper) {
+    public UsersController(AdminUserService service, AdminUserMapper adminUserMapper) {
         this.service = service;
-        this.userMapper = userMapper;
+        this.adminUserMapper = adminUserMapper;
     }
 
     @GetMapping
@@ -105,7 +108,7 @@ public class UsersController {
         if (uid == null) {
             throw new BizException(ErrorCode.ADMIN_AUTH_REQUIRED, "未登录");
         }
-        User u = userMapper.selectById(uid);
+        AdminUser u = adminUserMapper.selectById(uid);
         String username = u == null ? "unknown" : u.getUsername();
         String ip = req.getRemoteAddr();
         String ua = req.getHeader("User-Agent");

@@ -44,7 +44,7 @@ export function AdminAuthProvider({ children }: { children: ReactNode }) {
   }, [])
 
   const login = useCallback(async (username: string, password: string) => {
-    const res = await request<AuthLoginResponse>('/api/auth/login', {
+    const res = await request<AuthLoginResponse>('/api/admin/auth/login', {
       method: 'POST',
       body: { username, password },
     })

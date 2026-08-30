@@ -71,8 +71,8 @@ public class UsersController {
 
     @GetMapping("/{id}")
     @RequiresPermission("user:view")
-    public ApiResponse<AdminUserDetailResponse> detail(@PathVariable long id) {
-        return ApiResponse.ok(service.detail(id));
+    public ApiResponse<AdminUserDetailResponse> detail(HttpServletRequest req, @PathVariable long id) {
+        return ApiResponse.ok(service.detail(id, actor(req)));
     }
 
     @PostMapping

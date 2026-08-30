@@ -160,19 +160,26 @@ public class AdminUserService {
 
     /** 详情 —— 管理员基本字段 + 当前角色集合。avatar/gender/age/email/phone 管理员用不上,固定 null。
      *
-     *  vice_super_admin 调用时,如果目标持 super_admin → ADMIN_USER_NOT_FOUND(隐身)。*/
-    public AdminUserDetailResponse detail(long userId) {
+     *  vice_super_admin 调用时,如果目标持 super_admin → ADMIN_USER_NOT_FOUND(隐身)。
+     *  始终允许 actor 看自己的 detail(包括 super_admin 自己看自己)。*/
+    public AdminUserDetailResponse detail(long userId, AdminActor actor) {
         AdminUser u = mustAdminUser(userId);
-        // 隐身:副超管看不到主超管的详情(数据层过滤,与 list 一致)
-        AdminRole superRole = roleMapper.selectOne(
-                new QueryWrapper<AdminRole>().eq("code", "super_admin"));
-        if (superRole != null) {
-            Long link = userRoleMapper.selectCount(
-                    new QueryWrapper<AdminUserRole>()
-                            .eq("admin_user_id", userId)
-                            .eq("role_id", superRole.getId()));
-            if (link != null && link > 0) {
-                throw new BizException(ErrorCode.ADMIN_USER_NOT_FOUND, "管理员不存在: id=" + userId);
+        // 隐身:仅当「actor 不是自己」且「actor 是 vice_super_admin」且「目标持 super_admin」时拦截
+        // 排除自己(super_admin 必能看自己)
+        boolean viewerIsViceSuper = actor != null && hasRole(actor.userId(), "vice_super_admin");
+        boolean viewerIsSuper = actor != null && hasRole(actor.userId(), "super_admin");
+        boolean isSelf = actor != null && actor.userId() == userId;
+        if (viewerIsViceSuper && !viewerIsSuper && !isSelf) {
+            AdminRole superRole = roleMapper.selectOne(
+                    new QueryWrapper<AdminRole>().eq("code", "super_admin"));
+            if (superRole != null) {
+                Long link = userRoleMapper.selectCount(
+                        new QueryWrapper<AdminUserRole>()
+                                .eq("admin_user_id", userId)
+                                .eq("role_id", superRole.getId()));
+                if (link != null && link > 0) {
+                    throw new BizException(ErrorCode.ADMIN_USER_NOT_FOUND, "管理员不存在: id=" + userId);
+                }
             }
         }
         AdminPrincipal principal = permissionService.resolveForAdminUser(userId);

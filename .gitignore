@@ -20,3 +20,8 @@ frontend-react/e2e/screenshots/
 # Python 字节码
 __pycache__/
 *.pyc
+
+# 环境变量 (含真值/本机覆盖)
+.env
+.env.local
+006.admin-frontend/.env.local

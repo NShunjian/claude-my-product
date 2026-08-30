@@ -22,6 +22,7 @@ public final class ErrorCode {
 
     /** 用户模块 (10xx) —— 跨模块复用 */
     public static final int USER_NOT_FOUND     = 1003;
+    public static final int USER_DISABLED      = 1012;  // 账号被管理员禁用,login 拒绝
 
     /** 系统 */
     public static final int INTERNAL           = 9999;

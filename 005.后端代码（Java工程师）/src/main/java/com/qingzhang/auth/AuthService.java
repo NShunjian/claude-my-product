@@ -31,6 +31,7 @@ public class AuthService {
     private static final int CODE_USERNAME_TAKEN     = 1001;
     private static final int CODE_INVALID_CREDENTIALS = 1002;
     private static final int CODE_USER_NOT_FOUND      = 1003;
+    private static final int CODE_USER_DISABLED       = 1012;
 
     private final UserMapper userMapper;
     private final BookMapper bookMapper;
@@ -98,6 +99,11 @@ public class AuthService {
         );
         if (u == null || !encoder.matches(c.password(), u.getPasswordHash())) {
             throw new BizException(CODE_INVALID_CREDENTIALS, "用户名或密码错误");
+        }
+        // V8 起:被管理员禁用的业务用户(status=0)不能再登录 —— 之前的 token 已被
+        // UserAuthInterceptor 踢出,login 时也必须拒,否则他重新登录拿新 token 又能进。
+        if (u.getStatus() != null && u.getStatus() == 0) {
+            throw new BizException(CODE_USER_DISABLED, "账号已被禁用,请联系管理员");
         }
         try {
             u.setLastLoginAt(Instant.now());

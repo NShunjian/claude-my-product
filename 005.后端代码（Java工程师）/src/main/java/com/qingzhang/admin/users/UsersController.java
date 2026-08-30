@@ -39,7 +39,7 @@ import java.util.Map;
  * AdminAuthInterceptor 已注册到 /api/admin/** (Batch A4);@RequiresPermission 进一步
  * 细化权限码。actor() 帮手方法抽 userId/username/ip/userAgent 给 service 写审计。
  */
-@RestController
+@RestController("adminUsersController")
 @RequestMapping("/api/admin/users")
 public class UsersController {
 

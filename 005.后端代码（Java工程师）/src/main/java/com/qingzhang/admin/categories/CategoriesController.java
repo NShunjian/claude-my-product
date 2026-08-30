@@ -34,7 +34,7 @@ import java.util.Map;
  *
  * @RequiresPermission 码必须与 V5__admin_rbac_and_audit.sql 的 category:preset:* 字面值完全一致。
  */
-@RestController
+@RestController("adminCategoriesController")
 @RequestMapping("/api/admin/categories")
 public class CategoriesController {
 

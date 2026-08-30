@@ -18,10 +18,9 @@ type StatusFilter = '' | '1' | '0'
  *   - 不能改角色
  *   - 启停 + 重置密码 = business_user:disable / business_user:reset_password
  *
- * 准入(V9 之后):
- *   super_admin / vice_super_admin — 全权(列表 / 详情 / 启停 / 重置密码)
- *   viewer                        — 只读(列表 / 详情)
- *   admin                         — 无任何 business_user:* 权限,不显示此菜单
+ * 准入(V9 + V11 之后):
+ *   super_admin / vice_super_admin / admin — 全权(列表 / 详情 / 启停 / 重置密码)
+ *   viewer                                 — 只读(列表 / 详情)
  */
 export function AdminBusinessUsers() {
   const { has } = usePermissions()
@@ -89,7 +88,7 @@ export function AdminBusinessUsers() {
     <div className="p-8 space-y-4">
       <h1 className="text-2xl font-bold">业务用户</h1>
       <p className="text-sm text-on-surface-variant">
-        java-qingzhang.users 的真实用户(super_admin / vice_super_admin 可管理;viewer 只读)
+        java-qingzhang.users 的真实用户(super_admin / vice_super_admin / admin 可管理;viewer 只读)
       </p>
 
       <div className="flex items-end gap-3">

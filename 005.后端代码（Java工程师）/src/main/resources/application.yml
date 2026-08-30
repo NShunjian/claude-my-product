@@ -29,3 +29,10 @@ jwt:
   # Admin token 独立短时上限 (小时)。普通用户的 7 天 JWT 仍然有效,
   # 但挂在 /api/admin/** 上的请求,iat 距今超过该值会被 401 拦截。
   admin-expiration-hours: 24
+
+# Admin 引导 —— 用环境变量在首次启动创建超级管理员
+# 设了就引导,没设就跳过(幂等)。生产环境只在首次部署时设一次,之后清空。
+admin:
+  bootstrap:
+    username: "${ADMIN_BOOTSTRAP_USERNAME:}"
+    password: "${ADMIN_BOOTSTRAP_PASSWORD:}"

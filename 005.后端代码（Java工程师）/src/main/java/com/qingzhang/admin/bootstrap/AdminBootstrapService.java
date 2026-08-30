@@ -1,0 +1,125 @@
+package com.qingzhang.admin.bootstrap;
+
+import com.baomidou.mybatisplus.core.conditions.query.QueryWrapper;
+import com.qingzhang.admin.entity.AdminRole;
+import com.qingzhang.admin.entity.AdminUserRole;
+import com.qingzhang.admin.mapper.AdminRoleMapper;
+import com.qingzhang.admin.mapper.AdminUserRoleMapper;
+import com.qingzhang.common.BizException;
+import com.qingzhang.users.entity.User;
+import com.qingzhang.users.mapper.UserMapper;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+import org.springframework.beans.factory.annotation.Value;
+import org.springframework.boot.CommandLineRunner;
+import org.springframework.core.annotation.Order;
+import org.springframework.security.crypto.bcrypt.BCryptPasswordEncoder;
+import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
+
+import java.time.Instant;
+import java.util.UUID;
+
+/**
+ * 启动时引导:用环境变量 ADMIN_BOOTSTRAP_USERNAME / ADMIN_BOOTSTRAP_PASSWORD
+ * 创建第一个超级管理员账号。幂等 —— 已存在则跳过,缺失任一环境变量则跳过。
+ *
+ * 必须 V5 migration 已先跑(admin_roles 表已有 super_admin 行),否则本服务
+ * 找不到角色就 WARN 并 return —— 不抛异常、不阻塞启动。
+ *
+ * ponytail:不引 Flyway callback / 数据初始化 SQL,把"第一个 admin"放到代码里
+ * 因为有密码 hash(BCrypt),不适合 SQL seed。
+ */
+@Service
+@Order(1)  // 先于其他 CommandLineRunner 跑(虽然这个项目里只有这一个)
+public class AdminBootstrapService implements CommandLineRunner {
+
+    private static final Logger log = LoggerFactory.getLogger(AdminBootstrapService.class);
+    private static final String SUPER_ADMIN_CODE = "super_admin";
+
+    private final UserMapper userMapper;
+    private final AdminRoleMapper roleMapper;
+    private final AdminUserRoleMapper userRoleMapper;
+    private final BCryptPasswordEncoder encoder = new BCryptPasswordEncoder();
+
+    @Value("${admin.bootstrap.username:}")
+    private String bootstrapUsername;
+
+    @Value("${admin.bootstrap.password:}")
+    private String bootstrapPassword;
+
+    public AdminBootstrapService(UserMapper userMapper,
+                                 AdminRoleMapper roleMapper,
+                                 AdminUserRoleMapper userRoleMapper) {
+        this.userMapper = userMapper;
+        this.roleMapper = roleMapper;
+        this.userRoleMapper = userRoleMapper;
+    }
+
+    @Override
+    @Transactional(rollbackFor = Exception.class)
+    public void run(String... args) {
+        // 1. 没配环境变量 → 跳过
+        if (bootstrapUsername == null || bootstrapUsername.isBlank()
+                || bootstrapPassword == null || bootstrapPassword.isBlank()) {
+            log.info("[admin-bootstrap] 未配置 ADMIN_BOOTSTRAP_USERNAME/PASSWORD,跳过引导");
+            return;
+        }
+
+        // 2. 找 super_admin role (V5 必须已 seed)
+        AdminRole superAdmin = roleMapper.selectOne(
+                new QueryWrapper<AdminRole>().eq("code", SUPER_ADMIN_CODE)
+        );
+        if (superAdmin == null) {
+            log.warn("[admin-bootstrap] 找不到 super_admin 角色 —— 请先跑 V5 Flyway migration。跳过引导。");
+            return;
+        }
+
+        // 3. 找/创建用户
+        User existing = userMapper.selectOne(
+                new QueryWrapper<User>().eq("username", bootstrapUsername)
+        );
+        long userId;
+        if (existing == null) {
+            Instant now = Instant.now();
+            User u = User.builder()
+                    .uuid(UUID.randomUUID().toString())
+                    .username(bootstrapUsername)
+                    .passwordHash(encoder.encode(bootstrapPassword))
+                    .displayName("Root")
+                    .status((byte) 1)
+                    .createdAt(now)
+                    .updatedAt(now)
+                    .build();
+            try {
+                userMapper.insert(u);
+            } catch (Exception ex) {
+                // username UNIQUE 冲突或密码列 NULL 等 —— BizException 上抛让启动失败
+                throw new BizException(1499, "引导创建超级管理员失败: " + ex.getMessage());
+            }
+            userId = u.getId();
+            log.info("[admin-bootstrap] 已创建超级管理员用户: username={} id={}", bootstrapUsername, userId);
+        } else {
+            userId = existing.getId();
+            log.info("[admin-bootstrap] 用户 {} 已存在 (id={}),跳过创建", bootstrapUsername, userId);
+        }
+
+        // 4. 授权 super_admin role —— 幂等
+        Long linkCount = userRoleMapper.selectCount(
+                new QueryWrapper<AdminUserRole>()
+                        .eq("user_id", userId)
+                        .eq("role_id", superAdmin.getId())
+        );
+        if (linkCount != null && linkCount > 0) {
+            log.info("[admin-bootstrap] 用户 id={} 已绑定 super_admin,跳过授权", userId);
+            return;
+        }
+        AdminUserRole link = new AdminUserRole();
+        link.setUserId(userId);
+        link.setRoleId(superAdmin.getId());
+        link.setGrantedAt(Instant.now());
+        link.setGrantedBy(null);  // 系统引导,无具体操作人
+        userRoleMapper.insert(link);
+        log.info("[admin-bootstrap] 已授予 super_admin: userId={} roleId={}", userId, superAdmin.getId());
+    }
+}

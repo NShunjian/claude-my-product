@@ -1,15 +1,52 @@
-/**
- * App 占位 —— B2 会引入 AdminAuthProvider + 路由 + AdminLogin 页面。
- * 现在只有一个极简的 "hello" 视图,确认脚手架跑通。
- */
+import { Navigate, Route, Routes } from 'react-router-dom'
+import { AdminAuthProvider } from './auth/AdminAuthContext'
+import { ProtectedRoute } from './components/ProtectedRoute'
+import { ToastProvider } from './components/Toast'
+import { AdminLogin } from './pages/AdminLogin'
+import { AdminDashboard } from './pages/AdminDashboard'
+
+function Placeholder({ name }: { name: string }) {
+  return (
+    <div className="p-8">
+      <h1 className="text-2xl font-bold mb-2">{name}</h1>
+      <p className="text-on-surface-variant">B4 占位页面</p>
+    </div>
+  )
+}
+
 function App() {
   return (
-    <div className="min-h-screen flex items-center justify-center">
-      <div className="text-center">
-        <h1 className="text-3xl font-bold text-primary">QingZhang Admin</h1>
-        <p className="mt-2 text-on-surface-variant">B1 脚手架 · B2 起接入路由</p>
-      </div>
-    </div>
+    <AdminAuthProvider>
+      <ToastProvider>
+        <Routes>
+          <Route path="/login" element={<AdminLogin />} />
+          <Route path="/dashboard" element={
+            <ProtectedRoute><AdminDashboard /></ProtectedRoute>
+          } />
+          <Route path="/users" element={
+            <ProtectedRoute><Placeholder name="用户管理" /></ProtectedRoute>
+          } />
+          <Route path="/categories" element={
+            <ProtectedRoute><Placeholder name="预设分类" /></ProtectedRoute>
+          } />
+          <Route path="/books" element={
+            <ProtectedRoute><Placeholder name="账本审计" /></ProtectedRoute>
+          } />
+          <Route path="/records" element={
+            <ProtectedRoute><Placeholder name="流水审计" /></ProtectedRoute>
+          } />
+          <Route path="/audit-logs" element={
+            <ProtectedRoute><Placeholder name="审计日志" /></ProtectedRoute>
+          } />
+          <Route path="/" element={<Navigate to="/dashboard" replace />} />
+          <Route path="*" element={
+            <div className="min-h-screen flex items-center justify-center text-on-surface-variant">
+              404 — 页面不存在
+            </div>
+          } />
+        </Routes>
+      </ToastProvider>
+    </AdminAuthProvider>
   )
 }
 

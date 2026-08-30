@@ -14,8 +14,11 @@
   --color-surface: #f8f9ff;
   --color-surface-variant: #d4e4fc;
   --color-error: #ba1a1a;
+  --color-error-light: #fdecec;
   --color-warning: #ed8936;
   --color-success: #38a169;
+  --color-success-light: #e6f4ec;
+  --color-on-primary-container: #ffffff;
   --radius-lg: 0.5rem;
   --radius-xl: 0.75rem;
   --font-sans: "Inter", system-ui, sans-serif;

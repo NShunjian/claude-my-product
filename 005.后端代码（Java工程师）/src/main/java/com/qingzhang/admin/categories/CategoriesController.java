@@ -2,6 +2,7 @@ package com.qingzhang.admin.categories;
 
 import com.qingzhang.admin.dto.AdminCategoryListItem;
 import com.qingzhang.admin.dto.AdminPresetCategoryRequest;
+import com.qingzhang.admin.dto.AdminUpdateUserStatusRequest;
 import com.qingzhang.admin.dto.Page;
 import com.qingzhang.admin.security.AdminActor;
 import com.qingzhang.admin.security.RequiresPermission;
@@ -66,6 +67,14 @@ public class CategoriesController {
                                                       @PathVariable long id,
                                                       @RequestBody AdminPresetCategoryRequest body) {
         return ApiResponse.ok(service.update(id, body, actor(req)));
+    }
+
+    @PatchMapping("/{id}/status")
+    @RequiresPermission("category:preset:update")
+    public ApiResponse<AdminCategoryListItem> updateStatus(HttpServletRequest req,
+                                                            @PathVariable long id,
+                                                            @Valid @RequestBody AdminUpdateUserStatusRequest body) {
+        return ApiResponse.ok(service.updateStatus(id, body.enabled(), actor(req)));
     }
 
     @DeleteMapping("/{id}")

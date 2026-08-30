@@ -119,6 +119,7 @@ public class AdminCategoryService {
         }
 
         Map<String, Object> before = new HashMap<>();
+        before.put("type", existing.getType());
         before.put("name", existing.getName());
         before.put("icon", existing.getIcon());
         before.put("color", existing.getColor());
@@ -135,6 +136,7 @@ public class AdminCategoryService {
         categoryMapper.updateById(existing);
 
         Map<String, Object> after = new HashMap<>();
+        after.put("type", existing.getType());
         after.put("name", existing.getName());
         after.put("icon", existing.getIcon());
         after.put("color", existing.getColor());
@@ -145,6 +147,25 @@ public class AdminCategoryService {
                 before, after, actor.ip(), actor.userAgent());
         log.info("[admin] category.preset.update: id={} actor={}", id, actor.username());
 
+        return toListItem(existing, 0L);
+    }
+
+    /** 切换预设分类启用状态。审计: category.preset.update。 */
+    @Transactional(rollbackFor = Exception.class)
+    public AdminCategoryListItem updateStatus(long id, boolean enabled, AdminActor actor) {
+        Category existing = mustPreset(id);
+        byte newActive = (byte) (enabled ? 1 : 0);
+        Map<String, Object> before = new HashMap<>();
+        before.put("isActive", existing.getIsActive());
+        existing.setIsActive(newActive);
+        existing.setUpdatedAt(Instant.now());
+        categoryMapper.updateById(existing);
+        Map<String, Object> after = new HashMap<>();
+        after.put("isActive", newActive);
+        auditService.recordSuccess(actor.userId(), actor.username(),
+                "category.preset.update", "category", id,
+                before, after, actor.ip(), actor.userAgent());
+        log.info("[admin] category.preset.update: id={} isActive={} actor={}", id, newActive, actor.username());
         return toListItem(existing, 0L);
     }
 

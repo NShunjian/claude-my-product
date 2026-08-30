@@ -81,8 +81,9 @@ public class AuthService {
         bookMapper.insert(defaultBook);
         // 注册即送 5 个默认账户(跟 demo 数据一致),避免新用户记账页账户选择为空
         seedDefaultAccounts(u.getId(), defaultBook.getId(), now);
-        String token = jwtUtil.issue(u.getId());
-        return new AuthResponse(toDto(u), token);
+        // 新注册用户不是管理员 — 走 plain() 路径,permissions/roleCodes 为空,isSuperAdmin=false
+        String token = jwtUtil.issue(u.getId(), List.of(), List.of(), false);
+        return AuthResponse.plain(toDto(u), token);
     }
 
     public AuthResponse login(Credentials c) {
@@ -93,13 +94,18 @@ public class AuthService {
         if (u == null || !encoder.matches(c.password(), u.getPasswordHash())) {
             throw new BizException(CODE_INVALID_CREDENTIALS, "用户名或密码错误");
         }
-        // best-effort 更新最近登录时间(失败也不影响登录)
         try {
             u.setLastLoginAt(Instant.now());
             userMapper.updateById(u);
         } catch (Exception ignored) {}
-        String token = jwtUtil.issue(u.getId());
-        return new AuthResponse(toDto(u), token);
+
+        // 加载 admin RBAC claims (空列表 + false 都是合法 —— 普通用户)
+        List<String> roleCodes = userMapper.selectAdminRoleCodesByUserId(u.getId());
+        List<String> permissions = userMapper.selectAdminPermissionsByUserId(u.getId());
+        boolean isSuperAdmin = roleCodes.contains("super_admin");
+
+        String token = jwtUtil.issue(u.getId(), permissions, roleCodes, isSuperAdmin);
+        return new AuthResponse(toDto(u), token, permissions, roleCodes, isSuperAdmin);
     }
 
     public UserDTO me(long userId) {

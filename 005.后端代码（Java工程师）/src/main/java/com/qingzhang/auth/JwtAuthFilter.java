@@ -12,7 +12,12 @@ import org.springframework.web.filter.OncePerRequestFilter;
 import java.io.IOException;
 
 /**
- * 把 Authorization: Bearer <token> 里的 userId 解析出来放到请求属性 "userId"。
+ * 把 Authorization: Bearer <token> 里的 claims 解析出来放到请求属性:
+ *   userId        — long
+ *   permissions   — List<String>
+ *   roleCodes     — List<String>
+ *   isSuperAdmin  — boolean
+ *
  * 不阻断请求(没 token 也放过)—— 鉴权由 controller 决定哪些接口要 userId;
  * 缺失或非法 token 时仅记 WARN,留 controller 用 BizException 返 401。
  *
@@ -22,7 +27,11 @@ import java.io.IOException;
 public class JwtAuthFilter extends OncePerRequestFilter {
 
     private static final Logger log = LoggerFactory.getLogger(JwtAuthFilter.class);
-    public static final String USER_ID_ATTR = "userId";
+
+    public static final String USER_ID_ATTR        = "userId";
+    public static final String PERMISSIONS_ATTR    = "permissions";
+    public static final String ROLE_CODES_ATTR     = "roleCodes";
+    public static final String IS_SUPER_ADMIN_ATTR = "isSuperAdmin";
 
     private final JwtUtil jwtUtil;
 
@@ -38,8 +47,11 @@ public class JwtAuthFilter extends OncePerRequestFilter {
         if (header != null && header.startsWith("Bearer ")) {
             String token = header.substring(7);
             try {
-                long userId = jwtUtil.parseSubject(token);
-                req.setAttribute(USER_ID_ATTR, userId);
+                JwtUtil.JwtClaims c = jwtUtil.parseClaims(token);
+                req.setAttribute(USER_ID_ATTR, c.userId());
+                req.setAttribute(PERMISSIONS_ATTR, c.permissions());
+                req.setAttribute(ROLE_CODES_ATTR, c.roleCodes());
+                req.setAttribute(IS_SUPER_ADMIN_ATTR, c.isSuperAdmin());
             } catch (Exception ex) {
                 log.warn("[jwt] token 解析失败: {}", ex.getMessage());
             }

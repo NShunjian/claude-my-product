@@ -4,11 +4,17 @@
 
 ## 快速开始
 
-**一键启动 (从仓库根):**
+**一键启停 (从仓库根):**
 ```bash
-./start-admin.sh
+./start-admin.sh           # 启动 → http://localhost:5174
+./start-admin.sh status    # 查端口占用
+./start-admin.sh stop      # 停止 (按端口 5174 杀进程)
 ```
-脚本自动:检查依赖 (缺则 `npm install`) → 检查 `.env.local` (缺则从 `.env.example` 复制) → `npm run dev`。
+
+启动脚本自动:
+- 检查依赖 (缺则 `npm install`)
+- 检查 `.env.local` (缺则从 `.env.example` 复制)
+- 检查端口 5174 是否被占用 (占用则提示先 stop)
 
 **手动启动:**
 ```bash

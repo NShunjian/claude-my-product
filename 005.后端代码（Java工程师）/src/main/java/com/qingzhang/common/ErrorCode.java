@@ -22,4 +22,12 @@ public final class ErrorCode {
 
     /** 系统 */
     public static final int INTERNAL           = 9999;
+
+    /** Admin 模块 (14xx) */
+    public static final int ADMIN_AUTH_REQUIRED     = 1411;
+    public static final int ADMIN_PERMISSION_DENIED = 1403;
+    public static final int ADMIN_USER_NOT_FOUND    = 1410;
+    public static final int ADMIN_ROLE_NOT_FOUND    = 1420;
+    public static final int ADMIN_TARGET_NOT_FOUND  = 1490;
+    public static final int ADMIN_BOOTSTRAP_DISABLED = 1499;
 }

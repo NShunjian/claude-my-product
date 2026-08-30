@@ -3,7 +3,7 @@ import { useNavigate } from 'react-router-dom'
 import { ApiError, request } from '../api/client'
 import type {
   AdminGrantRoleRequest, AdminResetPasswordResponse, AdminUpdateUserStatusRequest,
-  AdminUserDetailResponse, AdminUserListItem,
+  AdminUserDetailResponse, AdminUserListItem, CreateAdminUserRequest, CreateAdminUserResponse,
 } from '../api/types'
 import type { Page } from '../api/types'
 import { DataTable } from '../components/DataTable'
@@ -42,12 +42,16 @@ export function AdminUsers() {
   const [loading, setLoading] = useState(true)
   const [detail, setDetail] = useState<AdminUserDetailResponse | null>(null)
   const [grantFor, setGrantFor] = useState<AdminUserListItem | null>(null)
-  // 重置密码 → 持久弹窗(自动消失的 toast 用户看不到密码)
+  const [createOpen, setCreateOpen] = useState(false)
+  // 重置密码 / 新建账号 → 持久弹窗(自动消失的 toast 用户看不到密码)
   const [pwdResult, setPwdResult] = useState<{ username: string; newPassword: string } | null>(null)
 
   const isSuperAdmin = roleCodes.includes('super_admin')
+  const isViceSuperAdmin = roleCodes.includes('vice_super_admin')
   // 副超管也有 role:revoke 权限,撤销其他账户的非 super_admin 角色也应显示 ×
-  const canRevokeRole = isSuperAdmin || roleCodes.includes('vice_super_admin')
+  const canRevokeRole = isSuperAdmin || isViceSuperAdmin
+  // V15 起:super_admin / vice_super_admin 都可 user:create
+  const canCreateUser = isSuperAdmin || isViceSuperAdmin
 
   async function load() {
     setLoading(true)
@@ -170,6 +174,12 @@ export function AdminUsers() {
             <option value="0">禁用</option>
           </select>
         </label>
+        {canCreateUser && (
+          <button onClick={() => setCreateOpen(true)}
+            className="ml-auto px-4 py-2 rounded-lg bg-primary text-on-primary hover:opacity-90">
+            + 新建账号
+          </button>
+        )}
       </div>
 
       <DataTable<AdminUserListItem>
@@ -237,6 +247,17 @@ export function AdminUsers() {
       {grantFor && <GrantRoleModal user={grantFor} isSuperAdmin={isSuperAdmin}
         onClose={() => setGrantFor(null)} onGrant={(rc) => grantRole(grantFor, rc)} />}
       {pwdResult && <PasswordRevealModal result={pwdResult} onClose={() => setPwdResult(null)} />}
+      {createOpen && (
+        <CreateUserModal
+          isSuperAdmin={isSuperAdmin}
+          onClose={() => setCreateOpen(false)}
+          onCreated={(res) => {
+            setCreateOpen(false)
+            setPwdResult({ username: res.username, newPassword: res.initialPassword })
+            load()
+          }}
+        />
+      )}
     </div>
   )
 }
@@ -348,6 +369,101 @@ function PasswordRevealModal({ result, onClose }: {
         </div>
         <div className="text-right">
           <button onClick={onClose} className="px-4 py-2 rounded-lg bg-primary text-on-primary">关闭</button>
+        </div>
+      </div>
+    </div>
+  )
+}
+
+/** 新建账号弹窗 —— V15 起 super_admin / vice_super_admin 都可调。
+ *  角色下拉按当前 actor 角色过滤白名单(后端 AdminUserService.create 也会再校一遍)。 */
+function CreateUserModal({ isSuperAdmin, onClose, onCreated }: {
+  isSuperAdmin: boolean
+  onClose: () => void
+  onCreated: (res: CreateAdminUserResponse) => void
+}) {
+  const [username, setUsername] = useState('')
+  const [displayName, setDisplayName] = useState('')
+  // V15 白名单:
+  //   super_admin      → admin / vice_super_admin / viewer
+  //   vice_super_admin → admin / viewer
+  //   super_admin 永不出现(V7 + V13)
+  const roleOptions = isSuperAdmin
+    ? GRANTABLE_ROLES
+    : GRANTABLE_ROLES.filter((r) => r.code !== 'vice_super_admin')
+  const [roleCode, setRoleCode] = useState<string>(roleOptions[0]?.code ?? '')
+  const [submitting, setSubmitting] = useState(false)
+  const { show } = useToast()
+
+  async function submit() {
+    if (!username.trim()) {
+      show('error', '请输入用户名')
+      return
+    }
+    setSubmitting(true)
+    try {
+      const body: CreateAdminUserRequest = {
+        username: username.trim(),
+        displayName: displayName.trim() || undefined,
+        roleCode: roleCode || undefined,
+      }
+      const res = await request<CreateAdminUserResponse>('/api/admin/users', {
+        method: 'POST', body,
+      })
+      onCreated(res)
+    } catch (err) {
+      show('error', err instanceof ApiError ? err.message : '创建失败')
+    } finally { setSubmitting(false) }
+  }
+
+  return (
+    <div className="fixed inset-0 z-50 bg-black/40 flex items-center justify-center" onClick={onClose}>
+      <div className="bg-bg-card rounded-xl shadow-xl max-w-md w-full mx-4 p-6" onClick={(e) => e.stopPropagation()}>
+        <h2 className="text-lg font-bold mb-3">新建管理员账号</h2>
+        <p className="text-xs text-on-surface-variant mb-4">
+          密码将自动生成并在确认后显示一次,请当面转给新账号。
+          创建后账号状态默认为「启用」。
+        </p>
+        <label className="block mb-3">
+          <span className="text-xs text-on-surface-variant">用户名 (字母/数字/_-.)</span>
+          <input
+            value={username}
+            onChange={(e) => setUsername(e.target.value)}
+            placeholder="3-50 位"
+            className="block mt-1 w-full rounded border border-divider px-2 py-1"
+          />
+        </label>
+        <label className="block mb-3">
+          <span className="text-xs text-on-surface-variant">昵称 (可选)</span>
+          <input
+            value={displayName}
+            onChange={(e) => setDisplayName(e.target.value)}
+            placeholder="留空则用用户名"
+            className="block mt-1 w-full rounded border border-divider px-2 py-1"
+          />
+        </label>
+        <label className="block mb-4">
+          <span className="text-xs text-on-surface-variant">角色</span>
+          <select
+            value={roleCode}
+            onChange={(e) => setRoleCode(e.target.value)}
+            className="block mt-1 w-full rounded border border-divider px-2 py-1"
+          >
+            {roleOptions.map((o) => (
+              <option key={o.code} value={o.code}>{o.label} ({o.code})</option>
+            ))}
+          </select>
+          <span className="text-[10px] text-on-surface-variant mt-1 block">
+            每个账号只能有 1 个角色。后续可在「授权」中调整。
+          </span>
+        </label>
+        <div className="flex justify-end gap-2">
+          <button onClick={onClose} disabled={submitting}
+            className="px-4 py-2 rounded-lg border border-divider disabled:opacity-50">取消</button>
+          <button onClick={submit} disabled={submitting || !username.trim()}
+            className="px-4 py-2 rounded-lg bg-primary text-on-primary disabled:opacity-50">
+            {submitting ? '创建中…' : '创建'}
+          </button>
         </div>
       </div>
     </div>

@@ -82,6 +82,16 @@ export interface AdminResetPasswordResponse {
 export interface AdminGrantRoleRequest {
   roleCode: string
 }
+export interface CreateAdminUserRequest {
+  username: string
+  displayName?: string
+  roleCode?: string
+}
+export interface CreateAdminUserResponse {
+  id: number
+  username: string
+  initialPassword: string
+}
 
 // ====== 业务用户管理 (java-qingzhang.users) ======
 export interface BusinessUserListItem {

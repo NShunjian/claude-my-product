@@ -201,10 +201,13 @@ public class AdminUserService {
     }
 
     /**
-     * 创建新管理员账号(super_admin 调用)。
+     * 创建新管理员账号(V15 起:super_admin / vice_super_admin 都可调)。
      * - username 唯一校验
      * - 密码后端生成 12 位随机 + BCrypt,明文随响应返回一次(创建者当面转给新管理员)
-     * - 可选 roleCode:非空时校验存在 + 非 super_admin + 立即授权
+     * - 可选 roleCode:非空时校验存在 + actor 角色白名单 + 立即授权
+     *   actor 是 super_admin      → roleCode ∈ {admin, vice_super_admin, viewer}
+     *   actor 是 vice_super_admin → roleCode ∈ {admin, viewer}
+     *   (super_admin 仍不能通过 API 创建 —— V7 + V13 双重防线)
      * - 审计 user.create
      */
     @Transactional(rollbackFor = Exception.class)
@@ -236,18 +239,43 @@ public class AdminUserService {
         adminUserMapper.insert(u);
         long newUserId = u.getId();
 
-        // 2. 可选授权
+        // 2. 可选授权 —— actor 角色决定白名单
         List<String> grantedRoles = List.of();
         if (req.roleCode() != null && !req.roleCode().isBlank()) {
             String roleCode = req.roleCode().trim();
-            // 与 grantRole 一致的硬规则:API 不能授 super_admin
-            if ("super_admin".equals(roleCode)) {
+
+            // V15:按 actor 角色决定可授范围
+            boolean actorIsSuper = hasRole(actor.userId(), "super_admin");
+            boolean actorIsViceSuper = !actorIsSuper && hasRole(actor.userId(), "vice_super_admin");
+            java.util.Set<String> allowed;
+            if (actorIsSuper) {
+                // 仍禁 super_admin(V7 硬规则)→ 单独短路在前
+                if ("super_admin".equals(roleCode)) {
+                    auditService.recordFailure(actor.userId(), actor.username(),
+                            "user.create", "user", newUserId,
+                            "不允许通过 API 创建并授予 super_admin", actor.ip(), actor.userAgent());
+                    throw new BizException(ErrorCode.ADMIN_PERMISSION_DENIED,
+                            "不允许通过 API 创建并授予 super_admin");
+                }
+                allowed = java.util.Set.of("admin", "vice_super_admin", "viewer");
+            } else if (actorIsViceSuper) {
+                allowed = java.util.Set.of("admin", "viewer");
+            } else {
+                // 走到这里说明 @RequiresPermission("user:create") 已被拦截,理论不会到这
                 auditService.recordFailure(actor.userId(), actor.username(),
                         "user.create", "user", newUserId,
-                        "不允许通过 API 创建并授予 super_admin", actor.ip(), actor.userAgent());
+                        "无 user:create 权限", actor.ip(), actor.userAgent());
                 throw new BizException(ErrorCode.ADMIN_PERMISSION_DENIED,
-                        "不允许通过 API 创建并授予 super_admin");
+                        "无 user:create 权限");
             }
+            if (!allowed.contains(roleCode)) {
+                auditService.recordFailure(actor.userId(), actor.username(),
+                        "user.create", "user", newUserId,
+                        "当前角色无权授予 " + roleCode, actor.ip(), actor.userAgent());
+                throw new BizException(ErrorCode.ADMIN_PERMISSION_DENIED,
+                        "当前角色无权授予 " + roleCode + "(允许: " + allowed + ")");
+            }
+
             AdminRole role = roleMapper.selectOne(
                     new QueryWrapper<AdminRole>().eq("code", roleCode));
             if (role == null) {

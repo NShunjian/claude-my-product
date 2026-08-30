@@ -119,15 +119,22 @@ public class BusinessUserService {
     public Byte updateStatus(long userId, boolean enabled, AdminActor actor) {
         User u = mustUser(userId);
 
-        Byte before = u.getStatus();
+        Byte beforeStatus = u.getStatus();
+        long beforeTv = u.getTokenVersion() == null ? 0L : u.getTokenVersion();
+
         u.setStatus((byte) (enabled ? 1 : 0));
+        // V8 起:禁/启用都 bump token_version,让该用户所有现存 JWT 立即失效
+        // —— 业务用户刷新页面 / 调任意接口都会被 UserAuthInterceptor 踢出。
+        // 启用后用户重新登录拿新 token(DB 已 bump,新 token 写入新 claim 后通过)。
+        u.setTokenVersion(beforeTv + 1L);
         u.setUpdatedAt(Instant.now());
         userMapper.updateById(u);
 
         String action = enabled ? "business_user.enable" : "business_user.disable";
         auditService.recordSuccess(actor.userId(), actor.username(),
                 action, "business_user", userId,
-                Map.of("status", before), Map.of("status", u.getStatus()),
+                Map.of("status", beforeStatus, "token_version", beforeTv),
+                Map.of("status", u.getStatus(), "token_version", u.getTokenVersion()),
                 actor.ip(), actor.userAgent());
 
         return u.getStatus();

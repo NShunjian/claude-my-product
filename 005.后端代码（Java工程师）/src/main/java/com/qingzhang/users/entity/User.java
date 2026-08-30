@@ -51,6 +51,10 @@ public class User {
 
     private Byte status;
 
+    /** 业务用户 JWT 作废版本:V8 起与 admin_users.token_version 对齐。
+     * 禁/启用 / 密码重置等状态变更时由调用方自增;JWT 内 tokenVersion 必须等于该字段,否则视为过期。 */
+    private Long tokenVersion;
+
     private Instant lastLoginAt;
 
     private String lastLoginIp;

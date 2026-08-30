@@ -85,7 +85,9 @@ public class AuthService {
         // 注册即送 5 个默认账户(跟 demo 数据一致),避免新用户记账页账户选择为空
         seedDefaultAccounts(u.getId(), defaultBook.getId(), now);
         // 新注册用户不是管理员 — 走 plain() 路径,permissions/roleCodes 为空,isSuperAdmin=false
-        String token = jwtUtil.issue(u.getId(), List.of(), List.of(), false);
+        // V8 起:把 user.token_version 写进 JWT claim,UserAuthInterceptor 后续校验
+        long tv = u.getTokenVersion() == null ? 0L : u.getTokenVersion();
+        String token = jwtUtil.issue(u.getId(), List.of(), List.of(), false, JwtUtil.ACTOR_TYPE_USER, tv);
         return AuthResponse.plain(toDto(u), token);
     }
 
@@ -104,7 +106,9 @@ public class AuthService {
 
         // V6 split:admin 账号已搬到 admin_users 表,users 表里的普通用户不再可能持有 admin 角色
         // —— 所以这里直接 issue 一个无 RBAC 的 token,前端 /me 拿到 user-only 视图
-        String token = jwtUtil.issue(u.getId(), List.of(), List.of(), false);
+        // V8 起:带 token_version;UserAuthInterceptor 校验,status 变更时 bump 即踢出
+        long tv = u.getTokenVersion() == null ? 0L : u.getTokenVersion();
+        String token = jwtUtil.issue(u.getId(), List.of(), List.of(), false, JwtUtil.ACTOR_TYPE_USER, tv);
         return AuthResponse.plain(toDto(u), token);
     }
 

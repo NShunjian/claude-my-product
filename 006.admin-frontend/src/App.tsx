@@ -6,15 +6,11 @@ import { ProtectedRoute } from './components/ProtectedRoute'
 import { ToastProvider } from './components/Toast'
 import { AdminLogin } from './pages/AdminLogin'
 import { AdminDashboard } from './pages/AdminDashboard'
-
-function Placeholder({ name }: { name: string }) {
-  return (
-    <div className="p-8">
-      <h1 className="text-2xl font-bold mb-2">{name}</h1>
-      <p className="text-on-surface-variant">B4 占位页面</p>
-    </div>
-  )
-}
+import { AdminUsers } from './pages/AdminUsers'
+import { AdminCategories } from './pages/AdminCategories'
+import { AdminBooks } from './pages/AdminBooks'
+import { AdminRecords } from './pages/AdminRecords'
+import { AdminAuditLogs } from './pages/AdminAuditLogs'
 
 function App() {
   const confirmApi = ConfirmProvider()
@@ -26,11 +22,11 @@ function App() {
           <Route path="/login" element={<AdminLogin />} />
           <Route element={<ProtectedRoute><AdminLayout /></ProtectedRoute>}>
             <Route path="/dashboard" element={<AdminDashboard />} />
-            <Route path="/users" element={<Placeholder name="用户管理" />} />
-            <Route path="/categories" element={<Placeholder name="预设分类" />} />
-            <Route path="/books" element={<Placeholder name="账本审计" />} />
-            <Route path="/records" element={<Placeholder name="流水审计" />} />
-            <Route path="/audit-logs" element={<Placeholder name="审计日志" />} />
+            <Route path="/users" element={<AdminUsers />} />
+            <Route path="/categories" element={<AdminCategories />} />
+            <Route path="/books" element={<AdminBooks />} />
+            <Route path="/records" element={<AdminRecords />} />
+            <Route path="/audit-logs" element={<AdminAuditLogs />} />
           </Route>
           <Route path="/" element={<Navigate to="/dashboard" replace />} />
           <Route path="*" element={

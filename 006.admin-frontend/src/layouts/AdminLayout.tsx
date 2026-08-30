@@ -11,7 +11,8 @@ interface NavItem {
 
 const NAV: NavItem[] = [
   { to: '/dashboard', label: 'Dashboard' },
-  { to: '/users', label: '用户管理', code: 'user:list' },
+  { to: '/users', label: '管理员账号', code: 'user:list' },
+  { to: '/business-users', label: '业务用户', code: 'business_user:list' },
   { to: '/categories', label: '预设分类', code: 'category:preset:list' },
   { to: '/books', label: '账本', code: 'book:list' },
   { to: '/records', label: '流水', code: 'record:list' },

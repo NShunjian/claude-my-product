@@ -82,6 +82,36 @@ export interface AdminGrantRoleRequest {
   roleCode: string
 }
 
+// ====== 业务用户管理 (java-qingzhang.users) ======
+export interface BusinessUserListItem {
+  id: number
+  uuid: string
+  username: string
+  displayName: string | null
+  avatar: string | null
+  status: Byte
+  lastLoginAt: string | null
+  createdAt: string
+  bookCount: number
+  recordCount: number
+}
+export interface BusinessUserDetailResponse {
+  id: number
+  uuid: string
+  username: string
+  displayName: string | null
+  avatar: string | null
+  gender: string | null
+  age: number | null
+  email: string | null
+  phone: string | null
+  status: Byte
+  lastLoginAt: string | null
+  lastLoginIp: string | null
+  createdAt: string
+  updatedAt: string
+}
+
 // ====== 预设分类 ======
 export interface AdminCategoryListItem {
   id: number

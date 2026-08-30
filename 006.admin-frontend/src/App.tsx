@@ -7,6 +7,7 @@ import { ToastProvider } from './components/Toast'
 import { AdminLogin } from './pages/AdminLogin'
 import { AdminDashboard } from './pages/AdminDashboard'
 import { AdminUsers } from './pages/AdminUsers'
+import { AdminBusinessUsers } from './pages/AdminBusinessUsers'
 import { AdminCategories } from './pages/AdminCategories'
 import { AdminBooks } from './pages/AdminBooks'
 import { AdminRecords } from './pages/AdminRecords'
@@ -23,6 +24,7 @@ function App() {
           <Route element={<ProtectedRoute><AdminLayout /></ProtectedRoute>}>
             <Route path="/dashboard" element={<AdminDashboard />} />
             <Route path="/users" element={<AdminUsers />} />
+            <Route path="/business-users" element={<AdminBusinessUsers />} />
             <Route path="/categories" element={<AdminCategories />} />
             <Route path="/books" element={<AdminBooks />} />
             <Route path="/records" element={<AdminRecords />} />

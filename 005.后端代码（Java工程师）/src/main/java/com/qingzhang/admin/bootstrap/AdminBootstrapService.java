@@ -105,14 +105,26 @@ public class AdminBootstrapService implements CommandLineRunner {
             log.info("[admin-bootstrap] 用户 {} 已存在 (id={}),跳过创建", bootstrapUsername, adminUserId);
         }
 
-        // 4. 授权 super_admin role —— 幂等
-        Long linkCount = userRoleMapper.selectCount(
+        // 4. 授权 super_admin role —— 幂等 + 全局唯一
+        //   V13 后 admin_user_roles.super_admin_slot 是 UNIQUE 列,DB 层强制全局至多 1 个。
+        //   bootstrap 既不能给"自己"重复授(原幂等检查),也不能给"已有别人持有"时强行授
+        //   (否则 INSERT 会被 uk_super_admin_singleton 1062 拒掉,启动失败)。
+        //   因此:任意 admin_users 已持有 super_admin → bootstrap 用户保持原角色跳过。
+        Long selfLink = userRoleMapper.selectCount(
                 new QueryWrapper<AdminUserRole>()
                         .eq("admin_user_id", adminUserId)
                         .eq("role_id", superAdmin.getId())
         );
-        if (linkCount != null && linkCount > 0) {
+        if (selfLink != null && selfLink > 0) {
             log.info("[admin-bootstrap] 用户 id={} 已绑定 super_admin,跳过授权", adminUserId);
+            return;
+        }
+        Long globalLink = userRoleMapper.selectCount(
+                new QueryWrapper<AdminUserRole>().eq("role_id", superAdmin.getId())
+        );
+        if (globalLink != null && globalLink > 0) {
+            log.warn("[admin-bootstrap] super_admin 已有人持有,bootstrap 用户 {} (id={}) 保持原角色,跳过授权",
+                    bootstrapUsername, adminUserId);
             return;
         }
         AdminUserRole link = new AdminUserRole();

@@ -90,7 +90,14 @@ export interface CreateAdminUserRequest {
 export interface CreateAdminUserResponse {
   id: number
   username: string
-  initialPassword: string
+  password: string
+}
+export interface BatchDeleteAdminUsersRequest {
+  ids: number[]
+}
+export interface BatchDeleteAdminUsersResponse {
+  deleted: number
+  skipped: number
 }
 
 // ====== 业务用户管理 (java-qingzhang.users) ======
@@ -121,6 +128,26 @@ export interface BusinessUserDetailResponse {
   lastLoginIp: string | null
   createdAt: string
   updatedAt: string
+}
+export interface BatchDeleteBusinessUsersRequest {
+  ids: number[]
+}
+/** 硬删业务用户响应 —— 返回各表实际销毁行数。不可逆,前端 toast 显示具体计数让操作员核对。 */
+export interface BatchDeleteBusinessUsersResponse {
+  usersDeleted: number
+  booksDeleted: number
+  recordsDeleted: number
+  accountsDeleted: number
+  categoriesDeleted: number
+  skipped: number
+}
+/** 硬删预览 —— 前端 confirm dialog 文案用,告诉操作员「真删会炸掉多少数据」。 */
+export interface HardDeleteBusinessUserPreview {
+  userId: number
+  books: number
+  records: number
+  accounts: number
+  categories: number
 }
 
 // ====== 预设分类 ======

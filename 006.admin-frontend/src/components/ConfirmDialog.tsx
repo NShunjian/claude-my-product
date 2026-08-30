@@ -4,6 +4,9 @@ interface ConfirmOptions {
   title: string
   body: ReactNode
   danger?: boolean
+  /** 覆盖确认按钮文字(不可逆操作的「最后一道防线」,要求操作员读字点按而不是肌肉记忆)。
+   *  ponytail:用过的就回不去默认的「确定」 —— 后端审计回看也能看到「点的是 确认销毁 而不是 误点确定」。 */
+  confirmWord?: string
 }
 
 interface ConfirmApi {
@@ -65,7 +68,7 @@ export function ConfirmDialogRender({ api }: { api: ReturnType<typeof ConfirmPro
               (api.dialog.danger ? 'bg-error' : 'bg-primary')
             }
           >
-            确定
+            {api.dialog.confirmWord ?? '确定'}
           </button>
         </div>
       </div>

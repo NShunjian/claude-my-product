@@ -3,7 +3,8 @@ import { useNavigate } from 'react-router-dom'
 import { ApiError, request } from '../api/client'
 import type {
   AdminGrantRoleRequest, AdminResetPasswordResponse, AdminUpdateUserStatusRequest,
-  AdminUserDetailResponse, AdminUserListItem, CreateAdminUserRequest, CreateAdminUserResponse,
+  AdminUserDetailResponse, AdminUserListItem, BatchDeleteAdminUsersRequest, BatchDeleteAdminUsersResponse,
+  CreateAdminUserRequest, CreateAdminUserResponse,
 } from '../api/types'
 import type { Page } from '../api/types'
 import { DataTable } from '../components/DataTable'
@@ -45,6 +46,8 @@ export function AdminUsers() {
   const [createOpen, setCreateOpen] = useState(false)
   // 重置密码 / 新建账号 → 持久弹窗(自动消失的 toast 用户看不到密码)
   const [pwdResult, setPwdResult] = useState<{ username: string; newPassword: string } | null>(null)
+  // 批量删除:只追踪当前页可见 id,避免跨页"以为选了 100 项实际 20 项"
+  const [selectedIds, setSelectedIds] = useState<Set<number>>(new Set())
 
   const isSuperAdmin = roleCodes.includes('super_admin')
   const isViceSuperAdmin = roleCodes.includes('vice_super_admin')
@@ -61,6 +64,8 @@ export function AdminUsers() {
       if (statusF) qs.set('status', statusF)
       const p = await request<Page<AdminUserListItem>>(`/api/admin/users?${qs}`)
       setData(p.records); setTotal(p.total)
+      // 软删后,留在 selectedIds 里的 id 已经从列表里消失,清空避免下次误选
+      setSelectedIds(new Set())
     } catch (err) {
       show('error', err instanceof ApiError ? err.message : '加载失败')
     } finally { setLoading(false) }
@@ -155,6 +160,72 @@ export function AdminUsers() {
     } catch (err) { show('error', err instanceof ApiError ? err.message : '加载失败') }
   }
 
+  // 批量勾选 helper —— 切换某行的 checkbox
+  function toggleOne(id: number) {
+    setSelectedIds((prev) => {
+      const next = new Set(prev)
+      if (next.has(id)) next.delete(id); else next.add(id)
+      return next
+    })
+  }
+  // 全选 / 反选当前页(过滤掉自己 —— 自己不允许删,前端也过滤防止误选)
+  function togglePageAll() {
+    setSelectedIds((prev) => {
+      const pageIds = data
+        .filter((u) => !isMeRow(u))
+        .map((u) => u.id)
+      const allSelected = pageIds.length > 0 && pageIds.every((id) => prev.has(id))
+      if (allSelected) return new Set()
+      return new Set([...prev, ...pageIds])
+    })
+  }
+
+  /** 批量硬删 —— 不可逆。审计日志保留,FK CASCADE 自动清 admin_user_roles。 */
+  async function batchDeleteUsers() {
+    const ids = Array.from(selectedIds)
+    if (ids.length === 0) return
+    const ok = await confirm({
+      title: `彻底删除 ${ids.length} 个管理员账号?`,
+      body: `将不可恢复地销毁 admin_users 行(FK CASCADE 自动清 admin_user_roles)。\n审计日志保留(actor 历史是合规资产,不会因为删人就抹掉)。\n\n${ids.length > 20 ? `本次前 100 个 id:` : '本次 id:'}\n${ids.slice(0, 20).join(', ')}${ids.length > 20 ? ', …' : ''}\n\n后端会自动跳过:自己的账号、最后一个超级管理员、不存在。`,
+      danger: true,
+      confirmWord: '我已知晓,彻底删除',
+    })
+    if (!ok) return
+    try {
+      const res = await request<BatchDeleteAdminUsersResponse>(
+        '/api/admin/users/batch-delete',
+        { method: 'POST', body: { ids } as BatchDeleteAdminUsersRequest },
+      )
+      show('success', `已彻底删除 ${res.deleted} 个${res.skipped > 0 ? `,跳过 ${res.skipped} 个` : ''}`)
+      setSelectedIds(new Set())
+      load()
+    } catch (err) { show('error', err instanceof ApiError ? err.message : '操作失败') }
+  }
+
+  /** 单硬删 —— 复用 batch 接口以保持 skipped 语义一致。 */
+  async function singleDelete(u: AdminUserListItem) {
+    if (isMeRow(u)) {
+      show('error', '不能删除自己的账号')
+      return
+    }
+    const ok = await confirm({
+      title: `彻底删除 ${u.username}?`,
+      body: `将不可恢复地销毁该账号及其角色绑定。审计日志保留。\n${u.username} (${u.displayName})`,
+      danger: true,
+      confirmWord: '我已知晓,彻底删除',
+    })
+    if (!ok) return
+    try {
+      const res = await request<BatchDeleteAdminUsersResponse>(
+        '/api/admin/users/batch-delete',
+        { method: 'POST', body: { ids: [u.id] } as BatchDeleteAdminUsersRequest },
+      )
+      if (res.deleted > 0) show('success', `已彻底删除 ${u.username}`)
+      else if (res.skipped > 0) show('error', '未删除(最后一个超管 / 不存在)')
+      load()
+    } catch (err) { show('error', err instanceof ApiError ? err.message : '操作失败') }
+  }
+
   return (
     <div className="p-8 space-y-4">
       <h1 className="text-2xl font-bold">用户管理</h1>
@@ -174,17 +245,63 @@ export function AdminUsers() {
             <option value="0">禁用</option>
           </select>
         </label>
-        {canCreateUser && (
-          <button onClick={() => setCreateOpen(true)}
-            className="ml-auto px-4 py-2 rounded-lg bg-primary text-on-primary hover:opacity-90">
-            + 新建账号
-          </button>
-        )}
+        <div className="ml-auto flex items-center gap-2">
+          {canCreateUser && (
+            <button onClick={() => setCreateOpen(true)}
+              className="px-4 py-2 rounded-lg bg-primary text-on-primary hover:opacity-90">
+              + 新建账号
+            </button>
+          )}
+          {has('admin_user:delete') && data.length > 0 && (
+            selectedIds.size > 0 ? (
+              <div className="flex items-center gap-3 px-3 py-1.5 rounded-lg bg-primary-light text-on-primary-container">
+                <span className="text-sm font-medium">已选 {selectedIds.size} 项</span>
+                <button
+                  onClick={() => setSelectedIds(new Set())}
+                  className="px-3 py-1.5 rounded-lg border-2 border-error text-error hover:bg-error-light font-medium"
+                >
+                  取消选择
+                </button>
+                <button
+                  onClick={batchDeleteUsers}
+                  className="px-3 py-1.5 rounded-lg bg-error text-on-primary text-sm font-medium hover:opacity-90"
+                >
+                  批量彻底删除
+                </button>
+              </div>
+            ) : (
+              <button
+                onClick={togglePageAll}
+                className="text-xs px-3 py-1.5 rounded border border-divider hover:bg-bg-page"
+              >
+                全选当前页 ({data.length})
+              </button>
+            )
+          )}
+        </div>
       </div>
 
       <DataTable<AdminUserListItem>
         rowKey={(u) => u.id}
         columns={[
+          // 仅当有 admin_user:delete 权限才渲染 checkbox 列;自己的行 checkbox 直接禁用
+          ...(has('admin_user:delete')
+            ? [{ key: '_select', label: '', width: '40px',
+                 render: (u: AdminUserListItem) => {
+                   const self = isMeRow(u)
+                   return (
+                     <input
+                       type="checkbox"
+                       checked={!self && selectedIds.has(u.id)}
+                       disabled={self}
+                       onChange={() => toggleOne(u.id)}
+                       aria-label={self ? `不能选择自己 ${u.username}` : `选择 ${u.username}`}
+                       title={self ? '不能删除自己的账号' : undefined}
+                       onClick={(e) => e.stopPropagation()}
+                     />
+                   )
+                 } }]
+            : []),
           { key: 'id', label: 'ID', width: '70px' },
           { key: 'username', label: '用户名',
             render: (u) => (
@@ -204,7 +321,7 @@ export function AdminUsers() {
                 {u.status === 1 ? '启用' : '禁用'}
               </span>
             ) },
-          { key: 'actions', label: '操作', width: '320px',
+          { key: 'actions', label: '操作', width: '380px',
             render: (u) => {
               const isMe = isMeRow(u)
               // 有 user:disable 权限的角色(super / 副超管)任何方向都不能改自己的状态(启/禁)
@@ -226,6 +343,11 @@ export function AdminUsers() {
                     isMe
                       ? <span className="text-on-surface-variant cursor-not-allowed" title="当前账户,禁止授权">授权</span>
                       : <button onClick={() => setGrantFor(u)} className="text-primary hover:underline">授权</button>
+                  )}
+                  {has('admin_user:delete') && (
+                    isMe
+                      ? <span className="text-on-surface-variant cursor-not-allowed" title="不能删除自己的账号">删除</span>
+                      : <button onClick={() => singleDelete(u)} className="text-error hover:underline">彻底删除</button>
                   )}
                 </div>
               )
@@ -253,7 +375,7 @@ export function AdminUsers() {
           onClose={() => setCreateOpen(false)}
           onCreated={(res) => {
             setCreateOpen(false)
-            setPwdResult({ username: res.username, newPassword: res.initialPassword })
+            setPwdResult({ username: res.username, newPassword: res.password })
             load()
           }}
         />
@@ -342,6 +464,16 @@ function PasswordRevealModal({ result, onClose }: {
   result: { username: string; newPassword: string }
   onClose: () => void
 }) {
+  const [copied, setCopied] = useState(false)
+  async function copy() {
+    try {
+      await navigator.clipboard.writeText(result.newPassword)
+      setCopied(true)
+      setTimeout(() => setCopied(false), 2000)
+    } catch {
+      // 剪贴板被浏览器拒绝(HTTP / 无权限)—— 用户可手动长按选择
+    }
+  }
   return (
     <div className="fixed inset-0 z-50 bg-black/40 flex items-center justify-center" onClick={onClose}>
       <div className="bg-bg-card rounded-xl shadow-xl max-w-sm w-full mx-4 p-6" onClick={(e) => e.stopPropagation()}>
@@ -359,12 +491,16 @@ function PasswordRevealModal({ result, onClose }: {
           />
           <button
             type="button"
-            onClick={() => {
-              navigator.clipboard.writeText(result.newPassword).catch(() => { /* noop */ })
-            }}
-            className="px-3 py-2 rounded border border-divider text-sm hover:bg-bg-page"
+            onClick={copy}
+            disabled={copied}
+            className={
+              'px-3 py-2 rounded border text-sm transition-colors ' +
+              (copied
+                ? 'border-success text-success bg-success-light'
+                : 'border-divider hover:bg-bg-page')
+            }
           >
-            复制
+            {copied ? '✓ 已复制' : '复制'}
           </button>
         </div>
         <div className="text-right">

@@ -145,14 +145,21 @@ public class BusinessUserService {
     public AdminResetPasswordResponse resetPassword(long userId, AdminActor actor) {
         User u = mustUser(userId);
         String newPassword = generatePassword(12);
+        long beforeTv = u.getTokenVersion() == null ? 0L : u.getTokenVersion();
         u.setPasswordHash(encoder.encode(newPassword));
+        // V8 起:重置密码也 bump token_version —— 旧密码 BCrypt 不再匹配(virtually 立即失效),
+        // 同时旧 JWT 立即失效,被重置者所有 session 必须重新登录(用新密码)。
+        u.setTokenVersion(beforeTv + 1L);
         u.setUpdatedAt(Instant.now());
         userMapper.updateById(u);
 
         auditService.recordSuccess(actor.userId(), actor.username(),
                 "business_user.reset_password", "business_user", userId,
-                null, Map.of("password_changed", true), actor.ip(), actor.userAgent());
-        log.info("[admin] business user password reset: actor={} target={}", actor.username(), userId);
+                Map.of("token_version", beforeTv),
+                Map.of("password_changed", true, "token_version", u.getTokenVersion()),
+                actor.ip(), actor.userAgent());
+        log.info("[admin] business user password reset: actor={} target={} token_version {} → {}",
+                actor.username(), userId, beforeTv, u.getTokenVersion());
         return new AdminResetPasswordResponse(newPassword);
     }
 

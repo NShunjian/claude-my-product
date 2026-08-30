@@ -22,6 +22,16 @@ BACKEND_DIR="$ROOT/005.后端代码（Java工程师）"
 FRONTEND_DIR="$ROOT/003.前端代码（前端工程师）/frontend-react-java"
 ADMIN_FRONTEND_DIR="$ROOT/006.admin-frontend"
 
+# === 环境变量:source 仓库根 .env(若存在) ===
+# 首次启动需配置 ADMIN_BOOTSTRAP_USERNAME / ADMIN_BOOTSTRAP_PASSWORD,
+# 后端 AdminBootstrapService 会自动创建首个超管。
+if [[ -f "$ROOT/.env" ]]; then
+  set -a
+  # shellcheck disable=SC1090
+  source "$ROOT/.env"
+  set +a
+fi
+
 BACKEND_PORT=4001
 FRONTEND_PORT=5173
 ADMIN_FRONTEND_PORT=5174

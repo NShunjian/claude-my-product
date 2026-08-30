@@ -1,10 +1,12 @@
 package com.qingzhang.admin.entity;
 
+import com.baomidou.mybatisplus.annotation.TableName;
 import lombok.*;
 import java.io.Serializable;
 import java.util.Objects;
 
 @Getter @Setter @NoArgsConstructor @AllArgsConstructor
+@TableName("admin_role_permissions")
 public class AdminRolePermission implements Serializable {
     private Long roleId;
     private Long permissionId;

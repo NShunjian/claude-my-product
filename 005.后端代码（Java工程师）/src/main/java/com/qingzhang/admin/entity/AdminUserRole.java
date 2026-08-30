@@ -1,11 +1,13 @@
 package com.qingzhang.admin.entity;
 
+import com.baomidou.mybatisplus.annotation.TableName;
 import lombok.*;
 import java.io.Serializable;
 import java.time.Instant;
 import java.util.Objects;
 
 @Getter @Setter @NoArgsConstructor @AllArgsConstructor
+@TableName("admin_user_roles")
 public class AdminUserRole implements Serializable {
     private Long userId;
     private Long roleId;

@@ -11,6 +11,7 @@ import com.qingzhang.records.mapper.RecordMapper;
 import com.qingzhang.users.entity.User;
 import com.qingzhang.users.mapper.UserMapper;
 import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
 
 import java.time.Instant;
 import java.time.LocalDate;
@@ -37,8 +38,15 @@ public class DashboardService {
         this.recordMapper = recordMapper;
     }
 
+    /**
+     * readOnly 事务让所有 COUNT 共享同一 InnoDB ReadView(REPEATABLE READ 默认隔离级别),
+     * 避免之前 3 个 records COUNT 各开各的 auto-commit 连接导致「总流水 / 7d 活跃 / 今日新增」
+     * 看到不同快照从而 ±1 漂移的问题。用户/账本 COUNT 顺带受益,整体严格一致。
+     *
+     * ponytail:不锁表、不合并 SQL,一个注解搞定。race 窗口从 N × RTT 缩到 0。
+     */
+    @Transactional(readOnly = true)
     public AdminDashboardStats stats() {
-        Instant now = Instant.now();
         Instant todayStart = LocalDate.now(ZoneOffset.UTC).atStartOfDay().toInstant(ZoneOffset.UTC);
         Instant sevenDaysAgo = todayStart.minus(7, ChronoUnit.DAYS);
 

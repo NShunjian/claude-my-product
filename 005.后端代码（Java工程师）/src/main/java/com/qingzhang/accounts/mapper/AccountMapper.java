@@ -3,6 +3,7 @@ package com.qingzhang.accounts.mapper;
 import com.baomidou.mybatisplus.core.mapper.BaseMapper;
 import com.qingzhang.accounts.entity.Account;
 import com.qingzhang.accounts.entity.AccountBalance;
+import org.apache.ibatis.annotations.Delete;
 import org.apache.ibatis.annotations.Mapper;
 import org.apache.ibatis.annotations.Param;
 import org.apache.ibatis.annotations.Select;
@@ -36,4 +37,14 @@ public interface AccountMapper extends BaseMapper<Account> {
             ORDER BY is_default DESC, sort_order ASC, id ASC
             """)
     List<AccountBalance> listBalancesByUser(@Param("userId") Long userId);
+
+    // ====== admin 硬删用 —— 绕过 @TableLogic ======
+
+    /** 硬删某用户所有账户(绕过 @TableLogic)。user 删除时 FK CASCADE 也会触发,这里显式调是为统计准确。 */
+    @Delete("DELETE FROM accounts WHERE user_id = #{userId}")
+    int hardDeleteByUserId(@Param("userId") Long userId);
+
+    /** 统计某用户的账户数(含已被软删的)。供硬删前预览用。 */
+    @Select("SELECT COUNT(*) FROM accounts WHERE user_id = #{userId}")
+    int countByUserId(@Param("userId") Long userId);
 }

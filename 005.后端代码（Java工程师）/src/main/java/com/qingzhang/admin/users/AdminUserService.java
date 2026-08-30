@@ -10,6 +10,7 @@ import com.qingzhang.admin.dto.AdminUserDetailResponse;
 import com.qingzhang.admin.dto.AdminUserListItem;
 import com.qingzhang.admin.dto.CreateAdminUserRequest;
 import com.qingzhang.admin.dto.CreateAdminUserResponse;
+import com.qingzhang.admin.users.dto.BatchDeleteAdminUsersResponse;
 import com.qingzhang.admin.entity.AdminRole;
 import com.qingzhang.admin.entity.AdminUser;
 import com.qingzhang.admin.entity.AdminUserRole;
@@ -529,6 +530,135 @@ public class AdminUserService {
                 "user.revoke_role", "user", userId,
                 Map.of("roles", List.of(roleCode)), Map.of("roles", List.of()),
                 actor.ip(), actor.userAgent());
+    }
+
+    /**
+     * 硬删单个管理员账号 —— 不可恢复,绕过 @TableLogic。
+     *
+     * 销毁链(2 张表):
+     *   1. admin_users  —— 物理删除该行
+     *   2. admin_user_roles —— FK CASCADE 自动清(不需要显式)
+     *
+     * admin_audit_logs 不动 —— 审计历史是合规资产,actor username 已 denormalize 进日志行,
+     * 即使用户被硬删,日志里仍能看到「alice 在 YYYY-MM-DD 做过什么」。
+     *
+     * 双重护栏(同软删版本):
+     *   - 不能删自己
+     *   - 不能删最后一个 super_admin
+     *
+     * audit action: admin_user.hard_delete
+     */
+    @Transactional(rollbackFor = Exception.class)
+    public void delete(long userId, AdminActor actor) {
+        if (adminUserMapper.existsLive(userId) == 0) {
+            throw new BizException(ErrorCode.ADMIN_USER_NOT_FOUND, "管理员不存在或已被删除: id=" + userId);
+        }
+
+        // 0. 不能删自己
+        if (userId == actor.userId()) {
+            auditService.recordFailure(actor.userId(), actor.username(),
+                    "admin_user.hard_delete", "admin_user", userId,
+                    "不能删除自己的账号", actor.ip(), actor.userAgent());
+            throw new BizException(ErrorCode.ADMIN_PERMISSION_DENIED, "不能删除自己的账号");
+        }
+        // 1. 不能删最后一个 super_admin
+        if (hasRole(userId, "super_admin")) {
+            AdminRole superRole = roleMapper.selectOne(
+                    new QueryWrapper<AdminRole>().eq("code", "super_admin"));
+            if (superRole != null) {
+                Long superAdminCount = userRoleMapper.selectCount(
+                        new QueryWrapper<AdminUserRole>().eq("role_id", superRole.getId()));
+                if (superAdminCount != null && superAdminCount <= 1) {
+                    auditService.recordFailure(actor.userId(), actor.username(),
+                            "admin_user.hard_delete", "admin_user", userId,
+                            "不能删除最后一个超级管理员", actor.ip(), actor.userAgent());
+                    throw new BizException(ErrorCode.ADMIN_PERMISSION_DENIED, "不能删除最后一个超级管理员");
+                }
+            }
+        }
+
+        // 2. 取 username 用于审计快照(硬删后 username 也得留下)
+        AdminUser u = adminUserMapper.selectById(userId);
+        String beforeUsername = u == null ? "?" : u.getUsername();
+        Byte beforeStatus = u == null ? null : u.getStatus();
+
+        // 3. 真 DELETE FROM —— admin_user_roles 由 FK CASCADE 自动清
+        int affected = adminUserMapper.hardDeleteById(userId);
+        if (affected == 0) {
+            throw new BizException(ErrorCode.ADMIN_USER_NOT_FOUND, "管理员不存在: id=" + userId);
+        }
+
+        auditService.recordSuccess(actor.userId(), actor.username(),
+                "admin_user.hard_delete", "admin_user", userId,
+                Map.of("username", beforeUsername, "status", beforeStatus),
+                Map.of("username", beforeUsername, "deleted", true),
+                actor.ip(), actor.userAgent());
+        log.info("[admin] admin user hard deleted: actor={} target={} username={}",
+                actor.username(), userId, beforeUsername);
+    }
+
+    /**
+     * 批量硬删管理员账号 —— 不可恢复。
+     *
+     * 校验 + skipped 语义同业务用户批量硬删。
+     * audit: admin_user.batch_hard_delete
+     */
+    @Transactional(rollbackFor = Exception.class)
+    public BatchDeleteAdminUsersResponse batchDelete(List<Long> ids, AdminActor actor) {
+        if (ids == null || ids.isEmpty()) {
+            throw new BizException(ErrorCode.VALIDATION_FAILED, "请选择至少一个账号");
+        }
+        if (ids.size() > 100) {
+            throw new BizException(ErrorCode.VALIDATION_FAILED,
+                    "单次最多删除 100 个账号,当前选了 " + ids.size() + " 个");
+        }
+
+        List<Long> cleanIds = ids.stream()
+                .filter(id -> id != null && id > 0)
+                .distinct()
+                .toList();
+        if (cleanIds.isEmpty()) {
+            return new BatchDeleteAdminUsersResponse(0, ids.size());
+        }
+
+        // super_admin 角色 id 一次性查出
+        AdminRole superRole = roleMapper.selectOne(
+                new QueryWrapper<AdminRole>().eq("code", "super_admin"));
+        Long superRoleId = superRole == null ? null : superRole.getId();
+
+        int deleted = 0;
+        int skipped = 0;
+        for (Long id : cleanIds) {
+            if (adminUserMapper.existsLive(id) == 0) {
+                skipped++;
+                continue;
+            }
+            // 不能删自己
+            if (id == actor.userId()) {
+                skipped++;
+                continue;
+            }
+            // 不能删最后一个 super_admin
+            if (superRoleId != null && hasRole(id, "super_admin")) {
+                Long superCount = userRoleMapper.selectCount(
+                        new QueryWrapper<AdminUserRole>().eq("role_id", superRoleId));
+                if (superCount != null && superCount <= 1) {
+                    skipped++;
+                    continue;
+                }
+            }
+            int affected = adminUserMapper.hardDeleteById(id);
+            if (affected > 0) deleted++; else skipped++;
+        }
+
+        auditService.recordSuccess(actor.userId(), actor.username(),
+                "admin_user.batch_hard_delete", "admin_user", null,
+                Map.of("ids", ids),
+                Map.of("deleted", deleted, "skipped", skipped),
+                actor.ip(), actor.userAgent());
+        log.info("[admin] admin user batch hard delete: actor={} requested={} deleted={} skipped={}",
+                actor.username(), ids.size(), deleted, skipped);
+        return new BatchDeleteAdminUsersResponse(deleted, skipped);
     }
 
     // -------- helpers --------

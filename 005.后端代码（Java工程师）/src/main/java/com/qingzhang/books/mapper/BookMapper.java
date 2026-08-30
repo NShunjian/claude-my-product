@@ -2,6 +2,7 @@ package com.qingzhang.books.mapper;
 
 import com.baomidou.mybatisplus.core.mapper.BaseMapper;
 import com.qingzhang.books.entity.Book;
+import org.apache.ibatis.annotations.Delete;
 import org.apache.ibatis.annotations.Mapper;
 import org.apache.ibatis.annotations.Param;
 import org.apache.ibatis.annotations.Select;
@@ -48,4 +49,14 @@ public interface BookMapper extends BaseMapper<Book> {
             java.time.Instant updatedAt,
             String userRole
     ) {}
+
+    // ====== admin 硬删用 —— 绕过 @TableLogic ======
+
+    /** 硬删某用户拥有的所有账本(绕过 @TableLogic)。FK CASCADE 自动清 book_members / budgets。 */
+    @Delete("DELETE FROM books WHERE owner_id = #{userId}")
+    int hardDeleteByOwnerId(@Param("userId") Long userId);
+
+    /** 统计某用户拥有的账本数(含已被软删的)。供硬删前预览用。 */
+    @Select("SELECT COUNT(*) FROM books WHERE owner_id = #{userId}")
+    int countByOwnerId(@Param("userId") Long userId);
 }

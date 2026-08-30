@@ -1,7 +1,12 @@
 spring:
   datasource:
     dynamic:
-      # 不显式 primary —— 走 default。Mapper 用 @DS("master"|"admin") 显式路由。
+      # primary 必须显式声明,否则 Spring 找不到默认 `transactionManager` bean,
+      # 所有未指定 transactionManager 的 @Transactional 会被静默忽略(multi-ds 下尤为常见)。
+      # master 是默认数据源,绝大多数 service(records/users/books/categories/auth)无 @DS 走这里;
+      # admin 子系统单独 @DS("admin") + @Transactional 的,在 admin 库里 auto-commit,本就没真事务,
+      # 加 primary 也不让它变更糟(等于现状不变,其他 service 全部升级为真事务)。
+      primary: master
       datasource:
         # 业务库(users/books/records/categories/audit_logs-user-side 等)
         master:

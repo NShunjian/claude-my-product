@@ -9,6 +9,8 @@ import com.qingzhang.admin.dto.AdminUserListItem;
 import com.qingzhang.admin.dto.CreateAdminUserRequest;
 import com.qingzhang.admin.dto.CreateAdminUserResponse;
 import com.qingzhang.admin.dto.Page;
+import com.qingzhang.admin.users.dto.BatchDeleteAdminUsersRequest;
+import com.qingzhang.admin.users.dto.BatchDeleteAdminUsersResponse;
 import com.qingzhang.admin.entity.AdminUser;
 import com.qingzhang.admin.mapper.AdminUserMapper;
 import com.qingzhang.admin.security.AdminActor;
@@ -39,6 +41,8 @@ import java.util.Map;
  *   POST   /api/admin/users/{id}/reset-password          -> AdminResetPasswordResponse
  *   POST   /api/admin/users/{id}/roles                   -> {ok:true}
  *   DELETE /api/admin/users/{id}/roles/{roleCode}        -> {ok:true}
+ *   DELETE /api/admin/users/{id}                         -> 软删单个(V18,需 admin_user:delete)
+ *   POST   /api/admin/users/batch-delete                 -> BatchDeleteAdminUsersResponse(V18,需 admin_user:delete)
  *
  * AdminAuthInterceptor 已注册到 /api/admin/** (Batch A4);@RequiresPermission 进一步
  * 细化权限码。actor() 帮手方法抽 userId/username/ip/userAgent 给 service 写审计。
@@ -114,6 +118,22 @@ public class UsersController {
                                                         @PathVariable String roleCode) {
         service.revokeRole(id, roleCode, actor(req));
         return ApiResponse.ok(Map.of("ok", true));
+    }
+
+    /** 单删 —— V18。后端拒自己 / 最后一个 super_admin,前端也禁用按钮做双保险。 */
+    @DeleteMapping("/{id}")
+    @RequiresPermission("admin_user:delete")
+    public ApiResponse<Map<String, Object>> delete(HttpServletRequest req, @PathVariable long id) {
+        service.delete(id, actor(req));
+        return ApiResponse.ok(Map.of("deleted", true));
+    }
+
+    /** 批量软删 —— V18。body: { ids: number[] },上限 100。 */
+    @PostMapping("/batch-delete")
+    @RequiresPermission("admin_user:delete")
+    public ApiResponse<BatchDeleteAdminUsersResponse> batchDelete(HttpServletRequest req,
+                                                                    @RequestBody BatchDeleteAdminUsersRequest body) {
+        return ApiResponse.ok(service.batchDelete(body.ids(), actor(req)));
     }
 
     private AdminActor actor(HttpServletRequest req) {

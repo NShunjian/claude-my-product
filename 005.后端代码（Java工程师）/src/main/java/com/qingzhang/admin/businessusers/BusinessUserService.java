@@ -3,13 +3,18 @@ package com.qingzhang.admin.businessusers;
 import com.baomidou.mybatisplus.core.conditions.query.QueryWrapper;
 import com.baomidou.mybatisplus.core.metadata.IPage;
 import com.baomidou.mybatisplus.extension.plugins.pagination.Page;
+import com.qingzhang.accounts.mapper.AccountMapper;
 import com.qingzhang.admin.audit.AdminAuditService;
+import com.qingzhang.admin.businessusers.dto.BatchDeleteBusinessUsersResponse;
 import com.qingzhang.admin.businessusers.dto.BusinessUserDetailResponse;
 import com.qingzhang.admin.businessusers.dto.BusinessUserListItem;
 import com.qingzhang.admin.dto.AdminResetPasswordResponse;
 import com.qingzhang.admin.security.AdminActor;
+import com.qingzhang.books.mapper.BookMapper;
+import com.qingzhang.categories.mapper.CategoryMapper;
 import com.qingzhang.common.BizException;
 import com.qingzhang.common.ErrorCode;
+import com.qingzhang.records.mapper.RecordMapper;
 import com.qingzhang.users.entity.User;
 import com.qingzhang.users.mapper.UserMapper;
 import org.slf4j.Logger;
@@ -48,12 +53,25 @@ public class BusinessUserService {
     private static final String ALPHABET = "ABCDEFGHJKMNPQRSTUVWXYZabcdefghjkmnpqrstuvwxyz23456789";
 
     private final UserMapper userMapper;
+    private final BookMapper bookMapper;
+    private final RecordMapper recordMapper;
+    private final AccountMapper accountMapper;
+    private final CategoryMapper categoryMapper;
     private final AdminAuditService auditService;
     private final BCryptPasswordEncoder encoder = new BCryptPasswordEncoder();
     private final SecureRandom random = new SecureRandom();
 
-    public BusinessUserService(UserMapper userMapper, AdminAuditService auditService) {
+    public BusinessUserService(UserMapper userMapper,
+                                BookMapper bookMapper,
+                                RecordMapper recordMapper,
+                                AccountMapper accountMapper,
+                                CategoryMapper categoryMapper,
+                                AdminAuditService auditService) {
         this.userMapper = userMapper;
+        this.bookMapper = bookMapper;
+        this.recordMapper = recordMapper;
+        this.accountMapper = accountMapper;
+        this.categoryMapper = categoryMapper;
         this.auditService = auditService;
     }
 
@@ -161,6 +179,141 @@ public class BusinessUserService {
         log.info("[admin] business user password reset: actor={} target={} token_version {} → {}",
                 actor.username(), userId, beforeTv, u.getTokenVersion());
         return new AdminResetPasswordResponse(newPassword);
+    }
+
+    /**
+     * 硬删单个业务用户 —— 不可恢复,绕过 @TableLogic,真 DELETE FROM。
+     *
+     * 销毁链(7 张表 + 旁路表):
+     *   1. records  ─ 先删,否则 records.book_id RESTRICT 拒删 books
+     *   2. books    ─ CASCADE 清 book_members / budgets;SET NULL 清 accounts.book_id / categories.book_id
+     *   3. accounts ─ 显式删(为准确计数;FK CASCADE 也会从 user 删除触发)
+     *   4. categories ─ 显式删(同上)
+     *   5. users    ─ CASCADE 清 export_logs / 残留 book_members / 残留 budgets
+     *
+     * 已软删 / 不存在的 user 抛 not found(单删场景不能 silently skip)。
+     *
+     * audit: business_user.hard_delete。
+     */
+    @Transactional(rollbackFor = Exception.class)
+    public BatchDeleteBusinessUsersResponse delete(long userId, AdminActor actor) {
+        if (userMapper.existsLive(userId) == 0) {
+            throw new BizException(ErrorCode.USER_NOT_FOUND, "业务用户不存在或已被删除: id=" + userId);
+        }
+        BatchDeleteBusinessUsersResponse r = hardDeleteOne(userId);
+        auditService.recordSuccess(actor.userId(), actor.username(),
+                "business_user.hard_delete", "business_user", userId,
+                null,
+                Map.of("usersDeleted", r.usersDeleted(),
+                        "booksDeleted", r.booksDeleted(),
+                        "recordsDeleted", r.recordsDeleted(),
+                        "accountsDeleted", r.accountsDeleted(),
+                        "categoriesDeleted", r.categoriesDeleted()),
+                actor.ip(), actor.userAgent());
+        log.info("[admin] business user hard delete: actor={} target={} {}", actor.username(), userId, r);
+        return r;
+    }
+
+    /**
+     * 批量硬删业务用户 —— 不可恢复。
+     *
+     * 校验:
+     *   - ids 非空、≤ 100
+     *   - 不存在 / 已软删的 id 计入 skipped,不 throw(批量场景允许「5 个里有 1 个已删」整体仍成功)
+     *
+     * 累计每个表的销毁行数返回,前端 toast 文案按 totals 显示。
+     */
+    @Transactional(rollbackFor = Exception.class)
+    public BatchDeleteBusinessUsersResponse batchDelete(List<Long> ids, AdminActor actor) {
+        if (ids == null || ids.isEmpty()) {
+            throw new BizException(ErrorCode.VALIDATION_FAILED, "请选择至少一个用户");
+        }
+        if (ids.size() > 100) {
+            throw new BizException(ErrorCode.VALIDATION_FAILED,
+                    "单次最多删除 100 个用户,当前选了 " + ids.size() + " 个");
+        }
+
+        // 去重 + 过滤负数 / 0
+        List<Long> cleanIds = ids.stream()
+                .filter(id -> id != null && id > 0)
+                .distinct()
+                .toList();
+        if (cleanIds.isEmpty()) {
+            return new BatchDeleteBusinessUsersResponse(0, 0, 0, 0, 0, ids.size());
+        }
+
+        int totalUsers = 0, totalBooks = 0, totalRecords = 0, totalAccounts = 0, totalCategories = 0;
+        int skipped = 0;
+
+        for (Long id : cleanIds) {
+            if (userMapper.existsLive(id) == 0) {
+                skipped++;
+                continue;
+            }
+            BatchDeleteBusinessUsersResponse r = hardDeleteOne(id);
+            totalUsers += r.usersDeleted();
+            totalBooks += r.booksDeleted();
+            totalRecords += r.recordsDeleted();
+            totalAccounts += r.accountsDeleted();
+            totalCategories += r.categoriesDeleted();
+        }
+
+        BatchDeleteBusinessUsersResponse r = new BatchDeleteBusinessUsersResponse(
+                totalUsers, totalBooks, totalRecords, totalAccounts, totalCategories, skipped);
+        auditService.recordSuccess(actor.userId(), actor.username(),
+                "business_user.batch_hard_delete", "business_user", null,
+                Map.of("ids", ids),
+                Map.of("usersDeleted", totalUsers,
+                        "booksDeleted", totalBooks,
+                        "recordsDeleted", totalRecords,
+                        "accountsDeleted", totalAccounts,
+                        "categoriesDeleted", totalCategories,
+                        "skipped", skipped),
+                actor.ip(), actor.userAgent());
+        log.info("[admin] business user batch hard delete: actor={} requested={} {}", actor.username(), ids.size(), r);
+        return r;
+    }
+
+    /**
+     * 真硬删一个用户及其所有数据。返回 5 个计数。不可恢复,操作员需在 confirm dialog 二次确认。
+     *
+     * 销毁顺序见 delete() 方法注释 —— records 必须先于 books。
+     */
+    private BatchDeleteBusinessUsersResponse hardDeleteOne(long userId) {
+        // 1. records 先(records.book_id RESTRICT books)
+        int records = recordMapper.hardDeleteByUserId(userId);
+        // 2. books(CASCADE: book_members, budgets;SET NULL: accounts.book_id, categories.book_id)
+        int books = bookMapper.hardDeleteByOwnerId(userId);
+        // 3. accounts(显式,准确计数)
+        int accounts = accountMapper.hardDeleteByUserId(userId);
+        // 4. categories(显式,准确计数)
+        int categories = categoryMapper.hardDeleteByUserId(userId);
+        // 5. users(CASCADE: export_logs, 残留 book_members/budgets)
+        int users = userMapper.hardDeleteByIdLive(userId);
+        return new BatchDeleteBusinessUsersResponse(users, books, records, accounts, categories, 0);
+    }
+
+    /** 预览硬删某用户的销毁规模 —— 前端 confirm dialog 文案用。可选调用。 */
+    public HardDeletePreview preview(long userId) {
+        if (userMapper.existsLive(userId) == 0) {
+            throw new BizException(ErrorCode.USER_NOT_FOUND, "业务用户不存在或已被删除: id=" + userId);
+        }
+        return new HardDeletePreview(
+                userId,
+                bookMapper.countByOwnerId(userId),
+                recordMapper.countByUserId(userId),
+                accountMapper.countByUserId(userId),
+                categoryMapper.countByUserId(userId));
+    }
+
+    /** 硬删预览响应 —— 让前端在 confirm 前显示具体销毁规模。 */
+    public record HardDeletePreview(
+            long userId,
+            int books,
+            int records,
+            int accounts,
+            int categories
+    ) {
     }
 
     // -------- helpers --------

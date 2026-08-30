@@ -33,6 +33,7 @@ export function AdminBusinessUsers() {
   const [total, setTotal] = useState(0)
   const [loading, setLoading] = useState(true)
   const [detail, setDetail] = useState<BusinessUserDetailResponse | null>(null)
+  const [pwdResult, setPwdResult] = useState<{ username: string; newPassword: string } | null>(null)
 
   async function load() {
     setLoading(true)
@@ -64,8 +65,8 @@ export function AdminBusinessUsers() {
 
   async function resetPwd(u: BusinessUserListItem) {
     const ok = await confirm({
-      title: '重置业务用户密码?',
-      body: `将生成新密码并返回给 ${u.username}`,
+      title: '重置密码?',
+      body: `将生成新密码并显示给操作员(只此一次)。\n${u.username}`,
       danger: true,
     })
     if (!ok) return
@@ -74,7 +75,9 @@ export function AdminBusinessUsers() {
         `/api/admin/business-users/${u.id}/reset-password`,
         { method: 'POST' },
       )
-      show('success', `新密码: ${res.newPassword}`)
+      // 持久弹窗 —— Toast 3 秒自动消失,用户来不及复制密码
+      // 与 AdminUsers.resetPwd 行为一致(见 AdminUsers.tsx PasswordRevealModal)
+      setPwdResult({ username: u.username, newPassword: res.newPassword })
     } catch (err) { show('error', err instanceof ApiError ? err.message : '操作失败') }
   }
 
@@ -144,6 +147,47 @@ export function AdminBusinessUsers() {
       />
 
       {detail && <DetailModal user={detail} onClose={() => setDetail(null)} />}
+      {pwdResult && <PasswordRevealModal result={pwdResult} onClose={() => setPwdResult(null)} />}
+    </div>
+  )
+}
+
+/** 重置密码结果 —— 持久弹窗,等用户复制完密码再关闭。
+ *  与 AdminUsers.tsx 的同名组件保持一致:文案内嵌"仅显示一次"提醒,
+ *  内含 read-only input + 一键复制按钮。 */
+function PasswordRevealModal({ result, onClose }: {
+  result: { username: string; newPassword: string }
+  onClose: () => void
+}) {
+  return (
+    <div className="fixed inset-0 z-50 bg-black/40 flex items-center justify-center" onClick={onClose}>
+      <div className="bg-bg-card rounded-xl shadow-xl max-w-sm w-full mx-4 p-6" onClick={(e) => e.stopPropagation()}>
+        <h2 className="text-lg font-bold mb-2">密码已重置</h2>
+        <p className="text-xs text-on-surface-variant mb-4">
+          请将以下新密码当面转给 <span className="font-medium text-on-surface">{result.username}</span>。
+          该密码仅显示一次,关闭弹窗后无法再次查看,可在「重置密码」重新生成。
+        </p>
+        <div className="flex items-stretch gap-2 mb-4">
+          <input
+            readOnly
+            value={result.newPassword}
+            onFocus={(e) => e.currentTarget.select()}
+            className="flex-1 rounded border border-divider px-3 py-2 font-mono text-sm bg-bg-page"
+          />
+          <button
+            type="button"
+            onClick={() => {
+              navigator.clipboard.writeText(result.newPassword).catch(() => { /* noop */ })
+            }}
+            className="px-3 py-2 rounded border border-divider text-sm hover:bg-bg-page"
+          >
+            复制
+          </button>
+        </div>
+        <div className="text-right">
+          <button onClick={onClose} className="px-4 py-2 rounded-lg bg-primary text-on-primary">关闭</button>
+        </div>
+      </div>
     </div>
   )
 }

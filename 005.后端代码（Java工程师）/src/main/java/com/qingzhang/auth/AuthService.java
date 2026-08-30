@@ -3,6 +3,8 @@ package com.qingzhang.auth;
 import com.baomidou.mybatisplus.core.toolkit.Wrappers;
 import com.qingzhang.accounts.entity.Account;
 import com.qingzhang.accounts.mapper.AccountMapper;
+import com.qingzhang.admin.security.AdminPermissionService;
+import com.qingzhang.admin.security.AdminPrincipal;
 import com.qingzhang.auth.dto.AuthResponse;
 import com.qingzhang.auth.dto.Credentials;
 import com.qingzhang.auth.dto.UserDTO;
@@ -36,13 +38,19 @@ public class AuthService {
     private final BookMapper bookMapper;
     private final AccountMapper accountMapper;
     private final JwtUtil jwtUtil;
+    private final AdminPermissionService adminPermissionService;
     private final BCryptPasswordEncoder encoder = new BCryptPasswordEncoder();
 
-    public AuthService(UserMapper userMapper, BookMapper bookMapper, AccountMapper accountMapper, JwtUtil jwtUtil) {
+    public AuthService(UserMapper userMapper,
+                       BookMapper bookMapper,
+                       AccountMapper accountMapper,
+                       JwtUtil jwtUtil,
+                       AdminPermissionService adminPermissionService) {
         this.userMapper = userMapper;
         this.bookMapper = bookMapper;
         this.accountMapper = accountMapper;
         this.jwtUtil = jwtUtil;
+        this.adminPermissionService = adminPermissionService;
     }
 
     @Transactional(rollbackFor = Exception.class)
@@ -99,10 +107,11 @@ public class AuthService {
             userMapper.updateById(u);
         } catch (Exception ignored) {}
 
-        // 加载 admin RBAC claims (空列表 + false 都是合法 —— 普通用户)
-        List<String> roleCodes = userMapper.selectAdminRoleCodesByUserId(u.getId());
-        List<String> permissions = userMapper.selectAdminPermissionsByUserId(u.getId());
-        boolean isSuperAdmin = roleCodes.contains("super_admin");
+        // 加载 admin RBAC —— 走 AdminPermissionService (A4 重构抽出)
+        AdminPrincipal principal = adminPermissionService.resolveForUser(u.getId());
+        List<String> roleCodes = principal.roleCodes();
+        List<String> permissions = principal.permissions();
+        boolean isSuperAdmin = principal.isSuperAdmin();
 
         String token = jwtUtil.issue(u.getId(), permissions, roleCodes, isSuperAdmin);
         return new AuthResponse(toDto(u), token, permissions, roleCodes, isSuperAdmin);

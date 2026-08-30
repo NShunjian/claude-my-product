@@ -75,6 +75,7 @@ public class JwtUtil {
                 .parseSignedClaims(token)
                 .getPayload();
         long userId = Long.parseLong(claims.getSubject());
+        Instant issuedAt = claims.getIssuedAt() == null ? Instant.now() : claims.getIssuedAt().toInstant();
 
         Object permsObj = claims.get("permissions");
         @SuppressWarnings("unchecked")
@@ -87,11 +88,22 @@ public class JwtUtil {
         Boolean isSuper = claims.get("isSuperAdmin", Boolean.class);
         boolean isSuperAdmin = isSuper != null && isSuper;
 
-        return new JwtClaims(userId, permissions, roleCodes, isSuperAdmin);
+        return new JwtClaims(userId, issuedAt, permissions, roleCodes, isSuperAdmin);
+    }
+
+    /** 取出 token 的 iat (签发时间)。失败抛 JwtException。用于 AdminAuthInterceptor 校验时效。 */
+    public Instant parseIssuedAt(String token) {
+        Claims claims = Jwts.parser()
+                .verifyWith(key)
+                .build()
+                .parseSignedClaims(token)
+                .getPayload();
+        return claims.getIssuedAt() == null ? Instant.now() : claims.getIssuedAt().toInstant();
     }
 
     /** 解析出来的全部 claims。 */
     public record JwtClaims(long userId,
+                            Instant issuedAt,
                             List<String> permissions,
                             List<String> roleCodes,
                             boolean isSuperAdmin) {}

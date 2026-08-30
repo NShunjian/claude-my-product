@@ -1,5 +1,6 @@
 package com.qingzhang.admin.auth;
 
+import com.baomidou.dynamic.datasource.annotation.DS;
 import com.baomidou.mybatisplus.core.conditions.query.QueryWrapper;
 import com.qingzhang.admin.entity.AdminUser;
 import com.qingzhang.admin.mapper.AdminUserMapper;
@@ -33,6 +34,7 @@ import java.util.List;
  * 错误码:统一走 ErrorCode(1401 = ADMIN_AUTH_REQUIRED),前端不区分"用户不存在/密码错"。
  */
 @Service
+@DS("admin")
 public class AdminAuthService {
 
     private static final Logger log = LoggerFactory.getLogger(AdminAuthService.class);

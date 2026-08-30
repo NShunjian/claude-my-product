@@ -1,5 +1,6 @@
 package com.qingzhang.admin.bootstrap;
 
+import com.baomidou.dynamic.datasource.annotation.DS;
 import com.baomidou.mybatisplus.core.conditions.query.QueryWrapper;
 import com.qingzhang.admin.entity.AdminRole;
 import com.qingzhang.admin.entity.AdminUser;
@@ -30,6 +31,7 @@ import java.util.UUID;
  * 因为有密码 hash(BCrypt),不适合 SQL seed。
  */
 @Service
+@DS("admin")
 @Order(1)  // 先于其他 CommandLineRunner 跑(虽然这个项目里只有这一个)
 public class AdminBootstrapService implements CommandLineRunner {
 

@@ -1,5 +1,6 @@
 package com.qingzhang.admin.users;
 
+import com.baomidou.dynamic.datasource.annotation.DS;
 import com.baomidou.mybatisplus.core.conditions.query.QueryWrapper;
 import com.baomidou.mybatisplus.core.metadata.IPage;
 import com.baomidou.mybatisplus.extension.plugins.pagination.Page;
@@ -39,6 +40,7 @@ import java.util.stream.Collectors;
  * 够用;复杂的"基于角色的操作约束"留 v2。
  */
 @Service
+@DS("admin")
 public class AdminUserService {
 
     private static final Logger log = LoggerFactory.getLogger(AdminUserService.class);

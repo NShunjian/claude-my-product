@@ -1,5 +1,6 @@
 package com.qingzhang.admin.users;
 
+import com.baomidou.dynamic.datasource.annotation.DS;
 import com.qingzhang.admin.dto.AdminGrantRoleRequest;
 import com.qingzhang.admin.dto.AdminResetPasswordResponse;
 import com.qingzhang.admin.dto.AdminUpdateUserStatusRequest;
@@ -44,6 +45,7 @@ import java.util.Map;
  */
 @RestController("adminUsersController")
 @RequestMapping("/api/admin/users")
+@DS("admin")
 public class UsersController {
 
     private final AdminUserService service;

@@ -1,5 +1,6 @@
 package com.qingzhang.admin.auth;
 
+import com.baomidou.dynamic.datasource.annotation.DS;
 import com.qingzhang.admin.dto.AdminMeResponse;
 import com.qingzhang.admin.entity.AdminUser;
 import com.qingzhang.admin.mapper.AdminUserMapper;
@@ -30,6 +31,7 @@ import org.springframework.web.bind.annotation.RestController;
  */
 @RestController("adminAuthController")
 @RequestMapping("/api/admin/auth")
+@DS("admin")
 public class AdminAuthController {
 
     private final AdminAuthService adminAuthService;

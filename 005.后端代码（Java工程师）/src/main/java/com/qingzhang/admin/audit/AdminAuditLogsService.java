@@ -1,5 +1,6 @@
 package com.qingzhang.admin.audit;
 
+import com.baomidou.dynamic.datasource.annotation.DS;
 import com.baomidou.mybatisplus.core.conditions.query.QueryWrapper;
 import com.baomidou.mybatisplus.core.metadata.IPage;
 import com.qingzhang.admin.dto.AdminAuditLogDetailResponse;
@@ -21,6 +22,7 @@ import java.util.stream.Collectors;
  * admin_audit_logs 没有 @TableLogic,所以 selectPage 不会自动过滤 —— 全部返回。
  */
 @Service
+@DS("admin")
 public class AdminAuditLogsService {
 
     private final AdminAuditLogMapper mapper;

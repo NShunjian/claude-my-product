@@ -1,5 +1,6 @@
 package com.qingzhang.admin.audit;
 
+import com.baomidou.dynamic.datasource.annotation.DS;
 import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.qingzhang.admin.entity.AdminAuditLog;
@@ -20,6 +21,7 @@ import java.util.UUID;
  * ponytail:用 ObjectMapper 把 before/after 对象序列化成 JSON 字符串入库。
  */
 @Service
+@DS("admin")
 public class AdminAuditService {
 
     private static final Logger log = LoggerFactory.getLogger(AdminAuditService.class);

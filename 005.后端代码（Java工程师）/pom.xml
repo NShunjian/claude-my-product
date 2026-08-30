@@ -21,6 +21,7 @@
         <java.version>21</java.version>
         <maven.compiler.release>21</maven.compiler.release>
         <mybatis-plus.version>3.5.9</mybatis-plus.version>
+        <dynamic-datasource.version>4.5.0</dynamic-datasource.version>
         <flyway.version>10.20.1</flyway.version>
         <lombok.version>1.18.42</lombok.version>
     </properties>
@@ -41,6 +42,20 @@
             <groupId>com.baomidou</groupId>
             <artifactId>mybatis-plus-spring-boot3-starter</artifactId>
             <version>${mybatis-plus.version}</version>
+        </dependency>
+        <!-- 多数据源路由:admin 库与业务库物理分离,@DS("admin") 切到 admin 库。
+             与 mybatis-plus 同源,版本对齐 3.5.9。 -->
+        <dependency>
+            <groupId>com.baomidou</groupId>
+            <artifactId>dynamic-datasource-spring-boot3-starter</artifactId>
+            <version>${dynamic-datasource.version}</version>
+        </dependency>
+        <!-- starter 只引 spring-boot-common,不引 core。@DS 注解在 -spring core 里,
+             mapper 上要 @DS 必须显式引这个。 -->
+        <dependency>
+            <groupId>com.baomidou</groupId>
+            <artifactId>dynamic-datasource-spring</artifactId>
+            <version>${dynamic-datasource.version}</version>
         </dependency>
         <!-- 移除 mybatis-plus-extension 显式依赖:3.5.9 已移除 PaginationInnerInterceptor,
              Page<T> 分页由 BaseMapper 自动处理;此处留空注释供后人避坑。 -->

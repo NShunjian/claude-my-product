@@ -1,5 +1,6 @@
 package com.qingzhang.admin.security;
 
+import com.baomidou.dynamic.datasource.annotation.DS;
 import com.baomidou.mybatisplus.core.conditions.query.QueryWrapper;
 import com.qingzhang.admin.entity.AdminPermission;
 import com.qingzhang.admin.entity.AdminRole;
@@ -25,6 +26,7 @@ import java.util.stream.Collectors;
  * 快速路径:无 admin 角色绑定时,1 次 user-role 查询后 early-return。
  */
 @Service
+@DS("admin")
 public class AdminPermissionService {
 
     private final AdminRoleMapper roleMapper;

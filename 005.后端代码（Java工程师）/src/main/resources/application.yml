@@ -9,6 +9,9 @@ spring:
   jackson:
     default-property-inclusion: non_null
     time-zone: UTC
+  # Spring 默认 Flyway 关掉 —— 由 FlywayConfig 接管双库各自一个 Flyway 实例。
+  flyway:
+    enabled: false
 
 mybatis-plus:
   configuration:

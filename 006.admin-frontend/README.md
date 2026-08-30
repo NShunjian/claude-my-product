@@ -4,6 +4,13 @@
 
 ## 快速开始
 
+**一键启动 (从仓库根):**
+```bash
+./start-admin.sh
+```
+脚本自动:检查依赖 (缺则 `npm install`) → 检查 `.env.local` (缺则从 `.env.example` 复制) → `npm run dev`。
+
+**手动启动:**
 ```bash
 cd 006.admin-frontend
 npm install

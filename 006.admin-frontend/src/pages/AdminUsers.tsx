@@ -8,6 +8,7 @@ import type { Page } from '../api/types'
 import { DataTable } from '../components/DataTable'
 import { RoleBadgeList, roleLabel } from '../components/RoleBadge'
 import { usePermissions } from '../auth/usePermissions'
+import { useAdminAuth } from '../auth/AdminAuthContext'
 import { useToast } from '../components/Toast'
 import { confirm } from '../components/ConfirmDialog'
 
@@ -24,6 +25,7 @@ const GRANTABLE_ROLES = [
 
 export function AdminUsers() {
   const { has, roleCodes } = usePermissions()
+  const { user: me } = useAdminAuth()
   const { show } = useToast()
   const [username, setUsername] = useState('')
   const [statusF, setStatusF] = useState<StatusFilter>('')
@@ -140,7 +142,15 @@ export function AdminUsers() {
         rowKey={(u) => u.id}
         columns={[
           { key: 'id', label: 'ID', width: '70px' },
-          { key: 'username', label: '用户名' },
+          { key: 'username', label: '用户名',
+            render: (u) => (
+              <span>
+                {u.username}
+                {me && me.id === u.id && (
+                  <span className="ml-2 px-1.5 py-0.5 rounded bg-primary text-on-primary text-xs font-medium">我</span>
+                )}
+              </span>
+            ) },
           { key: 'displayName', label: '昵称' },
           { key: 'roles', label: '角色', width: '280px',
             render: (u) => <RoleBadgeList codes={u.roles} /> },
@@ -151,22 +161,27 @@ export function AdminUsers() {
               </span>
             ) },
           { key: 'actions', label: '操作', width: '320px',
-            render: (u) => (
-              <div className="flex gap-2">
-                <button onClick={() => openDetail(u)} className="text-primary hover:underline">详情</button>
-                {has('user:disable') && (
-                  <button onClick={() => toggleStatus(u)} className={u.status === 1 ? 'text-error hover:underline' : 'text-success hover:underline'}>
-                    {u.status === 1 ? '禁用' : '启用'}
-                  </button>
-                )}
-                {has('user:reset_password') && (
-                  <button onClick={() => resetPwd(u)} className="text-warning hover:underline">重置密码</button>
-                )}
-                {has('role:grant') && (
-                  <button onClick={() => setGrantFor(u)} className="text-primary hover:underline">授权</button>
-                )}
-              </div>
-            ) },
+            render: (u) => {
+              const isMe = me != null && me.id === u.id
+              return (
+                <div className="flex gap-2">
+                  <button onClick={() => openDetail(u)} className="text-primary hover:underline">详情</button>
+                  {has('user:disable') && (
+                    <button onClick={() => toggleStatus(u)} className={u.status === 1 ? 'text-error hover:underline' : 'text-success hover:underline'}>
+                      {u.status === 1 ? '禁用' : '启用'}
+                    </button>
+                  )}
+                  {has('user:reset_password') && (
+                    <button onClick={() => resetPwd(u)} className="text-warning hover:underline">重置密码</button>
+                  )}
+                  {has('role:grant') && (
+                    isMe
+                      ? <span className="text-on-surface-variant cursor-not-allowed" title="当前账户,禁止授权">授权</span>
+                      : <button onClick={() => setGrantFor(u)} className="text-primary hover:underline">授权</button>
+                  )}
+                </div>
+              )
+            } },
         ]}
         data={data} loading={loading}
         current={page} size={size} total={total}

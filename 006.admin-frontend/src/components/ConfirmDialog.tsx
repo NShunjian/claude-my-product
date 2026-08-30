@@ -50,7 +50,7 @@ export function ConfirmProvider(): ConfirmApi {
 export function ConfirmDialogRender({ api }: { api: ReturnType<typeof ConfirmProvider> }) {
   if (!api.dialog) return null
   return (
-    <div className="fixed inset-0 z-50 bg-black/40 flex items-center justify-center">
+    <div className="fixed inset-0 z-[60] bg-black/40 flex items-center justify-center">
       <div className="bg-bg-card rounded-xl shadow-xl max-w-sm w-full mx-4 p-6">
         <h2 className="text-lg font-bold mb-2">{api.dialog.title}</h2>
         <div className="text-sm text-on-surface-variant mb-6">{api.dialog.body}</div>

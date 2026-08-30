@@ -1,4 +1,5 @@
 import { useEffect, useState } from 'react'
+import { useNavigate } from 'react-router-dom'
 import { ApiError, request } from '../api/client'
 import type {
   AdminGrantRoleRequest, AdminResetPasswordResponse, AdminUpdateUserStatusRequest,
@@ -25,8 +26,9 @@ const GRANTABLE_ROLES = [
 
 export function AdminUsers() {
   const { has, roleCodes } = usePermissions()
-  const { user: me } = useAdminAuth()
+  const { user: me, logout } = useAdminAuth()
   const { show } = useToast()
+  const navigate = useNavigate()
   // 双保险:id 优先,id 缺失/对不上时回退到 username。
   // 防止 /api/admin/auth/me 的 id 字段与 /api/admin/users 的 id 不一致时漏判。
   const isMeRow = (u: AdminUserListItem) =>
@@ -40,8 +42,12 @@ export function AdminUsers() {
   const [loading, setLoading] = useState(true)
   const [detail, setDetail] = useState<AdminUserDetailResponse | null>(null)
   const [grantFor, setGrantFor] = useState<AdminUserListItem | null>(null)
+  // 重置密码 → 持久弹窗(自动消失的 toast 用户看不到密码)
+  const [pwdResult, setPwdResult] = useState<{ username: string; newPassword: string } | null>(null)
 
   const isSuperAdmin = roleCodes.includes('super_admin')
+  // 副超管也有 role:revoke 权限,撤销其他账户的非 super_admin 角色也应显示 ×
+  const canRevokeRole = isSuperAdmin || roleCodes.includes('vice_super_admin')
 
   async function load() {
     setLoading(true)
@@ -59,9 +65,12 @@ export function AdminUsers() {
 
   async function toggleStatus(u: AdminUserListItem) {
     const next = u.status === 1 ? 0 : 1
+    const isSelf = isMeRow(u)
     const ok = await confirm({
       title: next === 0 ? '禁用用户?' : '启用用户?',
-      body: `${u.username} (${u.displayName})`,
+      body: isSelf && next === 0
+        ? `禁用自己后将被强制登出,再次登录会提示账号已禁用。\n${u.username} (${u.displayName})`
+        : `${u.username} (${u.displayName})`,
       danger: next === 0,
     })
     if (!ok) return
@@ -70,14 +79,23 @@ export function AdminUsers() {
         method: 'PATCH',
         body: { enabled: next === 1 } as AdminUpdateUserStatusRequest,
       })
-      show('success', next === 1 ? '已启用' : '已禁用'); load()
+      // 自禁用 → 后端 admin_users.status=0;前端主动清登录态,踢回登录页
+      // 再次登录会落到 loginAdmin 的 ADMIN_USER_DISABLED 分支,Toast 提示"账号已禁用"
+      if (isSelf && next === 0) {
+        logout()
+        show('error', '账号已禁用,请联系超级管理员')
+        navigate('/login', { replace: true })
+        return
+      }
+      show('success', next === 1 ? '已启用' : '已禁用')
+      load()
     } catch (err) { show('error', err instanceof ApiError ? err.message : '操作失败') }
   }
 
   async function resetPwd(u: AdminUserListItem) {
     const ok = await confirm({
       title: '重置密码?',
-      body: `将生成新密码并返回给 ${u.username}`,
+      body: `将生成新密码并显示给操作员(只此一次)。\n${u.username}`,
       danger: true,
     })
     if (!ok) return
@@ -86,7 +104,8 @@ export function AdminUsers() {
         `/api/admin/users/${u.id}/reset-password`,
         { method: 'POST' },
       )
-      show('success', `新密码: ${res.newPassword}`)
+      // 持久弹窗 —— Toast 3 秒自动消失,用户来不及复制密码
+      setPwdResult({ username: u.username, newPassword: res.newPassword })
     } catch (err) { show('error', err instanceof ApiError ? err.message : '操作失败') }
   }
 
@@ -102,14 +121,25 @@ export function AdminUsers() {
   }
 
   async function revokeRole(u: AdminUserListItem, roleCode: string) {
+    const isSelf = isMeRow(u)
+    const willHaveNoRole = u.roles.length <= 1   // 撤销后剩 0 个角色
     const ok = await confirm({
       title: '撤销角色?',
-      body: `${u.username} ← ${roleLabel(roleCode)}`,
+      body: isSelf && willHaveNoRole
+        ? `撤销自己唯一的角色后将被强制登出,再次登录会提示账号没有权限。\n${u.username} ← ${roleLabel(roleCode)}`
+        : `${u.username} ← ${roleLabel(roleCode)}`,
       danger: true,
     })
     if (!ok) return
     try {
       await request(`/api/admin/users/${u.id}/roles/${roleCode}`, { method: 'DELETE' })
+      // 自撤、且撤完后无角色 → 强制登出,下次登录 ADMIN_AUTH_REQUIRED 提示"账号没有任何权限"
+      if (isSelf && willHaveNoRole) {
+        logout()
+        show('error', '账号没有任何权限,请联系超级管理员')
+        navigate('/login', { replace: true })
+        return
+      }
       show('success', '已撤销'); load()
       if (detail && detail.id === u.id) setDetail(null)
     } catch (err) { show('error', err instanceof ApiError ? err.message : '操作失败') }
@@ -167,15 +197,14 @@ export function AdminUsers() {
           { key: 'actions', label: '操作', width: '320px',
             render: (u) => {
               const isMe = isMeRow(u)
-              // 自己 + 已启用 → 不能禁用(后端 ADMIN_PERMISSION_DENIED "不能禁用自己的账号")
-              // 自己 + 已禁用 → 可启用(后端允许自启用)
-              const selfDisableBlocked = isMe && u.status === 1
+              // 有 user:disable 权限的角色(super / 副超管)任何方向都不能改自己的状态(启/禁)
+              const selfStatusBlocked = isMe && canRevokeRole
               return (
                 <div className="flex gap-2">
                   <button onClick={() => openDetail(u)} className="text-primary hover:underline">详情</button>
                   {has('user:disable') && (
-                    selfDisableBlocked
-                      ? <span className="text-on-surface-variant cursor-not-allowed" title="不能禁用自己的账号">禁用</span>
+                    selfStatusBlocked
+                      ? <span className="text-on-surface-variant cursor-not-allowed" title="不能修改自己的账号状态">禁用</span>
                       : <button onClick={() => toggleStatus(u)} className={u.status === 1 ? 'text-error hover:underline' : 'text-success hover:underline'}>
                           {u.status === 1 ? '禁用' : '启用'}
                         </button>
@@ -197,7 +226,8 @@ export function AdminUsers() {
         onPageChange={setPage} onSizeChange={(s) => { setSize(s); setPage(1) }}
       />
 
-      {detail && <UserDetailModal user={detail} isSuperAdmin={isSuperAdmin}
+      {detail && <UserDetailModal user={detail} canRevokeRole={canRevokeRole}
+        meId={me?.id ?? null}
         onClose={() => setDetail(null)}
         onRevoke={(rc) => revokeRole({
           id: detail.id, username: detail.username, displayName: detail.displayName,
@@ -206,13 +236,15 @@ export function AdminUsers() {
         }, rc)} />}
       {grantFor && <GrantRoleModal user={grantFor} isSuperAdmin={isSuperAdmin}
         onClose={() => setGrantFor(null)} onGrant={(rc) => grantRole(grantFor, rc)} />}
+      {pwdResult && <PasswordRevealModal result={pwdResult} onClose={() => setPwdResult(null)} />}
     </div>
   )
 }
 
-function UserDetailModal({ user, isSuperAdmin, onClose, onRevoke }: {
+function UserDetailModal({ user, canRevokeRole, meId, onClose, onRevoke }: {
   user: AdminUserDetailResponse
-  isSuperAdmin: boolean
+  canRevokeRole: boolean
+  meId: number | null
   onClose: () => void
   onRevoke: (roleCode: string) => void
 }) {
@@ -231,8 +263,10 @@ function UserDetailModal({ user, isSuperAdmin, onClose, onRevoke }: {
           {user.roles.length === 0
             ? <span className="text-on-surface-variant">—</span>
             : user.roles.map((r) => {
-              // 不能撤自己的角色
-              const canRevoke = isSuperAdmin && r !== 'super_admin'
+              // 自己行永远不出现 × —— UI 不提供自撤入口,避免误操作把自己变成普通账号
+              // 后端 revokeRole 仍允许自撤(供 DBA / 工具调用),前端 force-logout 流程保留作兜底
+              const isSelf = meId === user.id
+              const canRevoke = canRevokeRole && !isSelf && r !== 'super_admin'
               return (
                 <span key={r} className="inline-flex items-center gap-1 mr-2">
                   <RoleBadgeList codes={[r]} />
@@ -275,6 +309,45 @@ function GrantRoleModal({ user, isSuperAdmin, onClose, onGrant }: {
         <div className="flex justify-end gap-2">
           <button onClick={onClose} className="px-4 py-2 rounded-lg border border-divider">取消</button>
           <button onClick={() => onGrant(rc)} className="px-4 py-2 rounded-lg bg-primary text-on-primary">确定</button>
+        </div>
+      </div>
+    </div>
+  )
+}
+
+/** 重置密码结果 —— 持久弹窗,等用户复制完密码再关闭。
+ *  用 Toast 3 秒会自动消失,密码看不见。 */
+function PasswordRevealModal({ result, onClose }: {
+  result: { username: string; newPassword: string }
+  onClose: () => void
+}) {
+  return (
+    <div className="fixed inset-0 z-50 bg-black/40 flex items-center justify-center" onClick={onClose}>
+      <div className="bg-bg-card rounded-xl shadow-xl max-w-sm w-full mx-4 p-6" onClick={(e) => e.stopPropagation()}>
+        <h2 className="text-lg font-bold mb-2">密码已重置</h2>
+        <p className="text-xs text-on-surface-variant mb-4">
+          请将以下新密码当面转给 <span className="font-medium text-on-surface">{result.username}</span>。
+          该密码仅显示一次,关闭弹窗后无法再次查看,可在「重置密码」重新生成。
+        </p>
+        <div className="flex items-stretch gap-2 mb-4">
+          <input
+            readOnly
+            value={result.newPassword}
+            onFocus={(e) => e.currentTarget.select()}
+            className="flex-1 rounded border border-divider px-3 py-2 font-mono text-sm bg-bg-page"
+          />
+          <button
+            type="button"
+            onClick={() => {
+              navigator.clipboard.writeText(result.newPassword).catch(() => { /* noop */ })
+            }}
+            className="px-3 py-2 rounded border border-divider text-sm hover:bg-bg-page"
+          >
+            复制
+          </button>
+        </div>
+        <div className="text-right">
+          <button onClick={onClose} className="px-4 py-2 rounded-lg bg-primary text-on-primary">关闭</button>
         </div>
       </div>
     </div>

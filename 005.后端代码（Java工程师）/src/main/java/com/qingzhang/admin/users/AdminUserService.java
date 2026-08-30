@@ -286,12 +286,17 @@ public class AdminUserService {
     public Byte updateStatus(long userId, boolean enabled, AdminActor actor) {
         AdminUser u = mustAdminUser(userId);
 
-        // 不能禁自己
-        if (!enabled && u.getId() == actor.userId()) {
+        // 有 user:disable 权限的(超管 / 副超管)不能修改自己的账号状态(任何方向:启用/禁用)
+        // 这两个角色一旦锁死,登录入口就被封,只剩 DBA 能救 —— 必须从另一超管账户救场
+        // 普通 admin / viewer 没有 user:disable 权限,自然不会进到这里
+        if (u.getId() == actor.userId()
+                && (hasRole(actor.userId(), "super_admin") || hasRole(actor.userId(), "vice_super_admin"))) {
+            String action = enabled ? "user.enable" : "user.disable";
+            String verb = enabled ? "启用" : "禁用";
             auditService.recordFailure(actor.userId(), actor.username(),
-                    "user.disable", "user", userId,
-                    "不能禁用自己的账号", actor.ip(), actor.userAgent());
-            throw new BizException(ErrorCode.ADMIN_PERMISSION_DENIED, "不能禁用自己的账号");
+                    action, "user", userId,
+                    "不能" + verb + "自己的账号", actor.ip(), actor.userAgent());
+            throw new BizException(ErrorCode.ADMIN_PERMISSION_DENIED, "不能" + verb + "自己的账号");
         }
 
         // 不能禁最后一个 super_admin
@@ -313,6 +318,8 @@ public class AdminUserService {
         Byte before = u.getStatus();
         u.setStatus((byte) (enabled ? 1 : 0));
         u.setUpdatedAt(Instant.now());
+        // 状态变更 → token_version 自增,作废所有现存 JWT
+        u.setTokenVersion((u.getTokenVersion() == null ? 0L : u.getTokenVersion()) + 1L);
         adminUserMapper.updateById(u);
 
         String action = enabled ? "user.enable" : "user.disable";
@@ -402,6 +409,13 @@ public class AdminUserService {
         // 4. 1-role-per-user:撤销该用户现有的所有角色(同事务)
         List<AdminUserRole> existingLinks = userRoleMapper.selectList(
                 new QueryWrapper<AdminUserRole>().eq("admin_user_id", userId));
+        // 4.1 角色变更 → token_version 自增,作废所有现存 JWT(权限/角色快照变化)
+        AdminUser target = adminUserMapper.selectById(userId);
+        if (target != null) {
+            target.setTokenVersion((target.getTokenVersion() == null ? 0L : target.getTokenVersion()) + 1L);
+            target.setUpdatedAt(Instant.now());
+            adminUserMapper.updateById(target);
+        }
         List<String> beforeRoles = existingLinks.stream()
                 .map((link) -> roleMapper.selectById(link.getRoleId()))
                 .filter(java.util.Objects::nonNull)
@@ -437,13 +451,8 @@ public class AdminUserService {
         }
         // V6 split:userId 现指 admin_users.id
         mustAdminUser(userId);
-        // 通用规则:不能撤销自己的角色 —— super_admin / vice_super_admin / admin / vice_admin / viewer 一律
-        if (actor.userId() == userId) {
-            auditService.recordFailure(actor.userId(), actor.username(),
-                    "user.revoke_role", "user", userId,
-                    "不能撤销自己的角色", actor.ip(), actor.userAgent());
-            throw new BizException(ErrorCode.ADMIN_PERMISSION_DENIED, "不能撤销自己的角色");
-        }
+        // 允许自撤角色 —— 撤完后账号变"无角色普通账号",前端会强制登出,下次登录被 ADMIN_AUTH_REQUIRED 拦下
+        // 唯一的硬约束仍保留:不能撤销最后一个 super_admin(下面)
         AdminRole role = roleMapper.selectOne(
                 new QueryWrapper<AdminRole>().eq("code", roleCode));
         if (role == null) {
@@ -464,6 +473,15 @@ public class AdminUserService {
                 new QueryWrapper<AdminUserRole>()
                         .eq("admin_user_id", userId)
                         .eq("role_id", role.getId()));
+        if (deleted > 0) {
+            // 角色被实际撤销 → token_version 自增,作废所有现存 JWT
+            AdminUser target = adminUserMapper.selectById(userId);
+            if (target != null) {
+                target.setTokenVersion((target.getTokenVersion() == null ? 0L : target.getTokenVersion()) + 1L);
+                target.setUpdatedAt(Instant.now());
+                adminUserMapper.updateById(target);
+            }
+        }
         if (deleted == 0) {
             // 没授权过 —— 不报错,记 audit
             auditService.recordSuccess(actor.userId(), actor.username(),

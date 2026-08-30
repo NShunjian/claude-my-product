@@ -8,6 +8,8 @@ import com.qingzhang.admin.mapper.AdminAuditLogMapper;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Propagation;
+import org.springframework.transaction.annotation.Transactional;
 
 import java.time.Instant;
 import java.util.UUID;
@@ -35,6 +37,7 @@ public class AdminAuditService {
     }
 
     /** 记录一次成功的 admin 操作。before / after 可为 null —— 仅审计"操作存在",无需 diff。 */
+    @Transactional(propagation = Propagation.REQUIRES_NEW, rollbackFor = Exception.class)
     public void recordSuccess(long actorAdminUserId,
                               String actorUsername,
                               String action,
@@ -68,6 +71,7 @@ public class AdminAuditService {
     }
 
     /** 记录一次失败的 admin 操作 (例如尝试改一个不存在的用户)。 */
+    @Transactional(propagation = Propagation.REQUIRES_NEW, rollbackFor = Exception.class)
     public void recordFailure(long actorAdminUserId,
                               String actorUsername,
                               String action,

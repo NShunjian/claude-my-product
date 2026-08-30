@@ -20,6 +20,9 @@ public final class ErrorCode {
     public static final int VALIDATION_FAILED   = 1000;
     public static final int UNAUTHORIZED       = 1401;
 
+    /** 用户模块 (10xx) —— 跨模块复用 */
+    public static final int USER_NOT_FOUND     = 1003;
+
     /** 系统 */
     public static final int INTERNAL           = 9999;
 

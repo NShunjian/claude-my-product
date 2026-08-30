@@ -167,13 +167,18 @@ export function AdminUsers() {
           { key: 'actions', label: '操作', width: '320px',
             render: (u) => {
               const isMe = isMeRow(u)
+              // 自己 + 已启用 → 不能禁用(后端 ADMIN_PERMISSION_DENIED "不能禁用自己的账号")
+              // 自己 + 已禁用 → 可启用(后端允许自启用)
+              const selfDisableBlocked = isMe && u.status === 1
               return (
                 <div className="flex gap-2">
                   <button onClick={() => openDetail(u)} className="text-primary hover:underline">详情</button>
                   {has('user:disable') && (
-                    <button onClick={() => toggleStatus(u)} className={u.status === 1 ? 'text-error hover:underline' : 'text-success hover:underline'}>
-                      {u.status === 1 ? '禁用' : '启用'}
-                    </button>
+                    selfDisableBlocked
+                      ? <span className="text-on-surface-variant cursor-not-allowed" title="不能禁用自己的账号">禁用</span>
+                      : <button onClick={() => toggleStatus(u)} className={u.status === 1 ? 'text-error hover:underline' : 'text-success hover:underline'}>
+                          {u.status === 1 ? '禁用' : '启用'}
+                        </button>
                   )}
                   {has('user:reset_password') && (
                     <button onClick={() => resetPwd(u)} className="text-warning hover:underline">重置密码</button>

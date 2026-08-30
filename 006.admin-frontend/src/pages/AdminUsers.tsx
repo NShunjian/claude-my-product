@@ -14,12 +14,12 @@ import { confirm } from '../components/ConfirmDialog'
 type StatusFilter = '' | '1' | '0'
 
 /** 授权弹窗里的角色选项 —— 按"权限大小"排序
- *  super_admin 排除(API 不能授),但当 actor 自己就是 super_admin 时显示 */
+ *  super_admin 不出现在 API 选项里(账号由 DBA 维护,稳定不变)。
+ *  副超管不能选 vice_super_admin(只有 super_admin 能授)。 */
 const GRANTABLE_ROLES = [
-  { code: 'admin',            label: '管理员' },
-  { code: 'vice_super_admin', label: '副超级管理员' },
-  { code: 'vice_admin',       label: '副管理员' },
-  { code: 'viewer',           label: '只读审计员' },
+  { code: 'admin',             label: '管理员' },
+  { code: 'vice_super_admin',  label: '副超级管理员' },
+  { code: 'viewer',            label: '只读审计员' },
 ]
 
 export function AdminUsers() {
@@ -231,26 +231,23 @@ function GrantRoleModal({ user, isSuperAdmin, onClose, onGrant }: {
   onClose: () => void
   onGrant: (roleCode: string) => void
 }) {
-  // 只有 super_admin 能选 super_admin(transfer 语义);其它角色 super_admin 和 vice_super_admin 都可授
-  // super_admin 不出现在下拉里 —— 它走 transfer,在 detail 里改
+  // super_admin 永远不出现在 API 选项里(账号由 DBA 维护)
+  // 副超管也不能选 vice_super_admin(后端会拒)
   const [rc, setRc] = useState(GRANTABLE_ROLES[0].code)
   const opts = isSuperAdmin
-    ? GRANTABLE_ROLES  // 含 super_admin(其实是 transfer)
-    : GRANTABLE_ROLES.filter((r) => r.code !== 'super_admin')
-  // 副超管授 super_admin 由后端 403,前端只是不显示选项,UX 更干净
+    ? GRANTABLE_ROLES  // super_admin 选 admin / vice_super_admin / viewer
+    : GRANTABLE_ROLES.filter((r) => r.code !== 'vice_super_admin')  // 副超管只能授 admin / viewer
   return (
     <div className="fixed inset-0 z-50 bg-black/40 flex items-center justify-center" onClick={onClose}>
       <div className="bg-bg-card rounded-xl shadow-xl max-w-sm w-full mx-4 p-6" onClick={(e) => e.stopPropagation()}>
         <h2 className="text-lg font-bold mb-3">为 {user.username} 授予角色</h2>
+        <p className="text-xs text-on-surface-variant mb-2">
+          每个账号只能有 1 个角色,授权时会自动撤销该用户现有角色。
+        </p>
         <select value={rc} onChange={(e) => setRc(e.target.value)}
-          className="block w-full rounded border border-divider px-2 py-1 mb-2">
+          className="block w-full rounded border border-divider px-2 py-1 mb-4">
           {opts.map((o) => <option key={o.code} value={o.code}>{o.label} ({o.code})</option>)}
         </select>
-        <p className="text-xs text-on-surface-variant mb-4">
-          {isSuperAdmin
-            ? '选择 super_admin 表示把超级管理员身份转移给该用户(你将自动失去该角色)。'
-            : '副超级管理员不能授予 super_admin 角色。'}
-        </p>
         <div className="flex justify-end gap-2">
           <button onClick={onClose} className="px-4 py-2 rounded-lg border border-divider">取消</button>
           <button onClick={() => onGrant(rc)} className="px-4 py-2 rounded-lg bg-primary text-on-primary">确定</button>

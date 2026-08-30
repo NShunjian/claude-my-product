@@ -1,13 +1,14 @@
 import type { CSSProperties } from 'react'
 
 /**
- * 角色标签 —— 4 种角色对应不同颜色
+ * 角色标签 —— 3 种角色对应不同颜色
  *   super_admin       超级管理员    红
  *   vice_super_admin  副超级管理员  紫
  *   admin             管理员        蓝
- *   vice_admin        副管理员      青
  *   viewer            只读审计员    灰
  *   其它(未知 code)               默认灰
+ *
+ * 副管理员 (vice_admin) 已在 V7 删除。
  */
 
 interface RoleMeta {
@@ -21,7 +22,6 @@ const ROLE_META: Record<string, RoleMeta> = {
   super_admin:       { label: '超级管理员',   color: '#fff', bg: '#dc2626', border: '#b91c1c' }, // 红
   vice_super_admin:  { label: '副超级管理员', color: '#fff', bg: '#7c3aed', border: '#6d28d9' }, // 紫
   admin:             { label: '管理员',       color: '#fff', bg: '#2563eb', border: '#1d4ed8' }, // 蓝
-  vice_admin:        { label: '副管理员',     color: '#fff', bg: '#0891b2', border: '#0e7490' }, // 青
   viewer:            { label: '只读审计员',   color: '#fff', bg: '#6b7280', border: '#4b5563' }, // 灰
 }
 

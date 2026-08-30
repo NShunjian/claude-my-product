@@ -58,7 +58,7 @@ public class JwtUtil {
                         List<String> permissions,
                         List<String> roleCodes,
                         boolean isSuperAdmin) {
-        return issue(userId, permissions, roleCodes, isSuperAdmin, ACTOR_TYPE_USER);
+        return issue(userId, permissions, roleCodes, isSuperAdmin, ACTOR_TYPE_USER, 0L);
     }
 
     /** 给 userId 发 token,带 admin RBAC claims + 指定主体类型。 */
@@ -67,6 +67,16 @@ public class JwtUtil {
                         List<String> roleCodes,
                         boolean isSuperAdmin,
                         String actorType) {
+        return issue(userId, permissions, roleCodes, isSuperAdmin, actorType, 0L);
+    }
+
+    /** 带 tokenVersion 的版本 —— 用于作废旧 token。tokenVersion 0 表示不启用校验(老 token 兜底)。 */
+    public String issue(long userId,
+                        List<String> permissions,
+                        List<String> roleCodes,
+                        boolean isSuperAdmin,
+                        String actorType,
+                        long tokenVersion) {
         Instant now = Instant.now();
         return Jwts.builder()
                 .subject(Long.toString(userId))
@@ -74,6 +84,7 @@ public class JwtUtil {
                 .claim("roleCodes", roleCodes == null ? Collections.emptyList() : roleCodes)
                 .claim("isSuperAdmin", isSuperAdmin)
                 .claim("actorType", actorType == null ? ACTOR_TYPE_USER : actorType)
+                .claim("tokenVersion", tokenVersion)
                 .issuedAt(Date.from(now))
                 .expiration(Date.from(now.plus(expirationDays, ChronoUnit.DAYS)))
                 .signWith(key)
@@ -106,7 +117,11 @@ public class JwtUtil {
             actorType = ACTOR_TYPE_USER;  // 老 token 兜底
         }
 
-        return new JwtClaims(userId, issuedAt, permissions, roleCodes, isSuperAdmin, actorType);
+        // tokenVersion 缺失 → 默认 0(老 token 兜底,DB 中 token_version=0 也不校验)
+        Long tokenVersionObj = claims.get("tokenVersion", Long.class);
+        long tokenVersion = tokenVersionObj == null ? 0L : tokenVersionObj;
+
+        return new JwtClaims(userId, issuedAt, permissions, roleCodes, isSuperAdmin, actorType, tokenVersion);
     }
 
     /** 取出 token 的 iat (签发时间)。失败抛 JwtException。用于 AdminAuthInterceptor 校验时效。 */
@@ -125,5 +140,6 @@ public class JwtUtil {
                             List<String> permissions,
                             List<String> roleCodes,
                             boolean isSuperAdmin,
-                            String actorType) {}
+                            String actorType,
+                            long tokenVersion) {}
 }

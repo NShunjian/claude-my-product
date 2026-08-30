@@ -34,6 +34,7 @@ public class JwtAuthFilter extends OncePerRequestFilter {
     public static final String ROLE_CODES_ATTR     = "roleCodes";
     public static final String IS_SUPER_ADMIN_ATTR = "isSuperAdmin";
     public static final String ACTOR_TYPE_ATTR     = "actorType";
+    public static final String TOKEN_VERSION_ATTR  = "tokenVersion";
 
     private final JwtUtil jwtUtil;
 
@@ -55,6 +56,7 @@ public class JwtAuthFilter extends OncePerRequestFilter {
                 req.setAttribute(ROLE_CODES_ATTR, c.roleCodes());
                 req.setAttribute(IS_SUPER_ADMIN_ATTR, c.isSuperAdmin());
                 req.setAttribute(ACTOR_TYPE_ATTR, c.actorType());
+                req.setAttribute(TOKEN_VERSION_ATTR, c.tokenVersion());
             } catch (Exception ex) {
                 log.warn("[jwt] token 解析失败: {}", ex.getMessage());
             }

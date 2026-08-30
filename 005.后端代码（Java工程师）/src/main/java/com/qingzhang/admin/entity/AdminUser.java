@@ -56,6 +56,10 @@ public class AdminUser {
     /** V1.1 预留:密码过期时间 */
     private Instant passwordExpiresAt;
 
+    /** 每次账号状态 / 角色变更自增;JWT 内 token_version 必须等于该字段,否则视为过期。
+     *  0 表示尚未启用 token 失效机制(老 token 兜底放行)。 */
+    private Long tokenVersion;
+
     private Instant createdAt;
 
     private Instant updatedAt;

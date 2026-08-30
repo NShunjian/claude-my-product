@@ -72,11 +72,16 @@ public class AdminAuthService {
         }
 
         AdminPrincipal principal = permissionService.resolveForAdminUser(u.getId());
+        // 没有角色 = 普通账号,无任何权限 —— 不允许登录后台
+        if (principal.roleCodes().isEmpty()) {
+            throw new BizException(ErrorCode.ADMIN_AUTH_REQUIRED, "账号没有任何权限,请联系超级管理员");
+        }
         List<String> permissions = principal.permissions();
         List<String> roleCodes = principal.roleCodes();
         boolean isSuperAdmin = principal.isSuperAdmin();
+        long tokenVersion = u.getTokenVersion() == null ? 0L : u.getTokenVersion();
 
-        String token = jwtUtil.issue(u.getId(), permissions, roleCodes, isSuperAdmin, JwtUtil.ACTOR_TYPE_ADMIN);
+        String token = jwtUtil.issue(u.getId(), permissions, roleCodes, isSuperAdmin, JwtUtil.ACTOR_TYPE_ADMIN, tokenVersion);
 
         return new AuthResponse(toDto(u), token, permissions, roleCodes, isSuperAdmin);
     }

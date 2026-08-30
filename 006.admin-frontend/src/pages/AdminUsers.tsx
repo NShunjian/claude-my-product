@@ -27,6 +27,10 @@ export function AdminUsers() {
   const { has, roleCodes } = usePermissions()
   const { user: me } = useAdminAuth()
   const { show } = useToast()
+  // 双保险:id 优先,id 缺失/对不上时回退到 username。
+  // 防止 /api/admin/auth/me 的 id 字段与 /api/admin/users 的 id 不一致时漏判。
+  const isMeRow = (u: AdminUserListItem) =>
+    me != null && (me.id === u.id || me.username === u.username)
   const [username, setUsername] = useState('')
   const [statusF, setStatusF] = useState<StatusFilter>('')
   const [page, setPage] = useState(1)
@@ -146,7 +150,7 @@ export function AdminUsers() {
             render: (u) => (
               <span>
                 {u.username}
-                {me && me.id === u.id && (
+                {isMeRow(u) && (
                   <span className="ml-2 px-1.5 py-0.5 rounded bg-primary text-on-primary text-xs font-medium">我</span>
                 )}
               </span>
@@ -162,7 +166,7 @@ export function AdminUsers() {
             ) },
           { key: 'actions', label: '操作', width: '320px',
             render: (u) => {
-              const isMe = me != null && me.id === u.id
+              const isMe = isMeRow(u)
               return (
                 <div className="flex gap-2">
                   <button onClick={() => openDetail(u)} className="text-primary hover:underline">详情</button>

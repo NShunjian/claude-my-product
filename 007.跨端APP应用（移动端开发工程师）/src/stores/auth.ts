@@ -40,5 +40,5 @@ export const useAuthStore = defineStore('auth', () => {
 
   onAuthInvalid(onInvalid)
 
-  return { token, user, login, me, logout, onInvalid }
+  return { token, user, login, me, logout, onInvalid, refreshUser: me }
 })

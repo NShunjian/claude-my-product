@@ -29,7 +29,7 @@ export function AdminCategories() {
       const qs = new URLSearchParams({ page: String(page), size: String(size) })
       if (name) qs.set('name', name)
       if (typeF) qs.set('type', typeF)
-      const p = await request<Page<AdminCategoryListItem>>(`/api/admin/categories/preset?${qs}`)
+      const p = await request<Page<AdminCategoryListItem>>(`/api/admin/categories?${qs}`)
       setData(p.records); setTotal(p.total)
     } catch (err) { show('error', err instanceof ApiError ? err.message : '加载失败') }
     finally { setLoading(false) }
@@ -40,14 +40,14 @@ export function AdminCategories() {
     const ok = await confirm({ title: '删除分类?', body: `${c.name} (${c.type})`, danger: true })
     if (!ok) return
     try {
-      await request(`/api/admin/categories/preset/${c.id}`, { method: 'DELETE' })
+      await request(`/api/admin/categories/${c.id}`, { method: 'DELETE' })
       show('success', '已删除'); load()
     } catch (err) { show('error', err instanceof ApiError ? err.message : '删除失败') }
   }
 
   async function toggleActive(c: AdminCategoryListItem) {
     try {
-      await request(`/api/admin/categories/preset/${c.id}/status`, {
+      await request(`/api/admin/categories/${c.id}/status`, {
         method: 'PATCH',
         body: { enabled: !c.isActive } as AdminUpdateUserStatusRequest,
       })
@@ -145,9 +145,9 @@ function CategoryForm({ existing, onClose, onSaved }: {
         sortOrder: sortOrder ? Number(sortOrder) : undefined,
       }
       if (existing) {
-        await request(`/api/admin/categories/preset/${existing.id}`, { method: 'PATCH', body })
+        await request(`/api/admin/categories/${existing.id}`, { method: 'PATCH', body })
       } else {
-        await request(`/api/admin/categories/preset`, { method: 'POST', body })
+        await request(`/api/admin/categories`, { method: 'POST', body })
       }
       show('success', '已保存'); onSaved()
     } catch (err) { show('error', err instanceof ApiError ? err.message : '保存失败') }

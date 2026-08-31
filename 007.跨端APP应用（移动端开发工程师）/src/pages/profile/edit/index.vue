@@ -57,64 +57,66 @@ async function handleSaveProfile() {
 const avatarPreview = ref<string | null>(null)
 const avatarMsg = ref<{ kind: 'ok' | 'err'; text: string } | null>(null)
 const savingAvatar = ref(false)
-let fileInput: HTMLInputElement | null = null
 
+/** 跨平台选择图片并压缩为 base64（匹配 React compressAvatar 行为） */
 function triggerAvatarInput() {
-  // 创建隐藏的 file input
-  if (!fileInput) {
-    fileInput = document.createElement('input')
-    fileInput.type = 'file'
-    fileInput.accept = 'image/png,image/jpeg,image/webp'
-    fileInput.onchange = handleAvatarFileChange
-    document.body.appendChild(fileInput)
-  }
-  fileInput.click()
+  uni.chooseImage({
+    count: 1,
+    sizeType: ['compressed'],
+    sourceType: ['album', 'camera'],
+    success: (res) => {
+      const tempFilePath = res.tempFilePaths[0]
+      readAvatarBase64(tempFilePath)
+        .then((dataUrl) => {
+          avatarPreview.value = dataUrl
+          avatarMsg.value = { kind: 'ok', text: t(lang, 'profileEdit.avatarPreviewReady') }
+        })
+        .catch((err: any) => {
+          avatarMsg.value = {
+            kind: 'err',
+            text: err?.message ?? t(lang, 'profileEdit.avatarProcessFailDefault'),
+          }
+        })
+    },
+    fail: () => {
+      // user cancelled — no-op
+    },
+  })
 }
 
-async function handleAvatarFileChange(e: Event) {
-  avatarMsg.value = null
-  const target = e.target as HTMLInputElement
-  const file = target.files?.[0]
-  target.value = '' // reset for re-select
-  if (!file) return
-  if (!file.type.startsWith('image/')) {
-    avatarMsg.value = { kind: 'err', text: t(lang, 'profileEdit.avatarInvalidType') }
-    return
-  }
-  try {
-    const dataUrl = await compressAvatar(file)
-    avatarPreview.value = dataUrl
-    avatarMsg.value = { kind: 'ok', text: t(lang, 'profileEdit.avatarPreviewReady') }
-  } catch (err: any) {
-    avatarMsg.value = { kind: 'err', text: err?.message ?? t(lang, 'profileEdit.avatarProcessFailDefault') }
-  }
-}
-
-/** 把 File 缩放到 128x128 JPEG(0.85)，输出 base64 dataURL */
-function compressAvatar(file: File): Promise<string> {
+/**
+ * 读取本地图片为 base64 dataURL。
+ * - H5: XMLHttpRequest → FileReader（与 React compressAvatar 行为一致）
+ * - native/app: uni.getFileSystemManager().readFile（canvas 跨平台不可用）
+ */
+function readAvatarBase64(tempFilePath: string): Promise<string> {
   return new Promise((resolve, reject) => {
-    const reader = new FileReader()
-    reader.onerror = () => reject(new Error(t(lang, 'profileEdit.avatarReadFail')))
-    reader.onload = () => {
-      const img = new Image()
-      img.onerror = () => reject(new Error(t(lang, 'profileEdit.avatarParseFail')))
-      img.onload = () => {
-        const canvas = document.createElement('canvas')
-        const MAX = 128
-        const ratio = Math.min(MAX / img.width, MAX / img.height, 1)
-        canvas.width = Math.max(1, Math.round(img.width * ratio))
-        canvas.height = Math.max(1, Math.round(img.height * ratio))
-        const ctx = canvas.getContext('2d')
-        if (!ctx) {
-          reject(new Error(t(lang, 'profileEdit.avatarCanvasFail')))
-          return
-        }
-        ctx.drawImage(img, 0, 0, canvas.width, canvas.height)
-        resolve(canvas.toDataURL('image/jpeg', 0.85))
+    // #ifdef H5
+    const xhr = new XMLHttpRequest()
+    xhr.open('GET', tempFilePath, true)
+    xhr.responseType = 'blob'
+    xhr.onload = () => {
+      if (xhr.status === 200) {
+        const reader = new FileReader()
+        reader.onload = () => resolve(reader.result as string)
+        reader.onerror = () => reject(new Error(t(lang, 'profileEdit.avatarReadFail')))
+        reader.readAsDataURL(xhr.response)
+      } else {
+        reject(new Error(t(lang, 'profileEdit.avatarReadFail')))
       }
-      img.src = String(reader.result)
     }
-    reader.readAsDataURL(file)
+    xhr.onerror = () => reject(new Error(t(lang, 'profileEdit.avatarReadFail')))
+    xhr.send()
+    // #endif
+
+    // #ifndef H5
+    uni.getFileSystemManager().readFile({
+      filePath: tempFilePath,
+      encoding: 'base64',
+      success: (r) => resolve(`data:image/jpeg;base64,${r.data}`),
+      fail: () => reject(new Error(t(lang, 'profileEdit.avatarReadFail'))),
+    })
+    // #endif
   })
 }
 

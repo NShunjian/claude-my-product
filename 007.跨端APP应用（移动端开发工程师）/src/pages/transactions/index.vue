@@ -119,6 +119,24 @@ async function remove(id: string) {
 
 watch(filterMonth, load)
 onMounted(load)
+
+function onMonthChange(e: any) {
+  filterMonth.value = months[Number(e.detail.value)]
+}
+
+function onCategoryChange(e: any) {
+  const idx = Number(e.detail.value)
+  categoryIndex.value = idx
+  const list = [{ id: 'all', name: t('transactions.allCategories') }, ...allCats.value]
+  filterCategory.value = list[idx]?.id ?? 'all'
+}
+
+function onAccountChange(e: any) {
+  const idx = Number(e.detail.value)
+  accountIndex.value = idx
+  const list = [{ id: 'all', name: t('transactions.allAccounts') }, ...accounts.value]
+  filterAccount.value = list[idx]?.id ?? 'all'
+}
 </script>
 
 <template>
@@ -128,13 +146,13 @@ onMounted(load)
       <view class="filter-card">
         <text class="filter-title">{{ t('transactions.filterLabel') }}</text>
         <view class="filter-selects">
-          <picker mode="selector" :range="months" :value="months.indexOf(filterMonth)" :range-text="months.map(formatMonthLabel)" @change="(e: any) => filterMonth = months[Number(e.detail.value)]">
+          <picker mode="selector" :range="months" :value="months.indexOf(filterMonth)" :range-text="months.map(formatMonthLabel)" @change="onMonthChange">
             <view class="select-box">{{ formatMonthLabel(filterMonth) }} ▼</view>
           </picker>
-          <picker mode="selector" :range="[{ id: 'all', name: t('transactions.allCategories') }, ...allCats]" range-key="name" :value="categoryIndex" @change="(e: any) => { categoryIndex = Number(e.detail.value); filterCategory = [{ id: 'all', name: t('transactions.allCategories') }, ...allCats][categoryIndex]?.id ?? 'all' }">
+          <picker mode="selector" :range="[{ id: 'all', name: t('transactions.allCategories') }, ...allCats]" range-key="name" :value="categoryIndex" @change="onCategoryChange">
             <view class="select-box">{{ (([{ id: 'all', name: t('transactions.allCategories') }, ...allCats].find(c => c.id === filterCategory))?.name) || t('transactions.allCategories') }} ▼</view>
           </picker>
-          <picker mode="selector" :range="[{ id: 'all', name: t('transactions.allAccounts') }, ...accounts]" range-key="name" :value="accountIndex" @change="(e: any) => { accountIndex = Number(e.detail.value); filterAccount = [{ id: 'all', name: t('transactions.allAccounts') }, ...accounts][accountIndex]?.id ?? 'all' }">
+          <picker mode="selector" :range="[{ id: 'all', name: t('transactions.allAccounts') }, ...accounts]" range-key="name" :value="accountIndex" @change="onAccountChange">
             <view class="select-box">{{ (([{ id: 'all', name: t('transactions.allAccounts') }, ...accounts].find(a => a.id === filterAccount))?.name) || t('transactions.allAccounts') }} ▼</view>
           </picker>
         </view>

@@ -14,10 +14,12 @@ const lang  = useLanguageStore()
 onLaunch(async () => {
   theme.applySystemListener()
   lang.hydrate()
-  if (auth.token) {
-    try { await auth.me() } catch { /* token invalid → reLaunch /login */ }
-    try { await book.reload() } catch { /* 容忍 */ }
+  if (!auth.token) {
+    uni.reLaunch({ url: '/pages/login/index' })
+    return
   }
+  try { await auth.me() } catch { return }
+  try { await book.reload() } catch { /* 容忍 */ }
 })
 </script>
 

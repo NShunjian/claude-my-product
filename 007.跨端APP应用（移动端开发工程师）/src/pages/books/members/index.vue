@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { ref, onMounted } from 'vue'
+import { ref, computed, onMounted } from 'vue'
 import { useLanguage } from '@/i18n/useLanguage'
 import { useToastStore } from '@/stores/toast'
 import { useBookStore } from '@/stores/book'
@@ -29,7 +29,7 @@ const currentUserUuid = ref<string>('')
 
 onMounted(async () => {
   const pages = getCurrentPages()
-  const current = pages[current.length - 1] as any
+  const current = pages[pages.length - 1] as any
   const id = current?.options?.id ?? current?.data?.id ?? ''
   if (!id) { error.value = 'Missing book id'; return }
   bookUuid.value = id
@@ -63,7 +63,7 @@ async function load() {
   }
 }
 
-const isOwner = ref(false)
+const isOwner = computed(() => book.value?.role === 'owner')
 
 async function handleInvite() {
   if (!inviteUsername.value.trim()) return

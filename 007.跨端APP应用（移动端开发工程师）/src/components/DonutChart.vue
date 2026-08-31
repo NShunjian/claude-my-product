@@ -2,11 +2,15 @@
 import { computed } from 'vue'
 
 interface Segment { label: string; value: number; color: string }
-const props = defineProps<{
+const props = withDefaults(defineProps<{
   segments: Segment[]
   totalLabel?: string
   totalValue: string
-}>()
+}>(), {
+  totalLabel: '',
+  size: 200,
+  strokeWidth: 24,
+})
 
 const radius = 70
 const inner = 40

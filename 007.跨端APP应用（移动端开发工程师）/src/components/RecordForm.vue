@@ -18,6 +18,7 @@ const toast = useToastStore()
 const accounts = ref<Account[]>([])
 const cats = ref<Category[]>([])
 const accountId = ref<string>('')
+const toAccountId = ref<string>('')
 const categoryId = ref<string>('')
 const date = ref<string>(new Date().toISOString().slice(0, 10))
 const amount = ref<string>('')
@@ -29,6 +30,7 @@ async function load() {
   accounts.value = await accountsApi.listAccounts({ bookId: book.current.uuid })
   cats.value = await categoriesApi.listCategories(props.type === 'transfer' ? 'expense' : props.type as 'expense' | 'income')
   if (accounts.value.length && !accountId.value) accountId.value = accounts.value[0].id
+  if (accounts.value.length > 1 && !toAccountId.value) toAccountId.value = accounts.value[1]?.id ?? accounts.value[0].id
 }
 
 watch(() => book.current?.uuid, load, { immediate: true })
@@ -43,6 +45,16 @@ async function save() {
     toast.show('请选择账户')
     return
   }
+  if (props.type === 'transfer') {
+    if (!toAccountId.value) {
+      toast.show('请选择目标账户')
+      return
+    }
+    if (toAccountId.value === accountId.value) {
+      toast.show('转出账户和转入账户不能相同')
+      return
+    }
+  }
   if (props.type !== 'transfer' && !categoryId.value) {
     toast.show('请选择分类')
     return
@@ -52,6 +64,7 @@ async function save() {
     await recordsApi.createRecord({
       bookId: book.current.uuid,
       accountId: accountId.value,
+      toAccountId: props.type === 'transfer' ? toAccountId.value : undefined,
       categoryId: props.type === 'transfer' ? undefined : categoryId.value,
       type: props.type,
       amount: Number(amount.value),
@@ -82,6 +95,12 @@ async function save() {
       <text class="label">账户</text>
       <picker mode="selector" :range="accounts" range-key="name" :value="accounts.findIndex(a => a.id === accountId)" @change="(e: any) => accountId = accounts[Number(e.detail.value)].id">
         <view class="picker">{{ accounts.find(a => a.id === accountId)?.name ?? '选择账户' }}</view>
+      </picker>
+    </view>
+    <view class="field" v-if="type === 'transfer'">
+      <text class="label">目标账户</text>
+      <picker mode="selector" :range="accounts" range-key="name" :value="accounts.findIndex(a => a.id === toAccountId)" @change="(e: any) => toAccountId = accounts[Number(e.detail.value)].id">
+        <view class="picker">{{ accounts.find(a => a.id === toAccountId)?.name ?? '选择目标账户' }}</view>
       </picker>
     </view>
     <view class="field" v-if="type !== 'transfer'">

@@ -39,7 +39,7 @@ export async function login(input: Credentials): Promise<AuthResponse> {
 }
 
 /** 后端 /api/auth/me 的 data 部分:User 本身(不再包一层)。 */
-export async function me(): Promise<User> {
+export async function me(_options?: { signal?: AbortSignal }): Promise<User> {
   return request<User>('/api/auth/me', { method: 'GET' })
 }
 

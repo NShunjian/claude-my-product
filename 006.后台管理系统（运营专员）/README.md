@@ -19,7 +19,7 @@
 
 **手动启动:**
 ```bash
-cd 006.admin-frontend
+cd "006.后台管理系统（运营专员）"
 npm install
 cp .env.example .env.local        # 设置 VITE_API_BASE
 npm run dev                        # 启动 → http://localhost:5174

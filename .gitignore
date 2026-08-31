@@ -24,4 +24,4 @@ __pycache__/
 # 环境变量 (含真值/本机覆盖)
 .env
 .env.local
-006.admin-frontend/.env.local
+006.后台管理系统（运营专员）/.env.local

@@ -20,7 +20,7 @@ qz_root() {
 ROOT="$(qz_root)"
 BACKEND_DIR="$ROOT/005.后端代码（Java工程师）"
 FRONTEND_DIR="$ROOT/003.前端代码（前端工程师）/frontend-react-java"
-ADMIN_FRONTEND_DIR="$ROOT/006.admin-frontend"
+ADMIN_FRONTEND_DIR="$ROOT/006.后台管理系统（运营专员）"
 
 # === 环境变量:source 仓库根 .env(若存在) ===
 # 首次启动需配置 ADMIN_BOOTSTRAP_USERNAME / ADMIN_BOOTSTRAP_PASSWORD,

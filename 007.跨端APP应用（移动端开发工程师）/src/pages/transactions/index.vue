@@ -39,6 +39,8 @@ function formatMonthLabel(m: string): string {
 const filterMonth = ref(currentMonth())
 const filterCategory = ref('all')
 const filterAccount = ref('all')
+const categoryIndex = ref(0)
+const accountIndex = ref(0)
 
 const records = ref<Record[]>([])
 const accounts = ref<Account[]>([])
@@ -129,10 +131,10 @@ onMounted(load)
           <picker mode="selector" :range="months" :value="months.indexOf(filterMonth)" :range-text="months.map(formatMonthLabel)" @change="(e: any) => filterMonth = months[Number(e.detail.value)]">
             <view class="select-box">{{ formatMonthLabel(filterMonth) }} ▼</view>
           </picker>
-          <picker mode="selector" :range="[{ id: 'all', name: t('transactions.allCategories') }, ...allCats]" range-key="name" :value="0" @change="(e: any) => filterCategory = [{ id: 'all', name: t('transactions.allCategories') }, ...allCats][Number(e.detail.value)]?.id ?? 'all'">
+          <picker mode="selector" :range="[{ id: 'all', name: t('transactions.allCategories') }, ...allCats]" range-key="name" :value="categoryIndex" @change="(e: any) => { categoryIndex = Number(e.detail.value); filterCategory = [{ id: 'all', name: t('transactions.allCategories') }, ...allCats][categoryIndex]?.id ?? 'all' }">
             <view class="select-box">{{ (([{ id: 'all', name: t('transactions.allCategories') }, ...allCats].find(c => c.id === filterCategory))?.name) || t('transactions.allCategories') }} ▼</view>
           </picker>
-          <picker mode="selector" :range="[{ id: 'all', name: t('transactions.allAccounts') }, ...accounts]" range-key="name" :value="0" @change="(e: any) => filterAccount = [{ id: 'all', name: t('transactions.allAccounts') }, ...accounts][Number(e.detail.value)]?.id ?? 'all'">
+          <picker mode="selector" :range="[{ id: 'all', name: t('transactions.allAccounts') }, ...accounts]" range-key="name" :value="accountIndex" @change="(e: any) => { accountIndex = Number(e.detail.value); filterAccount = [{ id: 'all', name: t('transactions.allAccounts') }, ...accounts][accountIndex]?.id ?? 'all' }">
             <view class="select-box">{{ (([{ id: 'all', name: t('transactions.allAccounts') }, ...accounts].find(a => a.id === filterAccount))?.name) || t('transactions.allAccounts') }} ▼</view>
           </picker>
         </view>

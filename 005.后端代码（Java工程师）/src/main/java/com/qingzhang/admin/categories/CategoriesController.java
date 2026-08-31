@@ -49,9 +49,10 @@ public class CategoriesController {
     @GetMapping
     @RequiresPermission("category:preset:list")
     public ApiResponse<Page<AdminCategoryListItem>> list(@RequestParam(required = false) String type,
+                                                         @RequestParam(required = false) String name,
                                                          @RequestParam(defaultValue = "1") long page,
                                                          @RequestParam(defaultValue = "20") long size) {
-        return ApiResponse.ok(service.list(type, page, size));
+        return ApiResponse.ok(service.list(type, name, page, size));
     }
 
     @PostMapping

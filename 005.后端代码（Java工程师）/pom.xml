@@ -23,7 +23,7 @@
         <mybatis-plus.version>3.5.9</mybatis-plus.version>
         <dynamic-datasource.version>4.5.0</dynamic-datasource.version>
         <flyway.version>10.20.1</flyway.version>
-        <lombok.version>1.18.42</lombok.version>
+        <lombok.version>1.18.46</lombok.version>
     </properties>
 
     <dependencies>

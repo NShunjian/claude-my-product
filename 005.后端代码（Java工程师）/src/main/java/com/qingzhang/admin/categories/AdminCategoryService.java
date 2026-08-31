@@ -41,8 +41,8 @@ public class AdminCategoryService {
         this.auditService = auditService;
     }
 
-    /** 列预设分类 —— 可按 type 过滤,分页。 */
-    public Page<AdminCategoryListItem> list(String type, long page, long size) {
+    /** 列预设分类 —— 可按 type / name 过滤,分页。 */
+    public Page<AdminCategoryListItem> list(String type, String name, long page, long size) {
         long p = Math.max(1, page);
         long s = Math.min(Math.max(1, size), 100);
 
@@ -52,6 +52,9 @@ public class AdminCategoryService {
                 .isNull("book_id");
         if (type != null && !type.isBlank()) {
             q.eq("type", type.trim());
+        }
+        if (name != null && !name.isBlank()) {
+            q.like("name", name.trim());
         }
         q.orderByAsc("sort_order").orderByAsc("id");
 

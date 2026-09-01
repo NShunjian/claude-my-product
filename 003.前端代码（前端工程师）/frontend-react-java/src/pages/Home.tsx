@@ -1,8 +1,9 @@
-import { useMemo } from 'react'
+import { useMemo, useState } from 'react'
 import { Link } from 'react-router-dom'
 import { usePageTitle, usePageBack } from '../components/PageTitleContext'
 import { TransactionRow } from '../components/TransactionRow'
 import { CategoryBreakdown } from '../components/CategoryBreakdown'
+import { MonthPicker } from '../components/MonthPicker'
 import { useAccounts, useCategories, useRecords } from '../lib/hooks'
 import { toAccounts, toCategories, toTransactions } from '../lib/finance-mappers'
 import { useLanguage } from '../i18n/LanguageContext'
@@ -32,9 +33,15 @@ function currentMonthYYYYMM(): string {
   return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}`
 }
 
-function currentMonthLabel(): string {
-  const d = new Date()
-  return `${d.getMonth() + 1}月 ${d.getFullYear()}`
+function shiftMonth(month: string, delta: number): string {
+  const [y, m] = month.split('-').map(Number)
+  const d = new Date(y, m - 1 + delta, 1)
+  return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}`
+}
+
+function formatMonthLabel(month: string): string {
+  const [y, m] = month.split('-')
+  return `${y} 年 ${parseInt(m, 10)} 月`
 }
 
 export function Home() {
@@ -42,8 +49,18 @@ export function Home() {
   usePageTitle(t('pageTitle.home'))
   usePageBack(null)
 
-  const month = useMemo(currentMonthYYYYMM, [])
+  const [month, setMonth] = useState(currentMonthYYYYMM)
   const today = useMemo(() => new Date(), [])
+
+  const yearOptions = useMemo(() => {
+    const cur = new Date().getFullYear()
+    const years: number[] = []
+    for (let y = 2020; y <= cur + 2; y++) years.push(y)
+    return years
+  }, [])
+
+  function goPrev() { setMonth((m) => shiftMonth(m, -1)) }
+  function goNext() { setMonth((m) => shiftMonth(m, 1)) }
 
   const accountsQ = useAccounts()
   const expenseCatsQ = useCategories('expense')
@@ -113,12 +130,46 @@ export function Home() {
 
   return (
     <div className="space-y-6">
-      <div className="flex justify-between items-end">
+      <div className="flex flex-wrap items-center justify-between gap-4">
         <div>
           <h2 className="font-display-lg text-display-lg text-text-primary mb-1">{t('home.overview')}</h2>
-          <div className="flex items-center gap-2 text-on-surface-variant font-headline-md text-headline-md">
-            <span>{currentMonthLabel()}</span>
-          </div>
+          <p className="font-body-md text-body-md text-on-surface-variant">
+            {formatMonthLabel(month)}
+          </p>
+        </div>
+        <div className="flex items-center gap-2 px-4 py-2 rounded-xl bg-bg-card border border-divider">
+          <button
+            type="button"
+            onClick={goPrev}
+            aria-label={t('home.prevMonth')}
+            className="text-on-surface-variant hover:text-primary transition-colors"
+          >
+            <span className="material-symbols-outlined" style={{ fontSize: '20px' }}>
+              chevron_left
+            </span>
+          </button>
+          <MonthPicker
+            value={month}
+            onChange={setMonth}
+            yearOptions={yearOptions}
+            displayTemplate={t('home.monthYear')}
+            triggerLabel={t('home.pickMonth')}
+            labels={{
+              yearLabel: t('home.picker.yearLabel'),
+              clear: t('home.picker.clear'),
+              thisMonth: t('home.picker.thisMonth'),
+            }}
+          />
+          <button
+            type="button"
+            onClick={goNext}
+            aria-label={t('home.nextMonth')}
+            className="text-on-surface-variant hover:text-primary transition-colors"
+          >
+            <span className="material-symbols-outlined" style={{ fontSize: '20px' }}>
+              chevron_right
+            </span>
+          </button>
         </div>
       </div>
 

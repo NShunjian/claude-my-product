@@ -172,6 +172,22 @@ const yearOptions = computed(() =>
 function pickYear(e: any) {
   filterYear.value = yearOptions.value[Number(e.detail.value)]
 }
+
+// 年报柱状图:点击柱子弹气泡提示(对齐 React 的 title 文案,但走 tap 而非 hover)
+const hoverIncomeIdx = ref<number | null>(null)
+const hoverExpenseIdx = ref<number | null>(null)
+let incomeTimer: ReturnType<typeof setTimeout> | null = null
+let expenseTimer: ReturnType<typeof setTimeout> | null = null
+function onIncomeTap(i: number) {
+  hoverIncomeIdx.value = i
+  if (incomeTimer) clearTimeout(incomeTimer)
+  incomeTimer = setTimeout(() => { hoverIncomeIdx.value = null; incomeTimer = null }, 2000)
+}
+function onExpenseTap(i: number) {
+  hoverExpenseIdx.value = i
+  if (expenseTimer) clearTimeout(expenseTimer)
+  expenseTimer = setTimeout(() => { hoverExpenseIdx.value = null; expenseTimer = null }, 2000)
+}
 </script>
 
 <template>
@@ -252,26 +268,24 @@ function pickYear(e: any) {
       </view>
 
       <view class="card">
-        <text class="card-title">{{ t('reportMonthly.dailyTrend') }}</text>
-        <view class="chart-legend">
-          <view class="legend-item"><view class="dot income-dot" />{{ t('chart.line.income') }}</view>
-          <view class="legend-item"><view class="dot expense-dot" />{{ t('chart.line.expense') }}</view>
+        <view class="chart-header">
+          <text class="chart-title">{{ t('reportMonthly.dailyTrend') }}</text>
+          <view class="chart-legend">
+            <view class="legend-item"><view class="legend-dot income-line" />{{ t('chart.line.income') }}</view>
+            <view class="legend-item"><view class="legend-dot expense-line" />{{ t('chart.line.expense') }}</view>
+          </view>
         </view>
         <view v-if="monthlyLoading" class="loading">{{ t('common.loading') }}</view>
-        <LineChart v-else :data="dailyData" />
+        <LineChart v-else :data="dailyData" :smoothWindow="1" />
       </view>
 
-      <view class="two-col">
-        <view class="card">
-          <text class="card-title">{{ t('reportMonthly.incomeShare') }}</text>
-          <view v-if="incomeDonutSegments.length === 0" class="empty-sm">{{ t('reportMonthly.noIncomeRecords') }}</view>
-          <DonutChart v-else :segments="incomeDonutSegments" :total-value="`¥${Math.round(monthlyTotalIncome / 1000)}k`" />
-        </view>
-        <view class="card">
-          <text class="card-title">{{ t('reportMonthly.incomeRanking') }}</text>
-          <view v-if="incomeRanking.length === 0" class="empty-sm">{{ t('reportMonthly.noIncomeRecords') }}</view>
-          <view v-else class="cat-list">
-            <view v-for="cat in incomeRanking" :key="cat.categoryId" class="cat-row">
+      <view class="card">
+        <text class="card-title">{{ t('reportMonthly.incomeShare') }}</text>
+        <view v-if="incomeDonutSegments.length === 0" class="empty-sm">{{ t('reportMonthly.noIncomeRecords') }}</view>
+        <DonutChart v-else :segments="incomeDonutSegments" :total-value="`¥${formatAmount(monthlyTotalIncome, false)}`" :hide-legend="true" />
+        <view v-if="incomeRanking.length > 0" class="cat-list">
+          <view v-for="cat in incomeRanking" :key="cat.categoryId" class="cat-item">
+            <view class="cat-row">
               <view class="cat-icon" :style="{ background: cat.pres.color + '22' }">
                 <text class="cat-icon-text" :style="{ color: cat.pres.color }">{{ cat.pres.icon }}</text>
               </view>
@@ -281,21 +295,20 @@ function pickYear(e: any) {
                 <text class="cat-pct">{{ monthlyTotalIncome > 0 ? ((cat.total / monthlyTotalIncome) * 100).toFixed(0) : 0 }}%</text>
               </view>
             </view>
+            <view class="cat-bar">
+              <view class="cat-bar-fill" :style="{ width: (monthlyTotalIncome > 0 ? (cat.total / monthlyTotalIncome) * 100 : 0) + '%', background: cat.pres.color }" />
+            </view>
           </view>
         </view>
       </view>
 
-      <view class="two-col">
-        <view class="card">
-          <text class="card-title">{{ t('reportMonthly.expenseShare') }}</text>
-          <view v-if="expenseDonutSegments.length === 0" class="empty-sm">{{ t('reportMonthly.noExpenseRecords') }}</view>
-          <DonutChart v-else :segments="expenseDonutSegments" :total-value="`¥${Math.round(monthlyTotalExpense / 1000)}k`" />
-        </view>
-        <view class="card">
-          <text class="card-title">{{ t('reportMonthly.expenseRanking') }}</text>
-          <view v-if="expenseRanking.length === 0" class="empty-sm">{{ t('reportMonthly.noExpenseRecords') }}</view>
-          <view v-else class="cat-list">
-            <view v-for="cat in expenseRanking" :key="cat.categoryId" class="cat-row">
+      <view class="card">
+        <text class="card-title">{{ t('reportMonthly.expenseShare') }}</text>
+        <view v-if="expenseDonutSegments.length === 0" class="empty-sm">{{ t('reportMonthly.noExpenseRecords') }}</view>
+        <DonutChart v-else :segments="expenseDonutSegments" :total-value="`¥${formatAmount(monthlyTotalExpense, false)}`" :hide-legend="true" />
+        <view v-if="expenseRanking.length > 0" class="cat-list">
+          <view v-for="cat in expenseRanking" :key="cat.categoryId" class="cat-item">
+            <view class="cat-row">
               <view class="cat-icon" :style="{ background: cat.pres.color + '22' }">
                 <text class="cat-icon-text" :style="{ color: cat.pres.color }">{{ cat.pres.icon }}</text>
               </view>
@@ -304,6 +317,9 @@ function pickYear(e: any) {
                 <text class="cat-amount">¥{{ formatAmount(cat.total, false) }}</text>
                 <text class="cat-pct">{{ monthlyTotalExpense > 0 ? ((cat.total / monthlyTotalExpense) * 100).toFixed(0) : 0 }}%</text>
               </view>
+            </view>
+            <view class="cat-bar">
+              <view class="cat-bar-fill" :style="{ width: (monthlyTotalExpense > 0 ? (cat.total / monthlyTotalExpense) * 100 : 0) + '%', background: cat.pres.color }" />
             </view>
           </view>
         </view>
@@ -373,31 +389,64 @@ function pickYear(e: any) {
             <view class="legend-item"><view class="dot expense-dot" />{{ t('chart.line.expense') }}</view>
           </view>
           <view v-if="yearlyLoading" class="loading">{{ t('common.loading') }}</view>
-          <scroll-view v-else scroll-x class="bar-scroll">
+          <view v-else class="bar-scroll">
             <view class="bar-chart">
               <view v-for="(d, i) in yearlyMonthlyData" :key="i" class="bar-col">
                 <view class="bar-group">
-                  <view class="bar bar-income" :style="{ height: (yAxisMax > 0 ? (d.income / yAxisMax) * 160 : 0) + 'rpx' }" />
-                  <view class="bar bar-expense" :style="{ height: (yAxisMax > 0 ? (d.expense / yAxisMax) * 160 : 0) + 'rpx' }" />
+                  <view class="bar bar-income"
+                        :style="{ height: (yAxisMax > 0 ? (d.income / yAxisMax) * 160 : 0) + 'rpx' }"
+                        :title="`${t('chart.line.income')} ¥${formatAmount(d.income, false)}`"
+                        @tap.stop="onIncomeTap(i)" />
+                  <view class="bar bar-expense"
+                        :style="{ height: (yAxisMax > 0 ? (d.expense / yAxisMax) * 160 : 0) + 'rpx' }"
+                        :title="`${t('chart.line.expense')} ¥${formatAmount(d.expense, false)}`"
+                        @tap.stop="onExpenseTap(i)" />
                 </view>
                 <text class="bar-label">{{ monthLabels[i] }}</text>
               </view>
+              <!-- tooltip 作为 bar-chart 上的 overlay,top: 0 保证不被任何父级裁剪 -->
+              <!-- 边缘 bar(i<=1 左、i>=10 右)反向锚定,避免被 .bar-scroll 的 overflow-x: auto 裁剪 -->
+              <view v-if="hoverIncomeIdx !== null && yearlyMonthlyData[hoverIncomeIdx]"
+                    class="bar-tip"
+                    :class="hoverIncomeIdx <= 1 ? 'tip-right' : hoverIncomeIdx >= 10 ? 'tip-left' : 'tip-center'"
+                    :style="{ left: ((hoverIncomeIdx + 0.5) / yearlyMonthlyData.length * 100) + '%' }">
+                <view class="bar-tip-row">
+                  <view class="bar-tip-dot" :style="{ background: '#006d40' }" />
+                  <text class="bar-tip-label">{{ t('chart.line.income') }}</text>
+                </view>
+                <text class="bar-tip-amount">¥{{ formatAmount(yearlyMonthlyData[hoverIncomeIdx].income, false) }}</text>
+              </view>
+              <view v-if="hoverExpenseIdx !== null && yearlyMonthlyData[hoverExpenseIdx]"
+                    class="bar-tip"
+                    :class="hoverExpenseIdx <= 1 ? 'tip-right' : hoverExpenseIdx >= 10 ? 'tip-left' : 'tip-center'"
+                    :style="{ left: ((hoverExpenseIdx + 0.5) / yearlyMonthlyData.length * 100) + '%' }">
+                <view class="bar-tip-row">
+                  <view class="bar-tip-dot" :style="{ background: '#94a3b8' }" />
+                  <text class="bar-tip-label">{{ t('chart.line.expense') }}</text>
+                </view>
+                <text class="bar-tip-amount">¥{{ formatAmount(yearlyMonthlyData[hoverExpenseIdx].expense, false) }}</text>
+              </view>
             </view>
-          </scroll-view>
+          </view>
         </view>
 
         <view class="card card-donut">
           <text class="card-title">{{ t('reportYearly.expenseBreakdown') }}</text>
           <view v-if="yearlyDonutSegments.length === 0" class="empty-sm">{{ t('reportYearly.noExpenseRecords') }}</view>
           <template v-else>
-            <DonutChart :segments="yearlyDonutSegments" :total-value="`¥${(yearlyTotalExpense / 1000).toFixed(1)}k`" />
+            <DonutChart :segments="yearlyDonutSegments" :total-value="`¥${(yearlyTotalExpense / 1000).toFixed(1)}k`" :hide-legend="true" />
             <view class="cat-list">
-              <view v-for="cat in yearlyExpenseByCategory.slice(0, 6)" :key="cat.categoryId" class="cat-row">
-                <view class="cat-icon" :style="{ background: cat.pres.color + '22' }">
-                  <text class="cat-icon-text" :style="{ color: cat.pres.color }">{{ cat.pres.icon }}</text>
+              <view v-for="cat in yearlyExpenseByCategory" :key="cat.categoryId" class="cat-item">
+                <view class="cat-row">
+                  <view class="cat-icon" :style="{ background: cat.pres.color + '22' }">
+                    <text class="cat-icon-text" :style="{ color: cat.pres.color }">{{ cat.pres.icon }}</text>
+                  </view>
+                  <text class="cat-name">{{ cat.name }}</text>
+                  <text class="cat-amount">¥{{ formatAmount(cat.total, false) }}</text>
                 </view>
-                <text class="cat-name">{{ cat.name }}</text>
-                <text class="cat-amount">¥{{ formatAmount(cat.total, false) }}</text>
+                <view class="cat-bar">
+                  <view class="cat-bar-fill" :style="{ width: (yearlyTotalExpense > 0 ? (cat.total / yearlyTotalExpense) * 100 : 0) + '%', background: cat.pres.color }" />
+                </view>
               </view>
             </view>
           </template>
@@ -454,37 +503,66 @@ function pickYear(e: any) {
 .footer-text { font-size: 24rpx; }
 .footer-text.expense { color: var(--c-error); opacity: 0.85; }
 .footer-empty { font-size: 24rpx; color: var(--c-text-variant); }
-.card { background: var(--c-bg-card); border-radius: 16rpx; padding: 24rpx; border: 1px solid var(--c-divider); }
+.card { background: var(--c-bg-card); border-radius: 16rpx; padding: 24rpx; border: 1px solid var(--c-divider); min-width: 0; overflow: visible; }
+.card-bar { overflow: visible; }
 .card-title { font-size: 28rpx; font-weight: 600; color: var(--c-text); display: block; margin-bottom: 16rpx; }
-.chart-legend { display: flex; gap: 24rpx; margin-bottom: 12rpx; }
+.chart-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 16rpx; }
+.chart-title { font-size: 28rpx; font-weight: 700; color: var(--c-text); }
+.chart-legend { display: flex; gap: 24rpx; }
 .legend-item { display: flex; align-items: center; gap: 8rpx; font-size: 22rpx; color: var(--c-text-variant); }
+.legend-dot { width: 14rpx; height: 14rpx; border-radius: 50%; }
+.legend-dot.income-line { background: #005394; }
+.legend-dot.expense-line { background: #ba1a1a; }
 .dot { width: 16rpx; height: 16rpx; border-radius: 50%; }
 .income-dot { background: #006d40; }
 .expense-dot { background: #BA1A1A; }
 .expense-dot.yearly { background: #94a3b8; }
 .loading { text-align: center; padding: 48rpx; color: var(--c-text-variant); font-size: 26rpx; }
-.two-col { display: grid; grid-template-columns: 1fr 1fr; gap: 16rpx; }
 .chart-row { display: flex; flex-direction: column; gap: 16rpx; }
 .empty-sm { text-align: center; padding: 32rpx; color: var(--c-text-variant); font-size: 24rpx; }
-.cat-list { display: flex; flex-direction: column; gap: 16rpx; }
-.cat-row { display: flex; align-items: center; gap: 12rpx; }
+.cat-list { display: flex; flex-direction: column; gap: 16rpx; min-width: 0; margin-top: -30rpx; }
+.cat-item { display: flex; flex-direction: column; gap: 8rpx; }
+.cat-row { display: flex; align-items: center; gap: 12rpx; min-width: 0; }
+.cat-bar { height: 6rpx; background: #F1F5F9; border-radius: 3rpx; overflow: hidden; }
+.cat-bar-fill { height: 100%; border-radius: 3rpx; transition: width 0.2s ease-out; }
 .cat-icon { width: 56rpx; height: 56rpx; border-radius: 50%; display: flex; align-items: center; justify-content: center; flex-shrink: 0; }
 .cat-icon.yearly { width: 48rpx; height: 48rpx; }
 .cat-icon-text { font-size: 24rpx; font-family: 'Material Symbols Outlined', sans-serif; font-weight: normal; font-style: normal; }
 .cat-icon-text.yearly { font-size: 20rpx; }
-.cat-name { flex: 1; font-size: 26rpx; color: var(--c-text); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.cat-name { flex: 1; min-width: 0; font-size: 26rpx; color: var(--c-text); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .cat-name.yearly { font-size: 24rpx; }
-.cat-right { display: flex; flex-direction: column; align-items: flex-end; gap: 2rpx; }
-.cat-amount { font-size: 26rpx; font-weight: 600; color: var(--c-text); }
+.cat-right { display: flex; flex-direction: column; align-items: flex-end; gap: 2rpx; flex-shrink: 0; white-space: nowrap; }
+.cat-amount { font-size: 26rpx; font-weight: 600; color: var(--c-text); white-space: nowrap; }
 .cat-amount.yearly { font-size: 24rpx; }
 .cat-pct { font-size: 22rpx; color: var(--c-text-variant); }
-.bar-scroll { width: 100%; }
-.bar-chart { display: flex; align-items: flex-end; gap: 8rpx; height: 220rpx; padding-bottom: 40rpx; }
-.bar-col { flex: 1; display: flex; flex-direction: column; align-items: center; gap: 4rpx; height: 100%; justify-content: flex-end; }
+.bar-scroll { width: 100%; overflow-x: auto; overflow-y: visible; }
+.bar-chart { display: flex; align-items: flex-end; gap: 8rpx; height: 220rpx; padding-bottom: 40rpx; padding-top: 60rpx; position: relative; }
+.bar-col { flex: 1; display: flex; flex-direction: column; align-items: center; gap: 4rpx; height: 100%; justify-content: flex-end; position: relative; }
 .bar-group { display: flex; gap: 2rpx; align-items: flex-end; height: 160rpx; }
-.bar { width: 20rpx; border-radius: 4rpx 4rpx 0 0; min-height: 4rpx; }
+.bar { width: 20rpx; border-radius: 4rpx 4rpx 0 0; min-height: 4rpx; position: relative; }
 .bar-income { background: #006d40; }
 .bar-expense { background: #94a3b8; }
+/* tooltip 作为 bar-chart 顶部 overlay,top: 4rpx 保证在 padding-top 区域内不被任何父级裁剪 */
+.bar-tip {
+  position: absolute;
+  top: 4rpx;
+  background: var(--c-bg-card);
+  border: 1px solid var(--c-divider);
+  border-radius: 12rpx;
+  padding: 10rpx 14rpx;
+  white-space: nowrap;
+  box-shadow: 0 4rpx 12rpx rgba(0, 0, 0, 0.08);
+  z-index: 10;
+  pointer-events: none;
+  min-width: 140rpx;
+}
+.bar-tip.tip-center { transform: translateX(-50%); }
+.bar-tip.tip-left { transform: translateX(-100%); }
+.bar-tip.tip-right { transform: translateX(0); }
+.bar-tip-row { display: flex; align-items: center; gap: 6rpx; white-space: nowrap; }
+.bar-tip-dot { width: 10rpx; height: 10rpx; border-radius: 2rpx; flex-shrink: 0; }
+.bar-tip-label { font-size: 22rpx; font-weight: 700; color: var(--c-text); white-space: nowrap; }
+.bar-tip-amount { display: block; font-size: 22rpx; color: var(--c-text); margin-top: 4rpx; font-weight: 500; white-space: nowrap; }
 .bar-label { font-size: 18rpx; color: var(--c-text-variant); margin-top: 8rpx; }
 .card-donut { display: flex; flex-direction: column; }
 </style>

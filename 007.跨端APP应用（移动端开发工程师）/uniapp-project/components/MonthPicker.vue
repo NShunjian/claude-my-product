@@ -2,7 +2,7 @@
 import { computed, ref } from 'vue'
 import { formatMonthCN } from '@/utils/date'
 
-const props = defineProps<{ modelValue: string }>() // 'YYYY-MM'
+const props = defineProps<{ modelValue: string; compact?: boolean }>() // 'YYYY-MM'
 const emit = defineEmits<{ (e: 'update:modelValue', v: string): void }>()
 
 const label = computed(() => formatMonthCN(props.modelValue))
@@ -37,10 +37,13 @@ function close() { openModal.value = false }
 </script>
 
 <template>
-  <view class="mp" @tap="open">
-    <view class="btn" @tap.stop="step(-1)">‹</view>
-    <view class="label">{{ label }}</view>
-    <view class="btn" @tap.stop="step(1)">›</view>
+  <view :class="['mp', { compact: compact }]" @tap="open">
+    <template v-if="!compact">
+      <view class="btn" @tap.stop="step(-1)">‹</view>
+      <view class="label">{{ label }}</view>
+      <view class="btn" @tap.stop="step(1)">›</view>
+    </template>
+    <view v-else class="compact-label">{{ label }} ▾</view>
   </view>
 
   <!-- 月份选择弹框:对齐 React MonthPickerModal -->
@@ -75,10 +78,22 @@ function close() { openModal.value = false }
 </template>
 
 <style scoped>
-/* 紧凑触发器(原样式) */
+/* 紧凑触发器(原样式,首页用) */
 .mp { display: flex; align-items: center; gap: 8rpx; padding: 8rpx 24rpx; border-radius: 32rpx; background: var(--c-bg-card); border: 1px solid var(--c-divider); }
 .btn { width: 56rpx; height: 56rpx; display: flex; align-items: center; justify-content: center; font-size: 40rpx; color: var(--c-text-variant); line-height: 1; }
 .label { font-size: 30rpx; font-weight: 600; padding: 0 12rpx; }
+
+/* compact 形态(给流水页筛选卡用,与其他 picker 视觉一致:无 ‹ ›、下拉样式) */
+.mp.compact {
+  box-sizing: border-box;
+  padding: 16rpx 20rpx;
+  border: 2rpx solid var(--c-divider);
+  border-radius: 12rpx;
+  background: var(--c-bg-card);
+  font-size: 26rpx;
+  white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+}
+.compact-label { font-size: 26rpx; color: var(--c-text); font-weight: 400; }
 
 /* 月份弹框(对齐 React) */
 .modal-mask {

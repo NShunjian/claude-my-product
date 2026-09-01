@@ -9,30 +9,18 @@ import { listRecords, deleteRecord } from '@/api/records'
 import { listAccounts } from '@/api/accounts'
 import { listCategories } from '@/api/categories'
 import TransactionRow from '@/components/TransactionRow.vue'
+import MonthPicker from '@/components/MonthPicker.vue'
 import type { Record } from '@/api/records'
 import type { Account } from '@/api/accounts'
 import type { Category } from '@/api/categories'
 import { formatAmount } from '@/utils/finance'
 import { formatLocalMonth, compareRecordDesc } from '@/utils/date'
+import { consumePendingMonth } from '@/utils/nav-intent'
 
 const book = useBookStore()
 const auth = useAuthStore()
 const toast = useToastStore()
 const { t } = useLanguage()
-
-function recentMonths(): string[] {
-  const out: string[] = []
-  const now = new Date()
-  for (let i = 0; i < 6; i++) {
-    out.push(formatLocalMonth(new Date(now.getFullYear(), now.getMonth() - i, 1)))
-  }
-  return out
-}
-
-function formatMonthLabel(m: string): string {
-  const [y, mo] = m.split('-')
-  return `${y}年 ${parseInt(mo, 10)}月`
-}
 
 // 日组标题:M月D日,星期X(对齐 React 流水页)
 function formatDayHeaderCN(ymd: string): string {
@@ -48,12 +36,23 @@ const filterAccount = ref('all')
 const categoryIndex = ref(0)
 const accountIndex = ref(0)
 
+// 从首页"查看全部"带过来的月份(对齐 React:点击跳转时锁定到当时选择的月)
+// 注意:uni.switchTab 不支持 url query,所以走一次性意图 nav-intent
+// 注意:tabBar 页面是 keep-alive 的,只有首次挂载会触发 onLoad,之后切回只触发 onShow
+// —— 所以消费意图放在 onShow,挂载时 watch(immediate) 已经会拉数据,这里再 load 一次兜底切回不刷新
+onShow(() => {
+  const m = consumePendingMonth()
+  if (m && /^\d{4}-\d{2}$/.test(m) && m !== filterMonth.value) {
+    filterMonth.value = m // watch([filterMonth, ...], load) 自动 load
+  } else {
+    load() // 切回 tab 时即便没有意图也要 refresh
+  }
+})
+
 const records = ref<Record[]>([])
 const accounts = ref<Account[]>([])
 const cats = ref<Category[]>([])
 const loading = ref(false)
-
-const months = recentMonths()
 
 const filteredRecords = computed(() => {
   return records.value.filter(r => {
@@ -126,11 +125,6 @@ async function remove(id: string) {
 }
 
 watch([filterMonth, () => book.current], load, { immediate: true })
-onShow(load)
-
-function onMonthChange(e: any) {
-  filterMonth.value = months[Number(e.detail.value)]
-}
 
 function onCategoryChange(e: any) {
   const idx = Number(e.detail.value)
@@ -154,9 +148,7 @@ function onAccountChange(e: any) {
       <view class="filter-card">
         <text class="filter-title">{{ t('transactions.filterLabel') }}</text>
         <view class="filter-selects">
-          <picker mode="selector" :range="months" :value="months.indexOf(filterMonth)" :range-text="months.map(formatMonthLabel)" @change="onMonthChange">
-            <view class="select-box">{{ formatMonthLabel(filterMonth) }} ▼</view>
-          </picker>
+          <MonthPicker v-model="filterMonth" compact />
           <picker mode="selector" :range="[{ id: 'all', name: t('transactions.allCategories') }, ...allCats]" range-key="name" :value="categoryIndex" @change="onCategoryChange">
             <view class="select-box">{{ (([{ id: 'all', name: t('transactions.allCategories') }, ...allCats].find(c => c.id === filterCategory))?.name) || t('transactions.allCategories') }} ▼</view>
           </picker>
@@ -212,8 +204,9 @@ function onAccountChange(e: any) {
 .filter-row { display: flex; flex-direction: column; gap: 16rpx; }
 .filter-card { background: var(--c-bg-card); border-radius: 16rpx; padding: 24rpx; border: 1px solid var(--c-divider); }
 .filter-title { font-size: 28rpx; font-weight: 600; margin-bottom: 16rpx; display: block; }
-.filter-selects { display: flex; flex-wrap: nowrap; gap: 12rpx; }
-.filter-selects > picker { flex: 1; min-width: 0; }
+.filter-selects { display: flex; flex-wrap: nowrap; gap: 12rpx; align-items: stretch; }
+.filter-selects > picker,
+.filter-selects > .mp { flex: 1; min-width: 0; }
 .select-box {
   width: 100%;
   border: 2rpx solid var(--c-divider);

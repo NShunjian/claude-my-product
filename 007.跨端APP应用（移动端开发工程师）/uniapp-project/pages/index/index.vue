@@ -17,6 +17,7 @@ import type { Category } from '@/api/categories'
 import { formatAmount } from '@/utils/finance'
 import { formatLocalMonth, compareRecordDesc, formatMonthCN, formatRelativeDayLabel } from '@/utils/date'
 import { categoryPresentation } from '@/utils/category-presentation'
+import { setPendingMonth } from '@/utils/nav-intent'
 
 const book = useBookStore()
 const auth = useAuthStore()
@@ -97,6 +98,12 @@ function onQuickAdd() {
 function onQuickAddSaved() {
   // 弹框关闭 + 数据落库后,重新拉当前月流水与账户余额
   load()
+}
+
+// "查看全部 →" 跳流水页:uni.switchTab 不支持 url query,改用一次性意图
+function onViewAll() {
+  setPendingMonth(month.value)
+  uni.switchTab({ url: '/pages/transactions/index' })
 }
 
 async function load() {
@@ -191,7 +198,7 @@ onShow(load)
     <view class="card">
       <view class="card-head">
         <text class="card-title">{{ t('home.recentTransactions') }}</text>
-        <text class="view-all" @tap="uni.switchTab({ url: '/pages/transactions/index' })">{{ t('home.viewAll') }} →</text>
+        <text class="view-all" @tap="onViewAll">{{ t('home.viewAll') }} →</text>
       </view>
       <view v-if="loading" class="empty">{{ t('home.loading') }}</view>
       <view v-else-if="records.length === 0" class="empty">{{ t('home.empty') }}</view>

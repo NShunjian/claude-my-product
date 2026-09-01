@@ -185,6 +185,7 @@ function onAccountChange(e: any) {
             :key="r?.id ?? `row-${group.date}-${idx}`"
             :record="r"
             :category="findCat(r.categoryId)"
+            :account="findAccount(r.accountId)"
             @tap="remove(r.id)"
           />
         </view>

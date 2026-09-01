@@ -188,15 +188,14 @@ onShow(load)
         <view v-for="group in grouped" :key="group.date" class="day-group">
           <view class="day-header">
             <text class="day-label">{{ group.label }}</text>
-            <text class="day-net">
-              {{ group.net >= 0 ? '+' : '-' }}¥ {{ formatAmount(Math.abs(group.net)) }}
-            </text>
+            <text class="day-net">¥ {{ formatAmount(Math.abs(group.net)) }}</text>
           </view>
           <TransactionRow
             v-for="(r, idx) in group.recs"
             :key="r?.id ?? `row-${group.date}-${idx}`"
             :record="r"
             :category="findCat(r.categoryId)"
+            :account="findAccount(r.accountId)"
             @tap="() => {}"
           />
         </view>
@@ -210,15 +209,9 @@ onShow(load)
         <view v-if="expenseByCat.length === 0" class="empty-mini">{{ t('home.empty') }}</view>
         <view v-else class="cat-list">
           <view v-for="row in expenseByCat" :key="row.cat.id" class="cat-row">
-            <view class="cat-line">
-              <view class="cat-id">
-                <view class="cat-icon" :style="{ background: row.cat.color + '33' }">
-                  <text class="cat-icon-text">{{ row.cat.icon }}</text>
-                </view>
-                <text class="cat-name">{{ row.cat.name }}</text>
-              </view>
-              <text class="cat-amt">¥ {{ formatAmount(row.total) }}</text>
-            </view>
+            <text class="cat-emoji" :style="{ color: row.cat.color }">{{ row.cat.icon }}</text>
+            <text class="cat-name">{{ row.cat.name }}</text>
+            <text class="cat-amt">¥{{ formatAmount(row.total) }}</text>
             <view class="cat-bar-track">
               <view class="cat-bar-fill" :style="{
                 width: (monthExpense > 0 ? (row.total / monthExpense) * 100 : 0) + '%',
@@ -234,15 +227,9 @@ onShow(load)
         <view v-if="incomeByCat.length === 0" class="empty-mini">{{ t('home.empty') }}</view>
         <view v-else class="cat-list">
           <view v-for="row in incomeByCat" :key="row.cat.id" class="cat-row">
-            <view class="cat-line">
-              <view class="cat-id">
-                <view class="cat-icon" :style="{ background: row.cat.color + '33' }">
-                  <text class="cat-icon-text">{{ row.cat.icon }}</text>
-                </view>
-                <text class="cat-name">{{ row.cat.name }}</text>
-              </view>
-              <text class="cat-amt">¥ {{ formatAmount(row.total) }}</text>
-            </view>
+            <text class="cat-emoji" :style="{ color: row.cat.color }">{{ row.cat.icon }}</text>
+            <text class="cat-name">{{ row.cat.name }}</text>
+            <text class="cat-amt">¥{{ formatAmount(row.total) }}</text>
             <view class="cat-bar-track">
               <view class="cat-bar-fill" :style="{
                 width: (monthIncome > 0 ? (row.total / monthIncome) * 100 : 0) + '%',
@@ -314,16 +301,48 @@ onShow(load)
 .day-label { font-size: 24rpx; font-weight: 600; color: var(--c-text-variant); }
 .day-net { font-size: 24rpx; font-weight: 600; color: var(--c-text-variant); }
 .breakdown-row { display: grid; grid-template-columns: 1fr 1fr; gap: 16rpx; }
-.breakdown-card { display: flex; flex-direction: column; gap: 16rpx; }
+.breakdown-card { display: flex; flex-direction: column; gap: 24rpx; }
 .empty-mini { text-align: center; padding: 32rpx; color: var(--c-text-variant); font-size: 24rpx; }
-.cat-list { display: flex; flex-direction: column; gap: 20rpx; }
-.cat-row { display: flex; flex-direction: column; gap: 6rpx; }
-.cat-line { display: flex; justify-content: space-between; align-items: center; }
-.cat-id { display: flex; align-items: center; gap: 10rpx; }
-.cat-icon { width: 36rpx; height: 36rpx; border-radius: 50%; display: flex; align-items: center; justify-content: center; }
-.cat-icon-text { font-size: 22rpx; }
-.cat-name { font-size: 26rpx; }
-.cat-amt { font-size: 24rpx; color: var(--c-text-variant); }
-.cat-bar-track { height: 6rpx; background: var(--c-surface); border-radius: 4rpx; overflow: hidden; }
-.cat-bar-fill { height: 100%; border-radius: 4rpx; transition: width 0.3s ease; }
+.cat-list { display: flex; flex-direction: column; gap: 24rpx; }
+.cat-row {
+  display: grid;
+  grid-template-columns: 40rpx 1fr auto;
+  grid-template-rows: auto auto;
+  column-gap: 12rpx;
+  row-gap: 8rpx;
+  align-items: center;
+}
+.cat-emoji {
+  grid-row: 1;
+  grid-column: 1;
+  font-size: 36rpx;
+  line-height: 1;
+  font-family: 'Material Symbols Outlined', sans-serif;
+}
+.cat-name {
+  grid-row: 1;
+  grid-column: 2;
+  font-size: 26rpx;
+  color: var(--c-text);
+  font-weight: 500;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.cat-amt {
+  grid-row: 1;
+  grid-column: 3;
+  font-size: 24rpx;
+  color: var(--c-text-variant);
+  font-variant-numeric: tabular-nums;
+}
+.cat-bar-track {
+  grid-row: 2;
+  grid-column: 1 / -1;
+  height: 10rpx;
+  background: #E8EEF7;
+  border-radius: 6rpx;
+  overflow: hidden;
+}
+.cat-bar-fill { height: 100%; border-radius: 6rpx; transition: width 0.3s ease; }
 </style>

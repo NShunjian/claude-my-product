@@ -6,6 +6,7 @@ import { useAuthStore } from '@/stores/auth'
 import { useToastStore } from '@/stores/toast'
 import { useLanguage } from '@/i18n/useLanguage'
 import { getMonthlyReport, getYearlyReport } from '@/api/reports'
+import { runSilent } from '@/api/http'
 import { categoryPresentation } from '@/utils/category-presentation'
 import { formatAmount } from '@/utils/finance'
 import MonthPicker from '@/components/MonthPicker.vue'
@@ -126,26 +127,32 @@ async function loadMonthly() {
   if (!auth.token || !book.current) return
   monthlyLoading.value = true
   monthlyError.value = null
-  try {
-    monthlyReport.value = await getMonthlyReport(filterMonth.value, book.current.uuid)
-  } catch (e: any) {
-    monthlyError.value = e?.message ?? '加载失败'
-  } finally {
-    monthlyLoading.value = false
-  }
+  // runSilent 包住整个调用:被动加载,token 失效时不该把人踢回登录
+  await runSilent(async () => {
+    try {
+      monthlyReport.value = await getMonthlyReport(filterMonth.value, book.current.uuid)
+    } catch (e: any) {
+      monthlyError.value = e?.message ?? '加载失败'
+    } finally {
+      monthlyLoading.value = false
+    }
+  })
 }
 
 async function loadYearly() {
   if (!auth.token || !book.current) return
   yearlyLoading.value = true
   yearlyError.value = null
-  try {
-    yearlyReport.value = await getYearlyReport(filterYear.value, book.current.uuid)
-  } catch (e: any) {
-    yearlyError.value = e?.message ?? '加载失败'
-  } finally {
-    yearlyLoading.value = false
-  }
+  // runSilent 包住整个调用:被动加载,token 失效时不该把人踢回登录
+  await runSilent(async () => {
+    try {
+      yearlyReport.value = await getYearlyReport(filterYear.value, book.current.uuid)
+    } catch (e: any) {
+      yearlyError.value = e?.message ?? '加载失败'
+    } finally {
+      yearlyLoading.value = false
+    }
+  })
 }
 
 function syncYearly() {

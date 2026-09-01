@@ -5,6 +5,9 @@ import { useToastStore } from '@/stores/toast'
 import { useLanguage } from '@/i18n/useLanguage'
 import { listBooks, createBook, updateBook, deleteBook } from '@/api/books'
 import type { Book, BookType } from '@/api/books'
+import { runSilent } from '@/api/http'
+import AppHeader from '@/components/AppHeader.vue'
+import { goBack } from '@/utils/back'
 
 const bookStore = useBookStore()
 const toast = useToastStore()
@@ -32,13 +35,16 @@ const typeOptions: { value: BookType; label: string }[] = [
 async function load() {
   loading.value = true
   error.value = null
-  try {
-    books.value = await listBooks()
-  } catch (e: any) {
-    error.value = e?.message ?? ''
-  } finally {
-    loading.value = false
-  }
+  // runSilent:被动加载,token 失效时静默显示空列表,不触发踢人
+  await runSilent(async () => {
+    try {
+      books.value = await listBooks()
+    } catch (e: any) {
+      error.value = e?.message ?? ''
+    } finally {
+      loading.value = false
+    }
+  })
 }
 
 async function handleCreate() {
@@ -116,14 +122,14 @@ onMounted(load)
 </script>
 
 <template>
-  <view class="page">
-    <!-- Header -->
-    <view class="header-row">
-      <text class="page-title">{{ t('books.heading') }}</text>
+  <AppHeader :title="t('books.heading')" back @back="goBack">
+    <template #right>
       <view class="add-btn" @tap="showCreate = !showCreate">
         <text>+ {{ t('books.create.toggle') }}</text>
       </view>
-    </view>
+    </template>
+  </AppHeader>
+  <view class="page">
 
     <!-- Create form -->
     <view v-if="showCreate" class="card">
@@ -215,8 +221,6 @@ onMounted(load)
 
 <style scoped>
 .page { padding: 24rpx; display: flex; flex-direction: column; gap: 20rpx; }
-.header-row { display: flex; justify-content: space-between; align-items: center; }
-.page-title { font-size: 36rpx; font-weight: 700; color: var(--c-text); }
 .add-btn { display: flex; align-items: center; gap: 8rpx; background: var(--c-primary); color: #fff; border-radius: 12rpx; padding: 12rpx 20rpx; font-size: 26rpx; font-weight: 600; }
 .card { background: var(--c-bg-card); border-radius: 16rpx; padding: 24rpx; display: flex; flex-direction: column; gap: 20rpx; border: 1px solid var(--c-divider); }
 .card-title { font-size: 28rpx; font-weight: 600; color: var(--c-text); }

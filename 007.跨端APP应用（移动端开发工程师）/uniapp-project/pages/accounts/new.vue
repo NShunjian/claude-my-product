@@ -4,6 +4,8 @@ import { useLanguage } from '@/i18n/useLanguage'
 import { useToastStore } from '@/stores/toast'
 import { createAccount } from '@/api/accounts'
 import type { AccountType } from '@/api/accounts'
+import AppHeader from '@/components/AppHeader.vue'
+import { goBack } from '@/utils/back'
 
 const { t } = useLanguage()
 const toast = useToastStore()
@@ -41,7 +43,7 @@ async function handleSubmit() {
       currency: 'CNY',
       isDefault: isDefault.value,
     })
-    uni.navigateBack()
+    goBack()
   } catch (err: any) {
     errorMsg.value = err?.message ?? t('accountAdd.saveFailPrefix')
   } finally {
@@ -51,6 +53,7 @@ async function handleSubmit() {
 </script>
 
 <template>
+  <AppHeader :title="t('accountAdd.title')" back @back="goBack" />
   <view class="page">
     <view class="card">
       <!-- Account name -->
@@ -106,7 +109,7 @@ async function handleSubmit() {
 
       <!-- Buttons -->
       <view class="btn-row">
-        <view class="btn-cancel" @tap="uni.navigateBack()">{{ t('accountAdd.cancel') }}</view>
+        <view class="btn-cancel" @tap="goBack()">{{ t('accountAdd.cancel') }}</view>
         <view class="btn-submit" @tap="handleSubmit" :class="{ disabled: !name.trim() || submitting }">
           <text v-if="submitting">…</text>
           <text v-else>{{ t('accountAdd.submitAccount') }}</text>

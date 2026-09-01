@@ -7,6 +7,8 @@ import { useLanguage, LANGS } from '@/i18n/useLanguage'
 import { updateProfile, changePassword } from '@/api/users'
 import type { Gender } from '@/api/users'
 import { t } from '@/i18n/dict'
+import AppHeader from '@/components/AppHeader.vue'
+import { goBack } from '@/utils/back'
 
 const auth = useAuthStore()
 const toast = useToastStore()
@@ -87,8 +89,8 @@ async function handleSaveProfile() {
     })
     await auth.me()
     profileMsg.value = { kind: 'ok', text: t(lang, 'profileEdit.profileSaved') }
-    // 保存成功 → 回到上一页(设置页)
-    uni.navigateBack()
+    // 保存成功 → 用 history-aware goBack 回到上一页(自定义 nav 下,不走 uni.navigateBack 兜底)
+    goBack()
   } catch (err: any) {
     profileMsg.value = { kind: 'err', text: err?.message ?? t(lang, 'profileEdit.saveFailDefault') }
   } finally {
@@ -175,8 +177,8 @@ async function handleSaveAvatar() {
     await auth.me()
     avatarPreview.value = null
     avatarMsg.value = { kind: 'ok', text: t(lang, 'profileEdit.avatarUpdated') }
-    // 保存成功 → 回到上一页(设置页)
-    uni.navigateBack()
+    // 保存成功 → 用 history-aware goBack 回到上一页(自定义 nav 下,不走 uni.navigateBack 兜底)
+    goBack()
   } catch (err: any) {
     avatarMsg.value = { kind: 'err', text: err?.message ?? t(lang, 'profileEdit.saveFailDefault') }
   } finally {
@@ -220,8 +222,8 @@ async function handleChangePassword() {
     newPwd.value = ''
     confirmPwd.value = ''
     pwdMsg.value = { kind: 'ok', text: t(lang, 'profileEdit.passwordChanged') }
-    // 保存成功 → 回到上一页(设置页)
-    uni.navigateBack()
+    // 保存成功 → 用 history-aware goBack 回到上一页(自定义 nav 下,不走 uni.navigateBack 兜底)
+    goBack()
   } catch (err: any) {
     pwdMsg.value = { kind: 'err', text: err?.message ?? t(lang, 'profileEdit.passwordChangeFailDefault') }
   } finally {
@@ -234,6 +236,7 @@ const msgOk = (msg: { kind: 'ok' | 'err'; text: string }) => msg.kind === 'ok'
 </script>
 
 <template>
+  <AppHeader :title="t(lang, 'profileEdit.title')" back @back="goBack" />
   <view class="page">
     <!-- avatar section -->
     <view class="card">

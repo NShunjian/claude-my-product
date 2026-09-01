@@ -8,6 +8,7 @@ import { useToastStore } from '@/stores/toast'
 import { getSystemVersion } from '@/api/version'
 import { listCategories, createCategory, updateCategory, deleteCategory } from '@/api/categories'
 import type { Category, CategoryType } from '@/api/categories'
+import { runSilent } from '@/api/http'
 import { categoryPresentation } from '@/utils/category-presentation'
 import { t } from '@/i18n/dict'
 import { exportAll, exportByCategory, exportMonthly } from '@/utils/export'
@@ -21,13 +22,16 @@ const toast = useToastStore()
 const version = ref('')
 const versionState = ref<'loading' | 'ok' | 'error'>('loading')
 onMounted(async () => {
-  try {
-    const r = await getSystemVersion()
-    version.value = r.version
-    versionState.value = 'ok'
-  } catch {
-    versionState.value = 'error'
-  }
+  // runSilent:版本探测是「加载信息」,不该触发踢人。token 失效时静默显示 v—
+  await runSilent(async () => {
+    try {
+      const r = await getSystemVersion()
+      version.value = r.version
+      versionState.value = 'ok'
+    } catch {
+      versionState.value = 'error'
+    }
+  })
 })
 
 // ── helpers ────────────────────────────────────────────────────────────────
@@ -115,13 +119,18 @@ const catItems = computed(() => {
 
 async function loadCategories() {
   if (!auth.token) return
-  try {
-    const [exp, inc] = await Promise.all([listCategories('expense'), listCategories('income')])
-    expenseCats.value = (exp ?? []).filter((c): c is Category => !!c && !!c.id)
-    incomeCats.value = (inc ?? []).filter((c): c is Category => !!c && !!c.id)
-  } catch {
-    toast.show(t(lang, 'common.error'))
-  }
+  // runSilent 包住整个调用:H5 刷新后从「资料编辑」返回此页时,onShow/watch immediate 触发
+  // loadCategories,如果 token 此时已失效,正常会触发 onInvalid → reLaunch 登录。
+  // 这里只是「数据加载」,不是用户主动操作,失败时显示空数据/提示即可,不该把人踢出去。
+  await runSilent(async () => {
+    try {
+      const [exp, inc] = await Promise.all([listCategories('expense'), listCategories('income')])
+      expenseCats.value = (exp ?? []).filter((c): c is Category => !!c && !!c.id)
+      incomeCats.value = (inc ?? []).filter((c): c is Category => !!c && !!c.id)
+    } catch {
+      toast.show(t(lang, 'common.error'))
+    }
+  })
 }
 watch(() => auth.token, () => { loadCategories() }, { immediate: true })
 onShow(() => { loadCategories() })

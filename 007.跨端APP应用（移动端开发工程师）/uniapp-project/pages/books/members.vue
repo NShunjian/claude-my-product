@@ -5,6 +5,9 @@ import { useToastStore } from '@/stores/toast'
 import { useBookStore } from '@/stores/book'
 import { getBook, listMembers, addMember, updateMemberRole, removeMember } from '@/api/books'
 import type { Book, BookMember, BookRole } from '@/api/books'
+import { runSilent } from '@/api/http'
+import AppHeader from '@/components/AppHeader.vue'
+import { goBack } from '@/utils/back'
 
 const { t } = useLanguage()
 const toast = useToastStore()
@@ -49,18 +52,21 @@ async function load() {
   if (!bookUuid.value) return
   loading.value = true
   error.value = null
-  try {
-    const [b, ms] = await Promise.all([
-      getBook(bookUuid.value),
-      listMembers(bookUuid.value),
-    ])
-    book.value = b
-    members.value = ms
-  } catch (e: any) {
-    error.value = e?.message ?? ''
-  } finally {
-    loading.value = false
-  }
+  // runSilent:被动加载,token 失效时静默显示错误,不踢人
+  await runSilent(async () => {
+    try {
+      const [b, ms] = await Promise.all([
+        getBook(bookUuid.value),
+        listMembers(bookUuid.value),
+      ])
+      book.value = b
+      members.value = ms
+    } catch (e: any) {
+      error.value = e?.message ?? ''
+    } finally {
+      loading.value = false
+    }
+  })
 }
 
 const isOwner = computed(() => book.value?.role === 'owner')
@@ -118,12 +124,8 @@ async function handleRemove(m: BookMember) {
 </script>
 
 <template>
+  <AppHeader :title="t('bookMembers.heading', { name: book?.name ?? '…' })" back @back="goBack" />
   <view class="page">
-    <!-- Header -->
-    <view class="header-row">
-      <view class="back-btn" @tap="uni.navigateBack()">←</view>
-      <text class="page-title">{{ t('bookMembers.heading', { name: book?.name ?? '…' }) }}</text>
-    </view>
 
     <!-- Count + invite -->
     <view class="meta-row">
@@ -196,9 +198,6 @@ async function handleRemove(m: BookMember) {
 
 <style scoped>
 .page { padding: 24rpx; display: flex; flex-direction: column; gap: 20rpx; }
-.header-row { display: flex; align-items: center; gap: 16rpx; }
-.back-btn { font-size: 32rpx; color: var(--c-text-variant); padding: 8rpx; }
-.page-title { font-size: 32rpx; font-weight: 600; color: var(--c-text); }
 .meta-row { display: flex; justify-content: space-between; align-items: center; }
 .count-text { font-size: 26rpx; color: var(--c-text-variant); }
 .invite-btn { background: var(--c-primary); color: #fff; border-radius: 12rpx; padding: 12rpx 20rpx; font-size: 26rpx; font-weight: 600; }

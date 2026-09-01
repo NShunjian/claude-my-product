@@ -6,8 +6,11 @@ import { useAuthStore } from '@/stores/auth'
 import { useToastStore } from '@/stores/toast'
 import { useLanguage } from '@/i18n/useLanguage'
 import { listAccounts, deleteAccount } from '@/api/accounts'
+import { runSilent } from '@/api/http'
 import { formatAmount } from '@/utils/finance'
 import type { Account } from '@/api/accounts'
+import AppHeader from '@/components/AppHeader.vue'
+import { goBack } from '@/utils/back'
 
 const book = useBookStore()
 const auth = useAuthStore()
@@ -33,13 +36,16 @@ async function load() {
   if (!auth.token || !book.current) return
   loading.value = true
   error.value = null
-  try {
-    accounts.value = (await listAccounts({ bookId: book.current.uuid })).filter((a): a is Account => !!a && !!a.id)
-  } catch (e: any) {
-    error.value = e?.message ?? ''
-  } finally {
-    loading.value = false
-  }
+  // runSilent 包住整个调用:被动加载,token 失效时不该把人踢回登录
+  await runSilent(async () => {
+    try {
+      accounts.value = (await listAccounts({ bookId: book.current.uuid })).filter((a): a is Account => !!a && !!a.id)
+    } catch (e: any) {
+      error.value = e?.message ?? ''
+    } finally {
+      loading.value = false
+    }
+  })
 }
 
 function getTheme(acc: Account) {
@@ -77,6 +83,7 @@ onShow(load)
 </script>
 
 <template>
+  <AppHeader :title="t('pageTitle.accounts')" back @back="goBack" />
   <view class="page">
     <!-- Net assets + add -->
     <view class="net-card">

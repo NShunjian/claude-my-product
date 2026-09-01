@@ -5,7 +5,6 @@ import { useToastStore } from '@/stores/toast'
 import { useLanguage } from '@/i18n/useLanguage'
 import { listBooks, createBook, updateBook, deleteBook } from '@/api/books'
 import type { Book, BookType } from '@/api/books'
-import { runSilent } from '@/api/http'
 import AppHeader from '@/components/AppHeader.vue'
 import { goBack } from '@/utils/back'
 
@@ -35,16 +34,13 @@ const typeOptions: { value: BookType; label: string }[] = [
 async function load() {
   loading.value = true
   error.value = null
-  // runSilent:被动加载,token 失效时静默显示空列表,不触发踢人
-  await runSilent(async () => {
-    try {
-      books.value = await listBooks()
-    } catch (e: any) {
-      error.value = e?.message ?? ''
-    } finally {
-      loading.value = false
-    }
-  })
+  try {
+    books.value = await listBooks()
+  } catch (e: any) {
+    error.value = e?.message ?? ''
+  } finally {
+    loading.value = false
+  }
 }
 
 async function handleCreate() {

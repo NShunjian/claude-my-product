@@ -5,7 +5,6 @@ import { useToastStore } from '@/stores/toast'
 import { useBookStore } from '@/stores/book'
 import { getBook, listMembers, addMember, updateMemberRole, removeMember } from '@/api/books'
 import type { Book, BookMember, BookRole } from '@/api/books'
-import { runSilent } from '@/api/http'
 import AppHeader from '@/components/AppHeader.vue'
 import { goBack } from '@/utils/back'
 
@@ -52,21 +51,18 @@ async function load() {
   if (!bookUuid.value) return
   loading.value = true
   error.value = null
-  // runSilent:被动加载,token 失效时静默显示错误,不踢人
-  await runSilent(async () => {
-    try {
-      const [b, ms] = await Promise.all([
-        getBook(bookUuid.value),
-        listMembers(bookUuid.value),
-      ])
-      book.value = b
-      members.value = ms
-    } catch (e: any) {
-      error.value = e?.message ?? ''
-    } finally {
-      loading.value = false
-    }
-  })
+  try {
+    const [b, ms] = await Promise.all([
+      getBook(bookUuid.value),
+      listMembers(bookUuid.value),
+    ])
+    book.value = b
+    members.value = ms
+  } catch (e: any) {
+    error.value = e?.message ?? ''
+  } finally {
+    loading.value = false
+  }
 }
 
 const isOwner = computed(() => book.value?.role === 'owner')

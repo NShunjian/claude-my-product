@@ -68,6 +68,8 @@ public class UsersService {
             throw new BizException(CODE_SAME_PASSWORD, "新密码不能与原密码相同");
         }
         u.setPasswordHash(encoder.encode(req.newPassword()));
+        // 自增 token_version → 老 JWT 的 tokenVersion claim 与 DB 不再一致 → UserAuthInterceptor 401 踢出所有端
+        u.setTokenVersion(u.getTokenVersion() == null ? 1L : u.getTokenVersion() + 1);
         u.setUpdatedAt(Instant.now());
         userMapper.updateById(u);
     }

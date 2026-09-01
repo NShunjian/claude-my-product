@@ -18,7 +18,6 @@ import { formatAmount } from '@/utils/finance'
 import { formatLocalMonth, compareRecordDesc, formatMonthCN, formatRelativeDayLabel } from '@/utils/date'
 import { categoryPresentation } from '@/utils/category-presentation'
 import { setPendingMonth } from '@/utils/nav-intent'
-import { runSilent } from '@/api/http'
 
 const book = useBookStore()
 const auth = useAuthStore()
@@ -110,26 +109,21 @@ function onViewAll() {
 async function load() {
   if (!auth.token || !book.current) return
   loading.value = true
-  // runSilent 包住整个调用:H5 刷新后从其它页返回首页时,onShow/watch immediate 触发 load,
-  // 如果 token 此时已失效,正常会触发 onInvalid → reLaunch 登录。
-  // 这是被动加载,失败时显示提示即可,不该把人踢出去。
-  await runSilent(async () => {
-    try {
-      const [recs, accts, catsExpense, catsIncome] = await Promise.all([
-        listRecords({ month: month.value, bookId: book.current.uuid }),
-        listAccounts({ bookId: book.current.uuid }),
-        listCategories('expense'),
-        listCategories('income'),
-      ])
-      records.value = recs
-      accounts.value = accts
-      cats.value = [...catsExpense, ...catsIncome]
-    } catch (e: any) {
-      toast.show(t('home.loadErrorPrefix') + (e?.message ?? ''))
-    } finally {
-      loading.value = false
-    }
-  })
+  try {
+    const [recs, accts, catsExpense, catsIncome] = await Promise.all([
+      listRecords({ month: month.value, bookId: book.current.uuid }),
+      listAccounts({ bookId: book.current.uuid }),
+      listCategories('expense'),
+      listCategories('income'),
+    ])
+    records.value = recs
+    accounts.value = accts
+    cats.value = [...catsExpense, ...catsIncome]
+  } catch (e: any) {
+    toast.show(t('home.loadErrorPrefix') + (e?.message ?? ''))
+  } finally {
+    loading.value = false
+  }
 }
 
 // 监听 book.current 与 auth.token:任一变化且都已就绪时拉数据。

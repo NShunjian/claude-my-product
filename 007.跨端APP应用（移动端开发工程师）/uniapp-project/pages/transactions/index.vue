@@ -16,7 +16,6 @@ import type { Category } from '@/api/categories'
 import { formatAmount } from '@/utils/finance'
 import { formatLocalMonth, compareRecordDesc } from '@/utils/date'
 import { consumePendingMonth } from '@/utils/nav-intent'
-import { runSilent } from '@/api/http'
 
 const book = useBookStore()
 const auth = useAuthStore()
@@ -91,24 +90,21 @@ function findCat(id: string | null) { return cats.value.find(c => c.id === id) }
 async function load() {
   if (!auth.token || !book.current) return
   loading.value = true
-  // runSilent 包住整个调用:被动加载,token 失效时不该把人踢回登录
-  await runSilent(async () => {
-    try {
-      const [recs, accts, catsExp, catsInc] = await Promise.all([
-        listRecords({ month: filterMonth.value, bookId: book.current.uuid }),
-        listAccounts({ bookId: book.current.uuid }),
-        listCategories('expense'),
-        listCategories('income'),
-      ])
-      records.value = recs
-      accounts.value = accts
-      cats.value = [...catsExp, ...catsInc]
-    } catch (e: any) {
-      toast.show(t('transactions.loadErrorPrefix') + (e?.message ?? ''))
-    } finally {
-      loading.value = false
-    }
-  })
+  try {
+    const [recs, accts, catsExp, catsInc] = await Promise.all([
+      listRecords({ month: filterMonth.value, bookId: book.current.uuid }),
+      listAccounts({ bookId: book.current.uuid }),
+      listCategories('expense'),
+      listCategories('income'),
+    ])
+    records.value = recs
+    accounts.value = accts
+    cats.value = [...catsExp, ...catsInc]
+  } catch (e: any) {
+    toast.show(t('transactions.loadErrorPrefix') + (e?.message ?? ''))
+  } finally {
+    loading.value = false
+  }
 }
 
 async function remove(id: string) {

@@ -77,7 +77,7 @@ function catTint(hex?: string): string {
 .row {
   display: flex;
   align-items: center;
-  padding: 24rpx 24rpx;
+  padding: 24rpx 24rpx 24rpx 0;
   gap: 20rpx;
 }
 .icon-circle {

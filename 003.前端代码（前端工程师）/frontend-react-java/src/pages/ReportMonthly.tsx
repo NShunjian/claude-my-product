@@ -1,5 +1,5 @@
 import { useMemo, useState } from 'react'
-import { Link } from 'react-router-dom'
+import { Link, useSearchParams } from 'react-router-dom'
 import { usePageTitle, usePageBack } from '../components/PageTitleContext'
 import { LineChart } from '../components/LineChart'
 import { DonutChart, type DonutSegment } from '../components/DonutChart'
@@ -50,7 +50,13 @@ export function ReportMonthly() {
   usePageTitle(t('pageTitle.reportMonthly'))
   usePageBack(null)
 
-  const [filterMonth, setFilterMonth] = useState<string>(currentMonth())
+  // 来自 Quick Add ?month=YYYY-MM 的查询参数(记账保存后跳回报表页时带上),格式不正确时回落到当前月
+  const [searchParams] = useSearchParams()
+  const monthFromQuery = searchParams.get('month')
+  const initialMonth =
+    monthFromQuery && /^\d{4}-\d{2}$/.test(monthFromQuery) ? monthFromQuery : currentMonth()
+
+  const [filterMonth, setFilterMonth] = useState<string>(initialMonth)
   const reportQ = useMonthlyReport(filterMonth)
   const report = reportQ.data
 

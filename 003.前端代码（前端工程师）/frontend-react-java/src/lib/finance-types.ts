@@ -53,4 +53,6 @@ export interface Transaction {
   amount: number
   note: string
   accountId: string
+  /** ISO 字符串;UI 显示 HH:MM 表示此笔账的记账时间 */
+  createdAt?: string
 }

@@ -1,5 +1,5 @@
 import { useMemo, useState } from 'react'
-import { Link } from 'react-router-dom'
+import { Link, useSearchParams } from 'react-router-dom'
 import { usePageTitle, usePageBack } from '../components/PageTitleContext'
 import { TransactionRow } from '../components/TransactionRow'
 import { CategoryBreakdown } from '../components/CategoryBreakdown'
@@ -49,7 +49,13 @@ export function Home() {
   usePageTitle(t('pageTitle.home'))
   usePageBack(null)
 
-  const [month, setMonth] = useState(currentMonthYYYYMM)
+  // 来自 Quick Add ?month=YYYY-MM 的查询参数(记账保存后跳回首页时带上),格式不正确时回落到当前月
+  const [searchParams] = useSearchParams()
+  const monthFromQuery = searchParams.get('month')
+  const initialMonth =
+    monthFromQuery && /^\d{4}-\d{2}$/.test(monthFromQuery) ? monthFromQuery : currentMonthYYYYMM()
+
+  const [month, setMonth] = useState(initialMonth)
   const today = useMemo(() => new Date(), [])
 
   const yearOptions = useMemo(() => {
@@ -113,11 +119,17 @@ export function Home() {
       groups.set(t.date, arr)
     }
     return Array.from(groups.entries()).map(([date, txns]) => {
-      const net = txns.reduce(
+      // 同日内按 createdAt 倒序(最新在前)
+      const sorted = [...txns].sort((a, b) => {
+        const aT = a.createdAt ?? a.date
+        const bT = b.createdAt ?? b.date
+        return aT < bT ? 1 : aT > bT ? -1 : 0
+      })
+      const net = sorted.reduce(
         (s, t) => s + (t.type === 'income' ? t.amount : -t.amount),
         0,
       )
-      return { date, txns, net, label: dateLabel(date, today, t) }
+      return { date, txns: sorted, net, label: dateLabel(date, today, t) }
     })
   }, [recentTxns, today, t])
 
@@ -238,7 +250,7 @@ export function Home() {
       <div className="bg-bg-card rounded-xl border border-divider shadow-sm overflow-hidden">
         <div className="p-4 border-b border-divider bg-surface-bright flex justify-between items-center">
           <h3 className="font-headline-md text-headline-md text-text-primary">{t('home.recentTransactions')}</h3>
-          <Link to="/transactions" className="text-primary hover:text-primary-container font-caption-sm text-caption-sm flex items-center gap-1">
+          <Link to={`/transactions?month=${month}`} className="text-primary hover:text-primary-container font-caption-sm text-caption-sm flex items-center gap-1">
             {t('home.viewAll')} <span className="material-symbols-outlined" style={{ fontSize: '16px' }}>arrow_forward</span>
           </Link>
         </div>

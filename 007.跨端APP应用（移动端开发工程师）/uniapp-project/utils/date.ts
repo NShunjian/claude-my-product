@@ -10,6 +10,22 @@ export function formatLocalMonth(d: Date): string {
   return `${d.getFullYear()}-${pad2(d.getMonth() + 1)}`
 }
 
+/** 从 ISO 字符串取本地 HH:MM(本地时区)。无效返回空串。 */
+export function formatLocalHHMM(iso: string | undefined | null): string {
+  if (!iso) return ''
+  const d = new Date(iso)
+  if (Number.isNaN(d.getTime())) return ''
+  return `${pad2(d.getHours())}:${pad2(d.getMinutes())}`
+}
+
+/** 从 ISO 字符串取本地 YYYY-MM-DD(实际创建日期)。无效返回空串。 */
+export function formatLocalYMD(iso: string | undefined | null): string {
+  if (!iso) return ''
+  const d = new Date(iso)
+  if (Number.isNaN(d.getTime())) return ''
+  return formatLocalDate(d)
+}
+
 export function todayLocal(): string {
   return formatLocalDate(new Date())
 }

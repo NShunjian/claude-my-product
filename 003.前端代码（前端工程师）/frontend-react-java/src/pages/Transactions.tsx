@@ -1,4 +1,5 @@
 import { useEffect, useMemo, useState } from 'react'
+import { useSearchParams } from 'react-router-dom'
 import { usePageTitle, usePageBack } from '../components/PageTitleContext'
 import { TransactionRow } from '../components/TransactionRow'
 import { useAccounts, useCategories, useRecords } from '../lib/hooks'
@@ -62,11 +63,17 @@ function recentMonths(): string[] {
 
 export function Transactions() {
   const { t } = useLanguage()
+  const [searchParams] = useSearchParams()
   const weekdays = useMemo(() => WEEKDAY_KEYS.map((k) => t(k)), [t])
   usePageTitle(t('transactions.titleAll'))
   usePageBack('/', t('pageTitle.home'))
 
-  const [filterMonth, setFilterMonth] = useState<string>(currentMonth())
+  // 来自 Home 页 ?month=YYYY-MM 的查询参数;格式不正确时回落到当前月
+  const monthFromQuery = searchParams.get('month')
+  const initialMonth =
+    monthFromQuery && /^\d{4}-\d{2}$/.test(monthFromQuery) ? monthFromQuery : currentMonth()
+
+  const [filterMonth, setFilterMonth] = useState<string>(initialMonth)
   const [filterCategory, setFilterCategory] = useState<string>('all')
   const [filterAccount, setFilterAccount] = useState<string>('all')
 
@@ -127,11 +134,17 @@ export function Transactions() {
       groups.set(t.date, arr)
     }
     return Array.from(groups.entries()).map(([date, txns]) => {
-      const groupNet = txns.reduce(
+      // 同日内的交易按创建时间倒序(最新在前);createdAt 缺失时回落到 date 倒序
+      const sorted = [...txns].sort((a, b) => {
+        const aT = a.createdAt ?? a.date
+        const bT = b.createdAt ?? b.date
+        return aT < bT ? 1 : aT > bT ? -1 : 0
+      })
+      const groupNet = sorted.reduce(
         (s, t) => s + (t.type === 'income' ? t.amount : -t.amount),
         0,
       )
-      return { date, txns, net: groupNet, label: formatDayWithWeekday(date, weekdays) }
+      return { date, txns: sorted, net: groupNet, label: formatDayWithWeekday(date, weekdays) }
     })
   }, [filteredTxns, weekdays])
 

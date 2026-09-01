@@ -1,5 +1,6 @@
 import type { Transaction, Account, Category, TransactionType } from '../lib/finance-types'
 import { CategoryBadge } from './CategoryBadge'
+import { useLanguage } from '../i18n/LanguageContext'
 
 interface TransactionRowProps {
   transaction: Transaction
@@ -26,6 +27,24 @@ function formatAmount(amount: number, type: TransactionType): string {
   }).format(Math.abs(amount))}`
 }
 
+/** 从 ISO 字符串取 HH:MM(本地时区)。无效返回空串。 */
+function formatHHMM(iso: string | undefined): string {
+  if (!iso) return ''
+  const d = new Date(iso)
+  if (Number.isNaN(d.getTime())) return ''
+  const pad = (n: number) => String(n).padStart(2, '0')
+  return `${pad(d.getHours())}:${pad(d.getMinutes())}`
+}
+
+/** 从 ISO 字符串取本地 YYYY-MM-DD。无效返回空串。 */
+function formatYMD(iso: string | undefined): string {
+  if (!iso) return ''
+  const d = new Date(iso)
+  if (Number.isNaN(d.getTime())) return ''
+  const pad = (n: number) => String(n).padStart(2, '0')
+  return `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}`
+}
+
 export function TransactionRow({
   transaction,
   account,
@@ -34,6 +53,9 @@ export function TransactionRow({
 }: TransactionRowProps) {
   const category = findCategory(categories, transaction.categoryId)
   const isComfortable = variant === 'comfortable'
+  const { t } = useLanguage()
+  const time = formatHHMM(transaction.createdAt)
+  const dateLabel = formatYMD(transaction.createdAt)
 
   const containerClass = isComfortable
     ? 'flex items-center justify-between p-4 border-b border-divider hover:bg-surface-container-low transition-colors cursor-pointer last:border-0'
@@ -55,13 +77,22 @@ export function TransactionRow({
         </div>
       </div>
 
-      <span
-        className={`font-label-mono text-label-mono shrink-0 ${
-          transaction.type === 'expense' ? 'text-error' : 'text-secondary'
-        }`}
-      >
-        {formatAmount(transaction.amount, transaction.type)}
-      </span>
+      <div className="flex flex-col items-end shrink-0">
+        <span
+          className={`font-label-mono text-label-mono ${
+            transaction.type === 'expense' ? 'text-error' : 'text-secondary'
+          }`}
+        >
+          {formatAmount(transaction.amount, transaction.type)}
+        </span>
+        {(dateLabel || time) && (
+          <span className="font-caption-sm text-caption-sm text-on-surface-variant whitespace-nowrap">
+            {t('transactions.recordTime')}: {dateLabel}
+            {dateLabel && time ? ' ' : ''}
+            {time}
+          </span>
+        )}
+      </div>
     </div>
   )
 }

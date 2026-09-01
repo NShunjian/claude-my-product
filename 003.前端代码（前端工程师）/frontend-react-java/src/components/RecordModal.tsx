@@ -2,6 +2,7 @@ import { useEffect, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import type { Account, Category } from '../lib/finance-types'
 import { useLanguage } from '../i18n/LanguageContext'
+import { DatePicker } from './DatePicker'
 
 // 主题色映射（与原型一致）
 const COLOR_MAP: Record<string, { solid: string; tint: string; label: string }> = {
@@ -66,6 +67,7 @@ export function RecordModal({
   const [submitting, setSubmitting] = useState(false)
   const [errorMsg, setErrorMsg] = useState<string | null>(null)
   const [activeTab, setActiveTab] = useState<'expense' | 'income'>(kind)
+  const [recordDate, setRecordDate] = useState(todayISO())
 
   useEffect(() => {
     setActiveTab(kind)
@@ -158,10 +160,12 @@ export function RecordModal({
         accountId,
         amount: Math.round(amount * 100) / 100,
         note: note.trim(),
-        recordDate: todayISO(),
+        recordDate,
       })
       setShowSuccess(true)
-      setTimeout(() => navigate(-1), 1200)
+      // 记账成功 → 跳回首页,带上 recordDate 所在月份,首页/报表页据此展示该月数据
+      // recordDate 是 YYYY-MM-DD,取前 7 位即 YYYY-MM
+      setTimeout(() => navigate(`/?month=${recordDate.slice(0, 7)}`, { replace: true }), 1200)
     } catch (err) {
       const msg = err instanceof Error ? err.message : t('common.submitFailed')
       setErrorMsg(msg)
@@ -387,15 +391,23 @@ export function RecordModal({
 
               {/* 日期 + 备注 */}
               <div className="flex items-center gap-3">
-                <button
-                  type="button"
-                  className="flex items-center gap-2 px-4 py-2 bg-surface-container rounded-lg font-body-md text-body-md text-text-primary hover:bg-surface-container-high transition-colors"
-                >
-                  <span className="material-symbols-outlined" style={{ fontSize: '18px' }}>
-                    calendar_today
-                  </span>
-                  {activeTab === 'expense' ? t('recordExpense.today') : t('recordIncome.today')}
-                </button>
+                <DatePicker
+                  value={recordDate}
+                  onChange={setRecordDate}
+                  displayTemplate="{y} 年 {m} 月 {d} 日"
+                  triggerLabel={t('recordModal.pickDate')}
+                  labels={{
+                    prevMonth: t('recordModal.prevMonth'),
+                    nextMonth: t('recordModal.nextMonth'),
+                    prevYear: t('recordModal.prevYear'),
+                    nextYear: t('recordModal.nextYear'),
+                    yearLabel: t('recordModal.yearLabel'),
+                    clear: t('recordModal.clear'),
+                    thisMonth: t('recordModal.thisMonth'),
+                    todayLabel: t('recordModal.today'),
+                    weekdays: t('recordModal.weekdays'),
+                  }}
+                />
                 <input
                   type="text"
                   value={note}

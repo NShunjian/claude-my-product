@@ -29,6 +29,7 @@ export function toTransaction(r: ApiRecord): Transaction | null {
     amount: r.amount,
     note: r.note ?? '',
     accountId: r.accountId,
+    createdAt: r.createdAt,
   }
 }
 

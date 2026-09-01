@@ -9,6 +9,7 @@ import type { Account } from '@/api/accounts'
 import type { Category } from '@/api/categories'
 import { useToastStore } from '@/stores/toast'
 import { todayLocal } from '@/utils/date'
+import { categoryPresentation } from '@/utils/category-presentation'
 
 const props = defineProps<{ type: RecordType }>()
 const emit = defineEmits<{ (e: 'saved'): void }>()
@@ -108,7 +109,7 @@ async function save() {
       <text class="label">分类</text>
       <view class="cats">
         <view v-for="c in cats" :key="c.id" class="cat-item" :class="{ active: c.id === categoryId }" @tap="categoryId = c.id">
-          <text class="cat-icon">{{ c.icon }}</text>
+          <text class="cat-icon" :style="{ color: categoryPresentation(c).color }">{{ categoryPresentation(c).icon }}</text>
           <text class="cat-name">{{ c.name }}</text>
         </view>
       </view>
@@ -137,7 +138,7 @@ async function save() {
 .cats { display: flex; flex-wrap: wrap; gap: 12rpx; }
 .cat-item { display: flex; align-items: center; gap: 8rpx; padding: 8rpx 16rpx; border: 1px solid var(--c-divider); border-radius: 24rpx; }
 .cat-item.active { border-color: var(--c-primary); background: var(--c-primary-light); }
-.cat-icon { font-size: 28rpx; } .cat-name { font-size: 24rpx; }
+.cat-icon { font-size: 28rpx; font-family: 'Material Symbols Outlined', sans-serif; font-weight: normal; font-style: normal; } .cat-name { font-size: 24rpx; }
 .actions { margin-top: 24rpx; }
 .btn-primary { background: var(--c-primary); color: #fff; border-radius: 12rpx; padding: 24rpx; text-align: center; font-size: 32rpx; }
 </style>

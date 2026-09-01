@@ -6,6 +6,7 @@ import type { Category } from '@/api/categories'
 import { formatAmount } from '@/utils/finance'
 import { formatLocalHHMM, formatLocalYMD } from '@/utils/date'
 import { useLanguage } from '@/i18n/useLanguage'
+import { categoryPresentation } from '@/utils/category-presentation'
 
 const props = defineProps<{
   record: Record
@@ -26,6 +27,8 @@ const subtitle = computed(() => {
   if (catName && acctName) return `${catName} · ${acctName}`
   return catName ?? acctName ?? ''
 })
+// 分类图标 + 语义色(对齐 React Material Symbols + colorToken)
+const pres = computed(() => props.category ? categoryPresentation(props.category) : null)
 
 function catTint(hex?: string): string {
   if (!hex) return 'var(--c-surface)'
@@ -40,15 +43,15 @@ function catTint(hex?: string): string {
 
 <template>
   <view class="row" @tap="emit('tap', record)">
-    <!-- 圆形图标:浅色分类色背景 + 居中 emoji -->
+    <!-- 圆形图标:MS Outlined 字形 + 浅色背景 + 语义色 -->
     <view
       class="icon-circle"
       :style="{
-        background: catTint(category?.color),
-        color: category?.color ?? 'var(--c-text-variant)',
+        background: catTint(pres?.color),
+        color: pres?.color ?? 'var(--c-text-variant)',
       }"
     >
-      <text class="icon-emoji">{{ category?.icon ?? '·' }}</text>
+      <text class="icon-glyph">{{ pres?.icon ?? 'more_horiz' }}</text>
     </view>
 
     <!-- 中间:标题 + 副标题 -->
@@ -86,7 +89,13 @@ function catTint(hex?: string): string {
   justify-content: center;
   flex-shrink: 0;
 }
-.icon-emoji { font-size: 36rpx; line-height: 1; }
+.icon-glyph {
+  font-family: 'Material Symbols Outlined', sans-serif;
+  font-size: 40rpx;
+  line-height: 1;
+  font-weight: normal;
+  font-style: normal;
+}
 .mid {
   flex: 1;
   display: flex;

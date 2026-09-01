@@ -16,6 +16,7 @@ import type { Account } from '@/api/accounts'
 import type { Category } from '@/api/categories'
 import { formatAmount } from '@/utils/finance'
 import { formatLocalMonth, compareRecordDesc, formatMonthCN, formatRelativeDayLabel } from '@/utils/date'
+import { categoryPresentation } from '@/utils/category-presentation'
 
 const book = useBookStore()
 const auth = useAuthStore()
@@ -63,14 +64,24 @@ const subtitle = computed(() => formatMonthCN(month.value))
 // 分类汇总:本月按分类聚合,降序,0 金额仍在底部展示(对齐 React CategoryBreakdown)
 const expenseCats = computed(() => cats.value.filter(c => c.type === 'expense'))
 const incomeCats = computed(() => cats.value.filter(c => c.type === 'income'))
-const expenseByCat = computed(() => expenseCats.value.map(c => ({
-  cat: c,
-  total: records.value.filter(r => r.type === 'expense' && r.categoryId === c.id).reduce((s, r) => s + r.amount, 0),
-})).sort((a, b) => b.total - a.total))
-const incomeByCat = computed(() => incomeCats.value.map(c => ({
-  cat: c,
-  total: records.value.filter(r => r.type === 'income' && r.categoryId === c.id).reduce((s, r) => s + r.amount, 0),
-})).sort((a, b) => b.total - a.total))
+const expenseByCat = computed(() => expenseCats.value.map(c => {
+  const pres = categoryPresentation(c)
+  return {
+    cat: c,
+    icon: pres.icon,
+    color: pres.color,
+    total: records.value.filter(r => r.type === 'expense' && r.categoryId === c.id).reduce((s, r) => s + r.amount, 0),
+  }
+}).sort((a, b) => b.total - a.total))
+const incomeByCat = computed(() => incomeCats.value.map(c => {
+  const pres = categoryPresentation(c)
+  return {
+    cat: c,
+    icon: pres.icon,
+    color: pres.color,
+    total: records.value.filter(r => r.type === 'income' && r.categoryId === c.id).reduce((s, r) => s + r.amount, 0),
+  }
+}).sort((a, b) => b.total - a.total))
 
 function findAccount(id: string) { return accounts.value.find(a => a.id === id) }
 function findCat(id: string | null) { return cats.value.find(c => c.id === id) }
@@ -209,13 +220,13 @@ onShow(load)
         <view v-if="expenseByCat.length === 0" class="empty-mini">{{ t('home.empty') }}</view>
         <view v-else class="cat-list">
           <view v-for="row in expenseByCat" :key="row.cat.id" class="cat-row">
-            <text class="cat-emoji" :style="{ color: row.cat.color }">{{ row.cat.icon }}</text>
+            <text class="cat-emoji" :style="{ color: row.color }">{{ row.icon }}</text>
             <text class="cat-name">{{ row.cat.name }}</text>
             <text class="cat-amt">¥{{ formatAmount(row.total) }}</text>
             <view class="cat-bar-track">
               <view class="cat-bar-fill" :style="{
                 width: (monthExpense > 0 ? (row.total / monthExpense) * 100 : 0) + '%',
-                background: row.cat.color,
+                background: row.color,
               }" />
             </view>
           </view>
@@ -227,13 +238,13 @@ onShow(load)
         <view v-if="incomeByCat.length === 0" class="empty-mini">{{ t('home.empty') }}</view>
         <view v-else class="cat-list">
           <view v-for="row in incomeByCat" :key="row.cat.id" class="cat-row">
-            <text class="cat-emoji" :style="{ color: row.cat.color }">{{ row.cat.icon }}</text>
+            <text class="cat-emoji" :style="{ color: row.color }">{{ row.icon }}</text>
             <text class="cat-name">{{ row.cat.name }}</text>
             <text class="cat-amt">¥{{ formatAmount(row.total) }}</text>
             <view class="cat-bar-track">
               <view class="cat-bar-fill" :style="{
                 width: (monthIncome > 0 ? (row.total / monthIncome) * 100 : 0) + '%',
-                background: row.cat.color,
+                background: row.color,
               }" />
             </view>
           </view>
@@ -318,6 +329,8 @@ onShow(load)
   font-size: 36rpx;
   line-height: 1;
   font-family: 'Material Symbols Outlined', sans-serif;
+  font-weight: normal;
+  font-style: normal;
 }
 .cat-name {
   grid-row: 1;

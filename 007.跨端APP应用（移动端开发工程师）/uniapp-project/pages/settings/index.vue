@@ -8,6 +8,7 @@ import { useToastStore } from '@/stores/toast'
 import { getSystemVersion } from '@/api/version'
 import { listCategories, createCategory, updateCategory, deleteCategory } from '@/api/categories'
 import type { Category, CategoryType } from '@/api/categories'
+import { categoryPresentation } from '@/utils/category-presentation'
 import { t } from '@/i18n/dict'
 
 const auth = useAuthStore()
@@ -78,7 +79,7 @@ const editColor = ref('')
 
 const catItems = computed(() => {
   const src = catTab.value === 'expense' ? expenseCats.value : incomeCats.value
-  return Array.isArray(src) ? src.filter((c): c is Category => !!c && !!c.id) : []
+  return Array.isArray(src) ? src.filter((c): c is Category => !!c && !!c.id).map((c) => ({ ...c, pres: categoryPresentation(c) })) : []
 })
 
 async function loadCategories() {
@@ -281,8 +282,8 @@ async function handleDelete(c: Category) {
       <!-- category list -->
       <view class="cat-list">
         <view v-for="(c, idx) in catItems" :key="c?.id ?? `cat-${catTab}-${idx}`" class="cat-item">
-          <view class="cat-dot" :style="{ backgroundColor: c.color + '33' }">
-            <text style="font-size:16px">{{ c.icon }}</text>
+          <view class="cat-dot" :style="{ backgroundColor: c.pres.color + '22' }">
+            <text class="cat-icon-glyph" :style="{ color: c.pres.color }">{{ c.pres.icon }}</text>
           </view>
           <view class="cat-info">
             <text class="cat-name">{{ c.name }}</text>
@@ -419,6 +420,7 @@ async function handleDelete(c: Category) {
 .cat-list {}
 .cat-item { display: flex; align-items: center; gap: 16rpx; padding: 16rpx 0; border-top: 1px solid var(--c-divider); }
 .cat-dot { width: 64rpx; height: 64rpx; border-radius: 50%; display: flex; align-items: center; justify-content: center; flex-shrink: 0; }
+.cat-icon-glyph { font-size: 32rpx; font-family: 'Material Symbols Outlined', sans-serif; font-weight: normal; font-style: normal; line-height: 1; }
 .cat-info { flex: 1; min-width: 0; }
 .cat-name { font-size: 26rpx; color: var(--c-text); display: block; }
 .cat-color { font-size: 22rpx; color: var(--c-text-variant); }

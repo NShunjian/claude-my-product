@@ -11,6 +11,7 @@ import type { Category } from '@/api/categories'
 import type { RecordType } from '@/api/records'
 import { todayLocal } from '@/utils/date'
 import { formatAmount } from '@/utils/finance'
+import { categoryPresentation } from '@/utils/category-presentation'
 
 /**
  * 快速记账弹框 —— 对齐 frontend-react-java RecordModal
@@ -50,7 +51,14 @@ const catsLocal = ref<Category[]>([])
 const acctsLocal = ref<Account[]>([])
 const catsActive = computed<Category[]>(() => props.categories.length ? props.categories : catsLocal.value)
 const acctsActive = computed<Account[]>(() => props.accounts.length ? props.accounts : acctsLocal.value)
-const visibleCats = computed(() => catsActive.value.filter(c => c.type === activeTab.value))
+const visibleCats = computed(() =>
+  catsActive.value
+    .filter(c => c.type === activeTab.value)
+    .map(c => {
+      const pres = categoryPresentation(c)
+      return { ...c, icon: pres.icon, color: pres.color }
+    }),
+)
 
 function pickDefaultAccount(): string {
   const list = acctsActive.value
@@ -482,7 +490,13 @@ const accentBg = computed(() => isExpense.value ? 'var(--c-primary)' : '#10b981'
   transition: transform 0.1s ease;
 }
 .qa-cat:active .qa-cat-circle { transform: scale(0.94); }
-.qa-cat-icon { font-size: 36rpx; }
+.qa-cat-icon {
+  font-size: 40rpx;
+  line-height: 1;
+  font-family: 'Material Symbols Outlined', sans-serif;
+  font-weight: normal;
+  font-style: normal;
+}
 .qa-cat-name {
   font-size: 22rpx;
   text-align: center;

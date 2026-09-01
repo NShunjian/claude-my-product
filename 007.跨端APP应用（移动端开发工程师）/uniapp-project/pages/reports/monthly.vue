@@ -6,12 +6,12 @@ import { useAuthStore } from '@/stores/auth'
 import { useToastStore } from '@/stores/toast'
 import { useLanguage } from '@/i18n/useLanguage'
 import { getMonthlyReport } from '@/api/reports'
-import { categoryIconColor } from '@/utils/category-presentation'
+import { categoryPresentation } from '@/utils/category-presentation'
 import { formatAmount } from '@/utils/finance'
 import MonthPicker from '@/components/MonthPicker.vue'
 import LineChart from '@/components/charts/LineChart.vue'
 import DonutChart from '@/components/DonutChart.vue'
-import type { MonthlyReport, CategoryTotal, DailyPoint } from '@/api/reports'
+import type { MonthlyReport, DailyPoint } from '@/api/reports'
 
 const book = useBookStore()
 const auth = useAuthStore()
@@ -58,11 +58,13 @@ const netChangePct = computed(() => {
 const incomeRanking = computed(() => {
   if (!report.value) return []
   return [...report.value.incomeByCategory].sort((a, b) => b.total - a.total)
+    .map((c) => ({ ...c, pres: categoryPresentation({ id: c.categoryId, type: 'income', name: c.name }) }))
 })
 
 const expenseRanking = computed(() => {
   if (!report.value) return []
   return [...report.value.expenseByCategory].sort((a, b) => b.total - a.total)
+    .map((c) => ({ ...c, pres: categoryPresentation({ id: c.categoryId, type: 'expense', name: c.name }) }))
 })
 
 const topExpense = computed(() => expenseRanking.value[0] ?? null)
@@ -71,7 +73,7 @@ const incomeDonutSegments = computed(() =>
   incomeRanking.value.map((cat) => ({
     label: cat.name,
     value: cat.total,
-    color: categoryIconColor(cat.icon ?? 'receipt', cat.color ?? '#999').color,
+    color: categoryPresentation({ id: cat.categoryId, type: 'income', name: cat.name }).color,
   }))
 )
 
@@ -79,7 +81,7 @@ const expenseDonutSegments = computed(() =>
   expenseRanking.value.map((cat) => ({
     label: cat.name,
     value: cat.total,
-    color: categoryIconColor(cat.icon ?? 'receipt', cat.color ?? '#999').color,
+    color: categoryPresentation({ id: cat.categoryId, type: 'expense', name: cat.name }).color,
   }))
 )
 
@@ -98,12 +100,6 @@ async function load() {
 
 function goPrev() { filterMonth.value = shiftMonth(filterMonth.value, -1) }
 function goNext() { filterMonth.value = shiftMonth(filterMonth.value, 1) }
-
-function renderCategoryRow(cat: CategoryTotal, total: number) {
-  const pct = total > 0 ? (cat.total / total) * 100 : 0
-  const pres = categoryIconColor(cat.icon ?? 'receipt', cat.color ?? '#999')
-  return { ...cat, pct, ...pres }
-}
 
 watch([filterMonth, () => book.current], load, { immediate: true })
 onShow(load)
@@ -190,8 +186,8 @@ onShow(load)
         <view v-if="incomeRanking.length === 0" class="empty-sm">{{ t('reportMonthly.noIncomeRecords') }}</view>
         <view v-else class="cat-list">
           <view v-for="cat in incomeRanking" :key="cat.categoryId" class="cat-row">
-            <view class="cat-icon" :style="{ background: categoryIconColor(cat.icon, cat.color).color + '22' }">
-              <text class="cat-icon-text" :style="{ color: categoryIconColor(cat.icon, cat.color).color }">{{ cat.icon }}</text>
+            <view class="cat-icon" :style="{ background: cat.pres.color + '22' }">
+              <text class="cat-icon-text" :style="{ color: cat.pres.color }">{{ cat.pres.icon }}</text>
             </view>
             <text class="cat-name">{{ cat.name }}</text>
             <view class="cat-right">
@@ -215,8 +211,8 @@ onShow(load)
         <view v-if="expenseRanking.length === 0" class="empty-sm">{{ t('reportMonthly.noExpenseRecords') }}</view>
         <view v-else class="cat-list">
           <view v-for="cat in expenseRanking" :key="cat.categoryId" class="cat-row">
-            <view class="cat-icon" :style="{ background: categoryIconColor(cat.icon, cat.color).color + '22' }">
-              <text class="cat-icon-text" :style="{ color: categoryIconColor(cat.icon, cat.color).color }">{{ cat.icon }}</text>
+            <view class="cat-icon" :style="{ background: cat.pres.color + '22' }">
+              <text class="cat-icon-text" :style="{ color: cat.pres.color }">{{ cat.pres.icon }}</text>
             </view>
             <text class="cat-name">{{ cat.name }}</text>
             <view class="cat-right">
@@ -270,7 +266,7 @@ onShow(load)
 .cat-list { display: flex; flex-direction: column; gap: 16rpx; }
 .cat-row { display: flex; align-items: center; gap: 12rpx; }
 .cat-icon { width: 56rpx; height: 56rpx; border-radius: 50%; display: flex; align-items: center; justify-content: center; flex-shrink: 0; }
-.cat-icon-text { font-size: 24rpx; }
+.cat-icon-text { font-size: 24rpx; font-family: 'Material Symbols Outlined', sans-serif; font-weight: normal; font-style: normal; }
 .cat-name { flex: 1; font-size: 26rpx; color: var(--c-text); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .cat-right { display: flex; flex-direction: column; align-items: flex-end; gap: 2rpx; }
 .cat-amount { font-size: 26rpx; font-weight: 600; color: var(--c-text); }

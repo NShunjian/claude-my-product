@@ -6,7 +6,7 @@ import { useAuthStore } from '@/stores/auth'
 import { useToastStore } from '@/stores/toast'
 import { useLanguage } from '@/i18n/useLanguage'
 import { getYearlyReport } from '@/api/reports'
-import { categoryIconColor } from '@/utils/category-presentation'
+import { categoryPresentation } from '@/utils/category-presentation'
 import { formatAmount } from '@/utils/finance'
 import DonutChart from '@/components/DonutChart.vue'
 import type { YearlyReport, MonthlyPoint, CategoryTotal } from '@/api/reports'
@@ -42,13 +42,14 @@ const netSavings = computed(() => report.value?.netSavings ?? 0)
 const expenseByCategory = computed(() => {
   if (!report.value) return []
   return [...report.value.expenseByCategory].sort((a, b) => b.total - a.total)
+    .map((c) => ({ ...c, pres: categoryPresentation({ id: c.categoryId, type: 'expense', name: c.name }) }))
 })
 
 const donutSegments = computed(() =>
   expenseByCategory.value.map((cat) => ({
     label: cat.name,
     value: cat.total,
-    color: categoryIconColor(cat.icon ?? 'receipt', cat.color ?? '#999').color,
+    color: cat.pres.color,
   }))
 )
 
@@ -155,8 +156,8 @@ onShow(load)
           <DonutChart :segments="donutSegments" :total-value="`¥${(totalExpense / 1000).toFixed(1)}k`" />
           <view class="cat-list">
             <view v-for="cat in expenseByCategory.slice(0, 6)" :key="cat.categoryId" class="cat-row">
-              <view class="cat-icon" :style="{ background: categoryIconColor(cat.icon, cat.color).color + '22' }">
-                <text class="cat-icon-text" :style="{ color: categoryIconColor(cat.icon, cat.color).color }">{{ cat.icon }}</text>
+              <view class="cat-icon" :style="{ background: cat.pres.color + '22' }">
+                <text class="cat-icon-text" :style="{ color: cat.pres.color }">{{ cat.pres.icon }}</text>
               </view>
               <text class="cat-name">{{ cat.name }}</text>
               <text class="cat-amount">¥{{ formatAmount(cat.total, false) }}</text>
@@ -212,7 +213,7 @@ onShow(load)
 .cat-list { margin-top: 16rpx; display: flex; flex-direction: column; gap: 12rpx; }
 .cat-row { display: flex; align-items: center; gap: 12rpx; }
 .cat-icon { width: 48rpx; height: 48rpx; border-radius: 50%; display: flex; align-items: center; justify-content: center; flex-shrink: 0; }
-.cat-icon-text { font-size: 20rpx; }
+.cat-icon-text { font-size: 20rpx; font-family: 'Material Symbols Outlined', sans-serif; font-weight: normal; font-style: normal; }
 .cat-name { flex: 1; font-size: 24rpx; color: var(--c-text); }
 .cat-amount { font-size: 24rpx; font-weight: 600; color: var(--c-text); }
 </style>

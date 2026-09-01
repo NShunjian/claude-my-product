@@ -222,8 +222,9 @@ async function handleChangePassword() {
     newPwd.value = ''
     confirmPwd.value = ''
     pwdMsg.value = { kind: 'ok', text: t(lang, 'profileEdit.passwordChanged') }
-    // 保存成功 → 用 history-aware goBack 回到上一页(自定义 nav 下,不走 uni.navigateBack 兜底)
-    goBack()
+    // 改密码后旧 token 视为失效,清掉并跳登录页让用户用新密码重登
+    await auth.logout()
+    uni.reLaunch({ url: '/pages/login/index' })
   } catch (err: any) {
     pwdMsg.value = { kind: 'err', text: err?.message ?? t(lang, 'profileEdit.passwordChangeFailDefault') }
   } finally {

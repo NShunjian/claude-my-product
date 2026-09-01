@@ -1,4 +1,5 @@
 import { useEffect, useRef, useState } from 'react'
+import { useNavigate } from 'react-router-dom'
 import { useAuth } from '../auth/AuthContext'
 import { usePageTitle, usePageBack } from '../components/PageTitleContext'
 import { useLanguage } from '../i18n/LanguageContext'
@@ -10,7 +11,8 @@ export function ProfileEdit() {
   usePageTitle(t('pageTitle.profileEdit'))
   usePageBack('/settings', t('pageTitle.settings'))
 
-  const { user, refreshUser } = useAuth()
+  const { user, refreshUser, logout } = useAuth()
+  const navigate = useNavigate()
 
   const [gender, setGender] = useState<Gender | ''>('')
   const [age, setAge] = useState('')
@@ -92,6 +94,9 @@ export function ProfileEdit() {
       setNewPwd('')
       setConfirmPwd('')
       setPwdMsg({ kind: 'ok', text: t('profileEdit.passwordChanged') })
+      // 改密码后旧 token 视为失效,清掉并跳登录页让用户用新密码重登
+      await logout()
+      navigate('/login', { replace: true })
     } catch (err) {
       const text = err instanceof Error ? err.message : t('profileEdit.passwordChangeFailDefault')
       setPwdMsg({ kind: 'err', text })

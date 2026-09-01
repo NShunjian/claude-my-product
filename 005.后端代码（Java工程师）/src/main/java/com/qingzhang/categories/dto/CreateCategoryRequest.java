@@ -10,7 +10,8 @@ import jakarta.validation.constraints.Size;
 public record CreateCategoryRequest(
         @NotBlank @Pattern(regexp = "expense|income") String type,
         @NotBlank @Size(max = 20) String name,
-        @NotBlank @Size(max = 32) String icon,
+        // icon 允许为空:前端「没填图片」时存空串,渲染层走纯色填充(disp.solid=true)
+        @Size(max = 32) String icon,
         @Size(max = 16) String color,
         Integer sortOrder
 ) {}

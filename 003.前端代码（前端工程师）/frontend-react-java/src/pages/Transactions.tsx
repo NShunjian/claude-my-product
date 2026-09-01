@@ -2,7 +2,7 @@ import { useEffect, useMemo, useState } from 'react'
 import { useSearchParams } from 'react-router-dom'
 import { usePageTitle, usePageBack } from '../components/PageTitleContext'
 import { TransactionRow } from '../components/TransactionRow'
-import { useAccounts, useCategories, useRecords } from '../lib/hooks'
+import { RECORDS_CHANGED_EVENT, useAccounts, useCategories, useDeleteRecord, useRecords } from '../lib/hooks'
 import { toAccounts, toCategories, toTransactions } from '../lib/finance-mappers'
 import { useLanguage } from '../i18n/LanguageContext'
 import type { Account, Category, Transaction } from '../lib/finance-types'
@@ -164,6 +164,13 @@ export function Transactions() {
   const isError = !isLoading && !!recordsQ.error
   const errMsg = recordsQ.error?.message ?? null
 
+  // 删除单条流水:调 API 后通知其他页面的 useRecords 监听器刷新(useRecords 已订阅该事件)
+  const deleteRecord = useDeleteRecord()
+  async function handleDelete(id: string): Promise<void> {
+    await deleteRecord(id)
+    window.dispatchEvent(new CustomEvent(RECORDS_CHANGED_EVENT))
+  }
+
   return (
     <div className="space-y-6">
       <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
@@ -231,6 +238,7 @@ export function Transactions() {
                       account={findAccount(txn.accountId)}
                       categories={allCategories}
                       variant="comfortable"
+                      onDelete={() => handleDelete(txn.id)}
                     />
                   ))}
                 </div>

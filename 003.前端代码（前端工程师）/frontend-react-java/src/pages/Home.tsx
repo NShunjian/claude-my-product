@@ -1,4 +1,4 @@
-import { useMemo, useState } from 'react'
+import { useEffect, useMemo, useState } from 'react'
 import { Link, useSearchParams } from 'react-router-dom'
 import { usePageTitle, usePageBack } from '../components/PageTitleContext'
 import { TransactionRow } from '../components/TransactionRow'
@@ -44,18 +44,35 @@ function formatMonthLabel(month: string): string {
   return `${y} 年 ${parseInt(m, 10)} 月`
 }
 
+const LAST_MONTH_KEY = 'qingzhang:home-last-month'
+function readLastMonth(): string | null {
+  try {
+    const v = localStorage.getItem(LAST_MONTH_KEY)
+    return v && /^\d{4}-\d{2}$/.test(v) ? v : null
+  } catch {
+    return null
+  }
+}
+function writeLastMonth(month: string): void {
+  try { localStorage.setItem(LAST_MONTH_KEY, month) } catch { /* ignore quota/private mode */ }
+}
+
 export function Home() {
   const { t } = useLanguage()
   usePageTitle(t('pageTitle.home'))
   usePageBack(null)
 
-  // 来自 Quick Add ?month=YYYY-MM 的查询参数(记账保存后跳回首页时带上),格式不正确时回落到当前月
+  // 月份来源优先级:URL ?month (Quick Add 跳回) → localStorage (上次停留) → 当前月
   const [searchParams] = useSearchParams()
   const monthFromQuery = searchParams.get('month')
   const initialMonth =
-    monthFromQuery && /^\d{4}-\d{2}$/.test(monthFromQuery) ? monthFromQuery : currentMonthYYYYMM()
+    monthFromQuery && /^\d{4}-\d{2}$/.test(monthFromQuery)
+      ? monthFromQuery
+      : readLastMonth() ?? currentMonthYYYYMM()
 
-  const [month, setMonth] = useState(initialMonth)
+  const [month, setMonthRaw] = useState(initialMonth)
+  // URL ?month 跳回时把月份也持久化,这样即便导航离开(无 ?month)再回来仍是该月
+  useEffect(() => { writeLastMonth(month) }, [month])
   const today = useMemo(() => new Date(), [])
 
   const yearOptions = useMemo(() => {
@@ -65,6 +82,10 @@ export function Home() {
     return years
   }, [])
 
+  // setMonth 仅改 state;持久化由下面的 useEffect 统一负责(也覆盖 URL ?month 初始值)
+  function setMonth(next: string | ((prev: string) => string)) {
+    setMonthRaw((prev) => (typeof next === 'function' ? next(prev) : next))
+  }
   function goPrev() { setMonth((m) => shiftMonth(m, -1)) }
   function goNext() { setMonth((m) => shiftMonth(m, 1)) }
 

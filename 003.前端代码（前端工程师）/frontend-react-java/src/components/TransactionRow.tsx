@@ -1,3 +1,4 @@
+import { useState } from 'react'
 import type { Transaction, Account, Category, TransactionType } from '../lib/finance-types'
 import { CategoryBadge } from './CategoryBadge'
 import { useLanguage } from '../i18n/LanguageContext'
@@ -10,6 +11,8 @@ interface TransactionRowProps {
   /** 'compact' = Home/列表中嵌入用（py 较小、gap-3）
    *  'comfortable' = 独立交易列表页（p-4、gap-4、hover 高亮） */
   variant?: 'compact' | 'comfortable'
+  /** 提供时显示删除按钮（仅 comfortable 变体）。父组件负责调 API + 触发刷新。 */
+  onDelete?: () => void | Promise<void>
 }
 
 function findCategory(categories: Category[], id: string): Category | undefined {
@@ -50,12 +53,25 @@ export function TransactionRow({
   account,
   categories,
   variant = 'compact',
+  onDelete,
 }: TransactionRowProps) {
   const category = findCategory(categories, transaction.categoryId)
   const isComfortable = variant === 'comfortable'
   const { t } = useLanguage()
   const time = formatHHMM(transaction.createdAt)
   const dateLabel = formatYMD(transaction.createdAt)
+  const [deleting, setDeleting] = useState(false)
+
+  async function handleDelete() {
+    if (!onDelete) return
+    if (!window.confirm(t('transactions.deleteConfirm'))) return
+    setDeleting(true)
+    try {
+      await onDelete()
+    } finally {
+      setDeleting(false)
+    }
+  }
 
   const containerClass = isComfortable
     ? 'flex items-center justify-between p-4 border-b border-divider hover:bg-surface-container-low transition-colors cursor-pointer last:border-0'
@@ -77,20 +93,38 @@ export function TransactionRow({
         </div>
       </div>
 
-      <div className="flex flex-col items-end shrink-0">
-        <span
-          className={`font-label-mono text-label-mono ${
-            transaction.type === 'expense' ? 'text-error' : 'text-secondary'
-          }`}
-        >
-          {formatAmount(transaction.amount, transaction.type)}
-        </span>
-        {(dateLabel || time) && (
-          <span className="font-caption-sm text-caption-sm text-on-surface-variant whitespace-nowrap">
-            {t('transactions.recordTime')}: {dateLabel}
-            {dateLabel && time ? ' ' : ''}
-            {time}
+      <div className="flex items-center gap-2 shrink-0">
+        <div className="flex flex-col items-end">
+          <span
+            className={`font-label-mono text-label-mono ${
+              transaction.type === 'expense' ? 'text-error' : 'text-secondary'
+            }`}
+          >
+            {formatAmount(transaction.amount, transaction.type)}
           </span>
+          {(dateLabel || time) && (
+            <span className="font-caption-sm text-caption-sm text-on-surface-variant whitespace-nowrap">
+              {t('transactions.recordTime')}: {dateLabel}
+              {dateLabel && time ? ' ' : ''}
+              {time}
+            </span>
+          )}
+        </div>
+        {isComfortable && onDelete && (
+          <button
+            type="button"
+            onClick={handleDelete}
+            disabled={deleting}
+            aria-label={t('common.delete')}
+            className="w-9 h-9 flex items-center justify-center rounded-full text-on-surface-variant hover:bg-error-container hover:text-error transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+          >
+            <span
+              className="material-symbols-outlined"
+              style={{ fontSize: '20px' }}
+            >
+              {deleting ? 'progress_activity' : 'delete'}
+            </span>
+          </button>
         )}
       </div>
     </div>

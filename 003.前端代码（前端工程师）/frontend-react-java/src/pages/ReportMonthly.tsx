@@ -1,4 +1,4 @@
-import { useMemo, useState } from 'react'
+import { useEffect, useMemo, useState } from 'react'
 import { Link, useSearchParams } from 'react-router-dom'
 import { usePageTitle, usePageBack } from '../components/PageTitleContext'
 import { LineChart } from '../components/LineChart'
@@ -34,6 +34,19 @@ function currentMonth(): string {
   return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}`
 }
 
+const LAST_MONTH_KEY = 'qingzhang:report-monthly-last-month'
+function readLastMonth(): string | null {
+  try {
+    const v = localStorage.getItem(LAST_MONTH_KEY)
+    return v && /^\d{4}-\d{2}$/.test(v) ? v : null
+  } catch {
+    return null
+  }
+}
+function writeLastMonth(month: string): void {
+  try { localStorage.setItem(LAST_MONTH_KEY, month) } catch { /* ignore quota/private mode */ }
+}
+
 /** 把后端 DailyPoint 数组补齐到当前月天数（短月补 0） */
 function fillDailyData(report: MonthlyReport): DailyPoint[] {
   const [y, m] = report.month.split('-').map(Number)
@@ -50,13 +63,17 @@ export function ReportMonthly() {
   usePageTitle(t('pageTitle.reportMonthly'))
   usePageBack(null)
 
-  // 来自 Quick Add ?month=YYYY-MM 的查询参数(记账保存后跳回报表页时带上),格式不正确时回落到当前月
+  // 月份来源优先级:URL ?month (Quick Add 跳回) → localStorage (上次停留) → 当前月
   const [searchParams] = useSearchParams()
   const monthFromQuery = searchParams.get('month')
   const initialMonth =
-    monthFromQuery && /^\d{4}-\d{2}$/.test(monthFromQuery) ? monthFromQuery : currentMonth()
+    monthFromQuery && /^\d{4}-\d{2}$/.test(monthFromQuery)
+      ? monthFromQuery
+      : readLastMonth() ?? currentMonth()
 
   const [filterMonth, setFilterMonth] = useState<string>(initialMonth)
+  // URL ?month 跳回时把月份也持久化,刷新或无 ?month 的导航仍是该月
+  useEffect(() => { writeLastMonth(filterMonth) }, [filterMonth])
   const reportQ = useMonthlyReport(filterMonth)
   const report = reportQ.data
 

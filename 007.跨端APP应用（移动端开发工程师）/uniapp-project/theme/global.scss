@@ -1,0 +1,30 @@
+:root {
+  --c-primary:        #2E7DE6;
+  --c-primary-light:  #D9E8FA;
+  --c-bg:             #FFFFFF;
+  --c-bg-card:        #FAFAFA;
+  --c-text:           #1A1A1A;
+  --c-text-variant:   #5F6368;
+  --c-error:          #BA1A1A;
+  --c-divider:        #E0E0E0;
+  --c-surface:        #F5F5F5;
+}
+[data-theme='dark'] {
+  --c-primary:        #5BA3FF;
+  --c-primary-light:  #1F3A60;
+  --c-bg:             #0F1115;
+  --c-bg-card:        #181B22;
+  --c-text:           #E6E8EC;
+  --c-text-variant:   #A0A6B2;
+  --c-error:          #FF6B6B;
+  --c-divider:        #2A2F38;
+  --c-surface:        #1F242C;
+}
+
+.app-root { background: var(--c-bg); color: var(--c-text); min-height: 100vh; }
+.page-container { padding: 24rpx; }
+.card { background: var(--c-bg-card); border: 1px solid var(--c-divider); border-radius: 16rpx; padding: 24rpx; }
+.divider { height: 1px; background: var(--c-divider); }
+.btn-primary { background: var(--c-primary); color: #fff; border-radius: 12rpx; padding: 16rpx 24rpx; }
+.btn-outline { border: 1px solid var(--c-divider); color: var(--c-text); border-radius: 12rpx; padding: 16rpx 24rpx; }
+.text-variant { color: var(--c-text-variant); }

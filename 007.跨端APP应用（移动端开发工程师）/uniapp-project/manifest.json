@@ -1,7 +1,7 @@
 {
-    "name" : "uniapp-project",
+    "name" : "轻账",
     "appid" : "",
-    "description" : "",
+    "description" : "个人 / 共享 / 生意 记账",
     "versionName" : "1.0.0",
     "versionCode" : "100",
     "transformPx" : false,
@@ -48,11 +48,21 @@
     },
     /* 快应用特有相关 */
     "quickapp" : {},
+    /* H5 配置(来自内层 src/manifest.json) */
+    "h5" : {
+        "title" : "轻账",
+        "router" : {
+            "mode" : "history",
+            "base" : "/"
+        }
+    },
     /* 小程序特有相关 */
     "mp-weixin" : {
         "appid" : "",
         "setting" : {
-            "urlCheck" : false
+            "urlCheck" : false,
+            "es6" : true,
+            "minified" : true
         },
         "usingComponents" : true
     },

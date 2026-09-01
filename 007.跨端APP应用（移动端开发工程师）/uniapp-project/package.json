@@ -1,0 +1,10 @@
+{
+  "name": "qingzhang-app",
+  "version": "0.1.0",
+  "main": "main.js",
+  "description": "轻账 — 个人 / 共享 / 生意 记账 uni-app",
+  "dependencies": {
+    "pinia": "2.1.7",
+    "uview-plus": "^3.3.62"
+  }
+}

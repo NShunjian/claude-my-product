@@ -215,6 +215,7 @@ function onAccountChange(e: any) {
 .filter-selects { display: flex; flex-wrap: nowrap; gap: 12rpx; }
 .filter-selects > picker { flex: 1; min-width: 0; }
 .select-box {
+  width: 100%;
   border: 2rpx solid var(--c-divider);
   border-radius: 12rpx;
   padding: 16rpx 20rpx;
@@ -224,6 +225,7 @@ function onAccountChange(e: any) {
   overflow: hidden;
   text-overflow: ellipsis;
   box-sizing: border-box;
+  display: block;
 }
 .balance-card { background: var(--c-primary); border-radius: 16rpx; padding: 32rpx; color: #fff; display: flex; flex-direction: column; gap: 16rpx; }
 .balance-label { font-size: 26rpx; opacity: 0.9; display: block; }
@@ -234,6 +236,8 @@ function onAccountChange(e: any) {
 .sub-label { font-size: 24rpx; opacity: 0.9; }
 .sub-value { font-size: 30rpx; font-weight: 600; font-variant-numeric: tabular-nums; }
 .list-card { background: var(--c-bg-card); border-radius: 16rpx; overflow: hidden; border: 1px solid var(--c-divider); }
+/* 流水行左 padding 在首页与流水页不同:首页 .card 已自带 padding(0 即可),流水页 .list-card 无 padding(需补 24rpx 与 day-header 文字对齐) */
+.list-card :deep(.row) { padding-left: 24rpx; }
 .empty { text-align: center; padding: 80rpx; color: var(--c-text-variant); font-size: 28rpx; }
 .day-group { border-bottom: 1px solid var(--c-divider); }
 .day-group:last-child { border-bottom: none; }

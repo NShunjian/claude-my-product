@@ -34,6 +34,14 @@ function formatMonthLabel(m: string): string {
   return `${y}年 ${parseInt(mo, 10)}月`
 }
 
+// 日组标题:M月D日,星期X(对齐 React 流水页)
+function formatDayHeaderCN(ymd: string): string {
+  const d = new Date(ymd)
+  if (Number.isNaN(d.getTime())) return ymd
+  const weekday = d.toLocaleDateString('zh-CN', { weekday: 'long' })
+  return `${d.getMonth() + 1}月${d.getDate()}日,${weekday}`
+}
+
 const filterMonth = ref(formatLocalMonth(new Date()))
 const filterCategory = ref('all')
 const filterAccount = ref('all')
@@ -71,6 +79,7 @@ const grouped = computed(() => {
     date,
     recs,
     net: recs.reduce((s, r) => s + (r.type === 'income' ? r.amount : -r.amount), 0),
+    label: formatDayHeaderCN(date),
   }))
 })
 
@@ -158,12 +167,16 @@ function onAccountChange(e: any) {
       </view>
       <view class="balance-card">
         <text class="balance-label">{{ t('transactions.monthBalance') }}</text>
-        <text class="balance-amount">
-          {{ monthNet >= 0 ? '+' : '-' }}¥ {{ formatAmount(Math.abs(monthNet)) }}
-        </text>
+        <text class="balance-amount">¥ {{ formatAmount(Math.abs(monthNet)) }}</text>
         <view class="balance-sub">
-          <text>{{ t('transactions.income') }}: +¥ {{ formatAmount(monthIncome) }}</text>
-          <text>{{ t('transactions.expense') }}: -¥ {{ formatAmount(monthExpense) }}</text>
+          <view class="balance-sub-item">
+            <text class="sub-label">{{ t('transactions.income') }}</text>
+            <text class="sub-value">+¥ {{ formatAmount(monthIncome) }}</text>
+          </view>
+          <view class="balance-sub-item right">
+            <text class="sub-label">{{ t('transactions.expense') }}</text>
+            <text class="sub-value">-¥ {{ formatAmount(monthExpense) }}</text>
+          </view>
         </view>
       </view>
     </view>
@@ -175,8 +188,8 @@ function onAccountChange(e: any) {
       <view v-else>
         <view v-for="group in grouped" :key="group.date" class="day-group">
           <view class="day-header">
-            <text class="day-label">{{ group.date }}</text>
-            <text class="day-net" :class="group.net >= 0 ? 'income' : 'expense'">
+            <text class="day-label">{{ group.label }}</text>
+            <text class="day-net">
               {{ group.net >= 0 ? '+' : '-' }}¥ {{ formatAmount(Math.abs(group.net)) }}
             </text>
           </view>
@@ -199,19 +212,34 @@ function onAccountChange(e: any) {
 .filter-row { display: flex; flex-direction: column; gap: 16rpx; }
 .filter-card { background: var(--c-bg-card); border-radius: 16rpx; padding: 24rpx; border: 1px solid var(--c-divider); }
 .filter-title { font-size: 28rpx; font-weight: 600; margin-bottom: 16rpx; display: block; }
-.filter-selects { display: flex; flex-wrap: wrap; gap: 12rpx; }
-.select-box { border: 1px solid var(--c-divider); border-radius: 8rpx; padding: 12rpx 16rpx; font-size: 26rpx; background: var(--c-bg); }
-.balance-card { background: var(--c-primary); border-radius: 16rpx; padding: 24rpx; color: #fff; }
-.balance-label { font-size: 24rpx; opacity: 0.8; display: block; margin-bottom: 8rpx; }
-.balance-amount { font-size: 40rpx; font-weight: 700; display: block; }
-.balance-sub { display: flex; justify-content: space-between; margin-top: 12rpx; font-size: 24rpx; opacity: 0.9; }
+.filter-selects { display: flex; flex-wrap: nowrap; gap: 12rpx; }
+.filter-selects > picker { flex: 1; min-width: 0; }
+.select-box {
+  border: 2rpx solid var(--c-divider);
+  border-radius: 12rpx;
+  padding: 16rpx 20rpx;
+  font-size: 26rpx;
+  background: var(--c-bg-card);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  box-sizing: border-box;
+}
+.balance-card { background: var(--c-primary); border-radius: 16rpx; padding: 32rpx; color: #fff; display: flex; flex-direction: column; gap: 16rpx; }
+.balance-label { font-size: 26rpx; opacity: 0.9; display: block; }
+.balance-amount { font-size: 56rpx; font-weight: 700; display: block; line-height: 1.1; font-variant-numeric: tabular-nums; }
+.balance-sub { display: flex; justify-content: space-between; margin-top: 12rpx; }
+.balance-sub-item { display: flex; flex-direction: column; gap: 6rpx; }
+.balance-sub-item.right { align-items: flex-end; }
+.sub-label { font-size: 24rpx; opacity: 0.9; }
+.sub-value { font-size: 30rpx; font-weight: 600; font-variant-numeric: tabular-nums; }
 .list-card { background: var(--c-bg-card); border-radius: 16rpx; overflow: hidden; border: 1px solid var(--c-divider); }
 .empty { text-align: center; padding: 80rpx; color: var(--c-text-variant); font-size: 28rpx; }
 .day-group { border-bottom: 1px solid var(--c-divider); }
 .day-group:last-child { border-bottom: none; }
-.day-header { display: flex; justify-content: space-between; padding: 16rpx 24rpx; background: var(--c-surface); }
+.day-header { display: flex; justify-content: space-between; align-items: center; padding: 16rpx 24rpx; background: var(--c-surface); }
 .day-label { font-size: 26rpx; font-weight: 600; color: var(--c-text-variant); }
-.day-net { font-size: 26rpx; font-weight: 600; color: var(--c-text-variant); }
+.day-net { font-size: 26rpx; font-weight: 600; color: var(--c-text-variant); font-variant-numeric: tabular-nums; }
 .income { color: #006d40; }
 .expense { color: var(--c-error); }
 </style>

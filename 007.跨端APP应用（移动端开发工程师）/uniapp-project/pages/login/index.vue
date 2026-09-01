@@ -69,7 +69,7 @@ async function submit() {
 .logo-wrap { width: 80rpx; height: 80rpx; border-radius: 20rpx; background: var(--c-primary); display: flex; align-items: center; justify-content: center; }
 .logo-text { color: #fff; font-weight: 700; font-size: 40rpx; }
 .brand { font-size: 40rpx; font-weight: 700; }
-.card { background: var(--c-bg-card); border-radius: 16rpx; padding: 40rpx; display: flex; flex-direction: column; gap: 32rpx; }
+.card { background: var(--c-bg-card); border-radius: 16rpx; padding: 40rpx; display: flex; flex-direction: column; gap: 32rpx; border: 1px solid var(--c-divider); }
 .field { display: flex; flex-direction: column; gap: 12rpx; }
 .label { font-size: 28rpx; color: var(--c-text-variant); }
 .input { border: 1px solid var(--c-divider); border-radius: 12rpx; padding: 20rpx; background: var(--c-bg); color: var(--c-text); font-size: 30rpx; }

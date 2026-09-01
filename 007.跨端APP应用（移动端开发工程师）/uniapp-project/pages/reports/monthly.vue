@@ -243,7 +243,7 @@ onShow(load)
 .tab.active { background: var(--c-bg-card); color: var(--c-primary); font-weight: 600; }
 .error-box { background: #FFEBEE; color: #C62828; border-radius: 12rpx; padding: 20rpx; font-size: 26rpx; }
 .kpi-grid { display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 16rpx; }
-.kpi-card { background: var(--c-bg-card); border-radius: 16rpx; padding: 20rpx; display: flex; flex-direction: column; gap: 8rpx; }
+.kpi-card { background: var(--c-bg-card); border-radius: 16rpx; padding: 20rpx; display: flex; flex-direction: column; gap: 8rpx; border: 1px solid var(--c-divider); }
 .kpi-net { border-left: 4rpx solid var(--c-primary); }
 .kpi-income { border-left: 4rpx solid #10B981; }
 .kpi-expense { border-left: 4rpx solid var(--c-error); }
@@ -257,12 +257,12 @@ onShow(load)
 .top-label { font-size: 20rpx; color: var(--c-text-variant); }
 .top-label.income { color: #10B981; }
 .top-label.expense { color: var(--c-error); }
-.card { background: var(--c-bg-card); border-radius: 16rpx; padding: 24rpx; }
+.card { background: var(--c-bg-card); border-radius: 16rpx; padding: 24rpx; border: 1px solid var(--c-divider); }
 .card-title { font-size: 28rpx; font-weight: 600; color: var(--c-text); display: block; margin-bottom: 16rpx; }
 .chart-legend { display: flex; gap: 24rpx; margin-bottom: 12rpx; }
 .legend-item { display: flex; align-items: center; gap: 8rpx; font-size: 22rpx; color: var(--c-text-variant); }
 .dot { width: 16rpx; height: 16rpx; border-radius: 50%; }
-.income-dot { background: #2E7DE6; }
+.income-dot { background: #006d40; }
 .expense-dot { background: #BA1A1A; }
 .loading { text-align: center; padding: 48rpx; color: var(--c-text-variant); font-size: 26rpx; }
 .two-col { display: grid; grid-template-columns: 1fr 1fr; gap: 16rpx; }

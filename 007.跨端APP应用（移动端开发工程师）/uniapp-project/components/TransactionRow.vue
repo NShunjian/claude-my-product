@@ -3,11 +3,13 @@ import { computed } from 'vue'
 import type { Record } from '@/api/records'
 import { formatAmount } from '@/utils/finance'
 import { formatLocalHHMM, formatLocalYMD } from '@/utils/date'
+import { useLanguage } from '@/i18n/useLanguage'
 import CategoryBadge from './CategoryBadge.vue'
 import type { Category } from '@/api/categories'
 
 const props = defineProps<{ record: Record; category?: Category }>()
 const emit = defineEmits<{ (e: 'tap', r: Record): void }>()
+const { t } = useLanguage()
 const date = computed(() => formatLocalYMD(props.record.createdAt))
 const time = computed(() => formatLocalHHMM(props.record.createdAt))
 </script>
@@ -23,6 +25,7 @@ const time = computed(() => formatLocalHHMM(props.record.createdAt))
         {{ record.type === 'income' ? '+' : '-' }}{{ formatAmount(Math.abs(record.amount), false) }}
       </text>
       <text class="date">
+        <text class="record-time-prefix">{{ t('transactions.recordTime') }}: </text>
         <text>{{ date }}</text>
         <text v-if="time" class="time"> {{ time }}</text>
       </text>
@@ -35,7 +38,7 @@ const time = computed(() => formatLocalHHMM(props.record.createdAt))
 .cat-name { font-size: 26rpx; color: var(--c-text-variant); }
 .note { font-size: 22rpx; color: var(--c-text-variant); }
 .right { text-align: right; display: flex; flex-direction: column; gap: 6rpx; }
-.amt.income { color: #2E7DE6; font-weight: 600; }
+.amt.income { color: #006d40; font-weight: 600; }
 .amt.expense { color: var(--c-error); font-weight: 600; }
 .date { font-size: 22rpx; color: var(--c-text-variant); }
 .time { color: var(--c-text-variant); opacity: 0.8; }

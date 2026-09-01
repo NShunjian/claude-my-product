@@ -120,7 +120,7 @@ onShow(load)
 
 <style scoped>
 .page { padding: 24rpx; display: flex; flex-direction: column; gap: 20rpx; }
-.net-card { background: var(--c-bg-card); border-radius: 16rpx; padding: 28rpx; display: flex; flex-direction: column; gap: 8rpx; }
+.net-card { background: var(--c-bg-card); border-radius: 16rpx; padding: 28rpx; display: flex; flex-direction: column; gap: 8rpx; border: 1px solid var(--c-divider); }
 .net-label { font-size: 24rpx; color: var(--c-text-variant); text-transform: uppercase; letter-spacing: 1px; }
 .net-amount { font-size: 48rpx; font-weight: 700; color: var(--c-text); }
 .add-btn { display: flex; align-items: center; gap: 8rpx; margin-top: 12rpx; background: var(--c-primary); color: #fff; border-radius: 12rpx; padding: 16rpx 24rpx; font-size: 28rpx; font-weight: 600; }
@@ -129,7 +129,7 @@ onShow(load)
 .empty { text-align: center; padding: 80rpx; color: var(--c-text-variant); font-size: 28rpx; }
 .list { }
 .grid { display: grid; grid-template-columns: 1fr 1fr; gap: 16rpx; }
-.acc-card { background: var(--c-bg-card); border-radius: 16rpx; padding: 24rpx; display: flex; flex-direction: column; gap: 12rpx; }
+.acc-card { background: var(--c-bg-card); border-radius: 16rpx; padding: 24rpx; display: flex; flex-direction: column; gap: 12rpx; border: 1px solid var(--c-divider); }
 .acc-top { display: flex; justify-content: space-between; align-items: flex-start; }
 .acc-icon { width: 80rpx; height: 80rpx; border-radius: 50%; display: flex; align-items: center; justify-content: center; }
 .icon-text { font-size: 32rpx; }

@@ -2,7 +2,7 @@ import type { AccountType } from '@/api/accounts'
 import type { CategoryType } from '@/api/categories'
 
 export function formatAmount(n: number, withSymbol = false): string {
-  return (withSymbol ? '¥' : '') + n.toFixed(2)
+  return (withSymbol ? '¥' : '') + n.toLocaleString('zh-CN', { minimumFractionDigits: 2, maximumFractionDigits: 2 })
 }
 
 /** ISO 字符串(后端返回的 createdAt / updatedAt)格式化为本地时区 `YYYY-MM-DD HH:mm`。 */

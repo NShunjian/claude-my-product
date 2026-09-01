@@ -196,7 +196,7 @@ function onAccountChange(e: any) {
 <style scoped>
 .page { padding: 24rpx; display: flex; flex-direction: column; gap: 20rpx; }
 .filter-row { display: flex; flex-direction: column; gap: 16rpx; }
-.filter-card { background: var(--c-bg-card); border-radius: 16rpx; padding: 24rpx; }
+.filter-card { background: var(--c-bg-card); border-radius: 16rpx; padding: 24rpx; border: 1px solid var(--c-divider); }
 .filter-title { font-size: 28rpx; font-weight: 600; margin-bottom: 16rpx; display: block; }
 .filter-selects { display: flex; flex-wrap: wrap; gap: 12rpx; }
 .select-box { border: 1px solid var(--c-divider); border-radius: 8rpx; padding: 12rpx 16rpx; font-size: 26rpx; background: var(--c-bg); }
@@ -204,13 +204,13 @@ function onAccountChange(e: any) {
 .balance-label { font-size: 24rpx; opacity: 0.8; display: block; margin-bottom: 8rpx; }
 .balance-amount { font-size: 40rpx; font-weight: 700; display: block; }
 .balance-sub { display: flex; justify-content: space-between; margin-top: 12rpx; font-size: 24rpx; opacity: 0.9; }
-.list-card { background: var(--c-bg-card); border-radius: 16rpx; overflow: hidden; }
+.list-card { background: var(--c-bg-card); border-radius: 16rpx; overflow: hidden; border: 1px solid var(--c-divider); }
 .empty { text-align: center; padding: 80rpx; color: var(--c-text-variant); font-size: 28rpx; }
 .day-group { border-bottom: 1px solid var(--c-divider); }
 .day-group:last-child { border-bottom: none; }
 .day-header { display: flex; justify-content: space-between; padding: 16rpx 24rpx; background: var(--c-surface); }
 .day-label { font-size: 26rpx; font-weight: 600; color: var(--c-text-variant); }
-.day-net { font-size: 26rpx; font-weight: 600; }
-.income { color: #2E7DE6; }
+.day-net { font-size: 26rpx; font-weight: 600; color: var(--c-text-variant); }
+.income { color: #006d40; }
 .expense { color: var(--c-error); }
 </style>

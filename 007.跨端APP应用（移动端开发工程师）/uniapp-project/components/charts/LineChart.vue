@@ -8,7 +8,7 @@ const props = withDefaults(defineProps<{
   expenseColor?: string
   smoothWindow?: number
 }>(), {
-  incomeColor: '#2E7DE6',
+  incomeColor: '#006d40',
   expenseColor: '#BA1A1A',
   smoothWindow: 5,
 })

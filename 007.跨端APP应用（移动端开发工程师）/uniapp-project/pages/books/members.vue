@@ -202,7 +202,7 @@ async function handleRemove(m: BookMember) {
 .meta-row { display: flex; justify-content: space-between; align-items: center; }
 .count-text { font-size: 26rpx; color: var(--c-text-variant); }
 .invite-btn { background: var(--c-primary); color: #fff; border-radius: 12rpx; padding: 12rpx 20rpx; font-size: 26rpx; font-weight: 600; }
-.card { background: var(--c-bg-card); border-radius: 16rpx; padding: 24rpx; display: flex; flex-direction: column; gap: 20rpx; }
+.card { background: var(--c-bg-card); border-radius: 16rpx; padding: 24rpx; display: flex; flex-direction: column; gap: 20rpx; border: 1px solid var(--c-divider); }
 .card-title { font-size: 28rpx; font-weight: 600; color: var(--c-text); }
 .form-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 16rpx; }
 .field { display: flex; flex-direction: column; gap: 6rpx; }
@@ -217,7 +217,7 @@ async function handleRemove(m: BookMember) {
 .btn-cancel.disabled, .btn-confirm.disabled { opacity: 0.5; }
 .error-box { background: #FFEBEE; color: #C62828; border-radius: 12rpx; padding: 20rpx; font-size: 26rpx; }
 .empty { text-align: center; padding: 80rpx; color: var(--c-text-variant); font-size: 28rpx; }
-.member-list { background: var(--c-bg-card); border-radius: 16rpx; overflow: hidden; }
+.member-list { background: var(--c-bg-card); border-radius: 16rpx; overflow: hidden; border: 1px solid var(--c-divider); }
 .member-row { display: flex; align-items: center; gap: 16rpx; padding: 20rpx 24rpx; border-bottom: 1rpx solid var(--c-divider); }
 .member-row:last-child { border-bottom: none; }
 .avatar { width: 72rpx; height: 72rpx; border-radius: 50%; background: var(--c-primary-light); display: flex; align-items: center; justify-content: center; flex-shrink: 0; }

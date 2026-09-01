@@ -373,7 +373,7 @@ async function handleDelete(c: Category) {
 .section { margin-bottom: 24rpx; }
 .heading { font-size: 32rpx; font-weight: 700; color: var(--c-text); }
 .row { display: flex; flex-direction: column; gap: 24rpx; margin-bottom: 24rpx; }
-.card { background: var(--c-bg-card); border-radius: 16rpx; padding: 32rpx; }
+.card { background: var(--c-bg-card); border-radius: 16rpx; padding: 32rpx; border: 1px solid var(--c-divider); }
 
 /* user card */
 .user-card { display: flex; flex-direction: column; align-items: center; text-align: center; }

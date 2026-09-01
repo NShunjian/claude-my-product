@@ -218,7 +218,7 @@ onMounted(load)
 .header-row { display: flex; justify-content: space-between; align-items: center; }
 .page-title { font-size: 36rpx; font-weight: 700; color: var(--c-text); }
 .add-btn { display: flex; align-items: center; gap: 8rpx; background: var(--c-primary); color: #fff; border-radius: 12rpx; padding: 12rpx 20rpx; font-size: 26rpx; font-weight: 600; }
-.card { background: var(--c-bg-card); border-radius: 16rpx; padding: 24rpx; display: flex; flex-direction: column; gap: 20rpx; }
+.card { background: var(--c-bg-card); border-radius: 16rpx; padding: 24rpx; display: flex; flex-direction: column; gap: 20rpx; border: 1px solid var(--c-divider); }
 .card-title { font-size: 28rpx; font-weight: 600; color: var(--c-text); }
 .form-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 16rpx; }
 .field { display: flex; flex-direction: column; gap: 6rpx; }

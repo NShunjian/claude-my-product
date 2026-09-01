@@ -118,7 +118,7 @@ async function handleSubmit() {
 
 <style scoped>
 .page { padding: 24rpx; }
-.card { background: var(--c-bg-card); border-radius: 16rpx; padding: 32rpx; display: flex; flex-direction: column; gap: 32rpx; }
+.card { background: var(--c-bg-card); border-radius: 16rpx; padding: 32rpx; display: flex; flex-direction: column; gap: 32rpx; border: 1px solid var(--c-divider); }
 .field { display: flex; flex-direction: column; gap: 8rpx; }
 .field-label { font-size: 28rpx; font-weight: 600; color: var(--c-text); }
 .field-hint { font-size: 22rpx; color: var(--c-text-variant); margin-top: 4rpx; }

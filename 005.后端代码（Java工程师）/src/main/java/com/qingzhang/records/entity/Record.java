@@ -1,9 +1,7 @@
 package com.qingzhang.records.entity;
 
 import com.baomidou.mybatisplus.annotation.IdType;
-import com.baomidou.mybatisplus.annotation.TableField;
 import com.baomidou.mybatisplus.annotation.TableId;
-import com.baomidou.mybatisplus.annotation.TableLogic;
 import com.baomidou.mybatisplus.annotation.TableName;
 import lombok.AllArgsConstructor;
 import lombok.Builder;
@@ -59,8 +57,4 @@ public class Record {
     private Instant createdAt;
 
     private Instant updatedAt;
-
-    @TableLogic
-    @TableField(select = false)
-    private Instant deletedAt;
 }

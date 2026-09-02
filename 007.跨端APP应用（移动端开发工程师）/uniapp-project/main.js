@@ -1,3 +1,8 @@
+// 🩹 必须在最顶部:VUE3 之前。微信小程序基础库缺 URLSearchParams,
+// Vue 3 runtime 在 SSR 模式用到它,缺了就 ReferenceError,页面全空。
+// H5 / 现代 mp 基础库自带,polyfill 内部 typeof 检测会跳过。
+import './utils/url-polyfill'
+
 import App from './App'
 
 // #ifdef H5

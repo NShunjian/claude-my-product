@@ -33,26 +33,29 @@ const COLOR_HEX: Record<string, string> = {
 
 interface Entry { icon: string; token: string }
 
+// icon 字段:微信小程序不支持 Material Symbols Outlined 字体的 ligature,
+// 直接渲染会显示 'restaurant' / 'work' 这种字面文字。这里统一用 emoji 跨平台渲染。
+// H5 也会跟着用 emoji(注:不影响视觉一致性,emoji 在所有平台一致)。
 const TABLE: Record<string, Entry> = {
-  // 支出:每类独立颜色(对齐 React)
-  'expense-餐饮': { icon: 'restaurant', token: 'blue' },
-  'expense-交通': { icon: 'directions_bus', token: 'cyan' },
-  'expense-购物': { icon: 'shopping_bag', token: 'pink' },
-  'expense-娱乐': { icon: 'sports_esports', token: 'purple' },
-  'expense-居住': { icon: 'home', token: 'brown' },
-  'expense-医疗': { icon: 'medical_services', token: 'teal' },
-  'expense-教育': { icon: 'school', token: 'orange' },
-  'expense-通讯': { icon: 'phone_iphone', token: 'indigo' },
-  'expense-其他': { icon: 'more_horiz', token: 'outline' },
-  // 收入:每类独立颜色
-  'income-工资':  { icon: 'payments', token: 'green' },
-  'income-兼职':  { icon: 'work', token: 'cyan' },
-  'income-理财':  { icon: 'trending_up', token: 'indigo' },
-  'income-红包':  { icon: 'card_giftcard', token: 'pink' },
-  'income-其他':  { icon: 'more_horiz', token: 'outline' },
+  // 支出
+  'expense-餐饮': { icon: '🍽️', token: 'blue' },
+  'expense-交通': { icon: '🚌', token: 'cyan' },
+  'expense-购物': { icon: '🛍️', token: 'pink' },
+  'expense-娱乐': { icon: '🎮', token: 'purple' },
+  'expense-居住': { icon: '🏠', token: 'brown' },
+  'expense-医疗': { icon: '🏥', token: 'teal' },
+  'expense-教育': { icon: '🎓', token: 'orange' },
+  'expense-通讯': { icon: '📱', token: 'indigo' },
+  'expense-其他': { icon: '⋯', token: 'outline' },
+  // 收入
+  'income-工资':  { icon: '💵', token: 'green' },
+  'income-兼职':  { icon: '💼', token: 'cyan' },
+  'income-理财':  { icon: '📈', token: 'indigo' },
+  'income-红包':  { icon: '🧧', token: 'pink' },
+  'income-其他':  { icon: '⋯', token: 'outline' },
 }
 
-const FALLBACK: Entry = { icon: 'more_horiz', token: 'outline' }
+const FALLBACK: Entry = { icon: '⋯', token: 'outline' }
 
 function normalizeKey(c: Pick<Category, 'id' | 'type' | 'name'>): string {
   // 优先用 id 去 preset- 前缀;再退回 `${type}-${name}` 兜底(兼容自定义分类或 ID 格式差异)

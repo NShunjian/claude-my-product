@@ -10,6 +10,7 @@ import { listAccounts } from '@/api/accounts'
 import { listCategories } from '@/api/categories'
 import TransactionRow from '@/components/TransactionRow.vue'
 import MonthPicker from '@/components/MonthPicker.vue'
+import AppHeader from '@/components/AppHeader.vue'
 import type { Record } from '@/api/records'
 import type { Account } from '@/api/accounts'
 import type { Category } from '@/api/categories'
@@ -142,8 +143,14 @@ function onAccountChange(e: any) {
 </script>
 
 <template>
-  <view class="page">
-    <!-- Filter + Summary -->
+  <view class="page-root">
+    <AppHeader :title="t('pageTitle.transactions')" />
+    <scroll-view
+      scroll-y
+      class="scroll-area"
+      :bounces="false"
+    >
+      <!-- Filter + Summary -->
     <view class="filter-row">
       <view class="filter-card">
         <text class="filter-title">{{ t('transactions.filterLabel') }}</text>
@@ -196,12 +203,38 @@ function onAccountChange(e: any) {
         </view>
       </view>
     </view>
+    </scroll-view>
   </view>
 </template>
 
 <style scoped>
-.page { padding: 24rpx; display: flex; flex-direction: column; gap: 20rpx; }
-.filter-row { display: flex; flex-direction: column; gap: 16rpx; }
+.page-root {
+  display: flex;
+  flex-direction: column;
+  /* H5:扣掉 tabBar 高度,避免滚到最后一段内容被 fixed tabBar 盖住。
+     uni-h5 运行时把 tabBar 高度写到 --tab-bar-height(非 tabBar 页 0px,tabBar 页 50px+safe-area)。
+     MP 原生 tabBar 已让出空间,fallback 0px 等价 100vh,无副作用。 */
+  height: calc(100vh - var(--tab-bar-height, 0px));
+  background: var(--c-bg);
+}
+.scroll-area {
+  flex: 1;
+  height: 0;
+  box-sizing: border-box;
+  padding: 0 24rpx 24rpx;
+  display: flex;
+  flex-direction: column;
+  gap: 20rpx;
+  overscroll-behavior: none;
+}
+.filter-row {
+  display: flex;
+  flex-direction: column;
+  gap: 16rpx;
+  /* 距离导航栏底部 20rpx:用 margin-top 直接钉 .filter-row 的位置(而不是 scroll-area 的 padding-top),
+     避免 padding-top + AppHeader 内边距叠加形成空块。 */
+  margin-top: 20rpx;
+}
 .filter-card { background: var(--c-bg-card); border-radius: 16rpx; padding: 24rpx; border: 1px solid var(--c-divider); }
 .filter-title { font-size: 28rpx; font-weight: 600; margin-bottom: 16rpx; display: block; }
 .filter-selects { display: flex; flex-wrap: nowrap; gap: 12rpx; align-items: stretch; }

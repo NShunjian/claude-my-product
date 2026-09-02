@@ -237,8 +237,14 @@ const msgOk = (msg: { kind: 'ok' | 'err'; text: string }) => msg.kind === 'ok'
 </script>
 
 <template>
-  <AppHeader :title="t(lang, 'profileEdit.title')" back @back="goBack" />
-  <view class="page">
+  <view class="page-root">
+    <AppHeader :title="t(lang, 'profileEdit.title')" back @back="goBack" />
+    <scroll-view
+      scroll-y
+      class="scroll-area"
+      :bounces="false"
+    >
+      <view class="page">
     <!-- avatar section -->
     <view class="card">
       <view class="section-header">
@@ -249,11 +255,11 @@ const msgOk = (msg: { kind: 'ok' | 'err'; text: string }) => msg.kind === 'ok'
       <view class="avatar-center">
         <view class="avatar-circle-lg">
           <image v-if="avatarPreview || auth.user?.avatar" :src="avatarPreview ?? auth.user!.avatar!" class="avatar-img" mode="aspectFill" />
-          <text v-else class="avatar-icon-lg">account_circle</text>
+          <text v-else class="avatar-icon-lg">👤</text>
         </view>
 
         <button class="btn-outline" @tap="triggerAvatarInput">
-          <text class="mat-icon" style="font-size:18px">upload</text>
+          <text class="mat-icon" style="font-size:18px">⬆️</text>
           {{ t(lang, 'profileEdit.uploadAvatar') }}
         </button>
 
@@ -265,7 +271,7 @@ const msgOk = (msg: { kind: 'ok' | 'err'; text: string }) => msg.kind === 'ok'
       <view class="card-footer">
         <view class="flex-end">
           <button class="btn-primary" :disabled="savingAvatar || !avatarPreview" @tap="handleSaveAvatar">
-            <text v-if="savingAvatar" class="mat-icon spin">progress_activity</text>
+            <text v-if="savingAvatar" class="mat-icon spin">⏳</text>
             {{ t(lang, 'profileEdit.saveAvatar') }}
           </button>
         </view>
@@ -282,7 +288,7 @@ const msgOk = (msg: { kind: 'ok' | 'err'; text: string }) => msg.kind === 'ok'
       <view class="field">
         <text class="field-label">{{ t(lang, 'profileEdit.displayName') }}</text>
         <view class="input-wrap">
-          <text class="input-icon mat-icon">person</text>
+          <view class="input-icon-box"><text class="input-icon mat-icon">👤</text></view>
           <input v-model="displayName" class="text-input" :placeholder="t(lang, 'profileEdit.displayNamePlaceholder')" />
         </view>
       </view>
@@ -292,11 +298,11 @@ const msgOk = (msg: { kind: 'ok' | 'err'; text: string }) => msg.kind === 'ok'
         <text class="field-label">{{ t(lang, 'profileEdit.gender') }}</text>
         <view class="gender-row">
           <view :class="['gender-btn', gender === 'male' ? 'gender-active' : '']" @tap="gender = 'male'">
-            <text class="mat-icon" style="font-size:20px">male</text>
+            <text class="mat-icon" style="font-size:20px">♂</text>
             {{ t(lang, 'profileEdit.gender.male') }}
           </view>
           <view :class="['gender-btn', gender === 'female' ? 'gender-active' : '']" @tap="gender = 'female'">
-            <text class="mat-icon" style="font-size:20px">female</text>
+            <text class="mat-icon" style="font-size:20px">♀</text>
             {{ t(lang, 'profileEdit.gender.female') }}
           </view>
         </view>
@@ -306,7 +312,7 @@ const msgOk = (msg: { kind: 'ok' | 'err'; text: string }) => msg.kind === 'ok'
       <view class="field">
         <text class="field-label">{{ t(lang, 'profileEdit.age') }}</text>
         <view class="input-wrap">
-          <text class="input-icon mat-icon">calendar_month</text>
+          <view class="input-icon-box"><text class="input-icon mat-icon">🎂</text></view>
           <input v-model="age" class="text-input" type="number" min="0" max="150" :placeholder="t(lang, 'profileEdit.agePlaceholder')" />
         </view>
       </view>
@@ -318,7 +324,7 @@ const msgOk = (msg: { kind: 'ok' | 'err'; text: string }) => msg.kind === 'ok'
       <view class="card-footer">
         <view class="flex-end">
           <button class="btn-primary" :disabled="savingProfile" @tap="handleSaveProfile">
-            <text v-if="savingProfile" class="mat-icon spin">progress_activity</text>
+            <text v-if="savingProfile" class="mat-icon spin">⏳</text>
             {{ t(lang, 'profileEdit.saveProfile') }}
           </button>
         </view>
@@ -335,7 +341,7 @@ const msgOk = (msg: { kind: 'ok' | 'err'; text: string }) => msg.kind === 'ok'
       <view class="field">
         <text class="field-label">{{ t(lang, 'profileEdit.oldPassword') }}</text>
         <view class="input-wrap">
-          <text class="input-icon mat-icon">lock</text>
+          <view class="input-icon-box"><text class="input-icon mat-icon">🔒</text></view>
           <input v-model="currentPwd" class="text-input qz-pwd-input" type="password" :name="`qz_pwd_${pwdNameSeed}_current`" autocomplete="new-password" readonly data-form-type="other" data-1p-ignore @focus="unlockPwd" :placeholder="t(lang, 'profileEdit.oldPasswordPlaceholder')" />
         </view>
       </view>
@@ -343,7 +349,7 @@ const msgOk = (msg: { kind: 'ok' | 'err'; text: string }) => msg.kind === 'ok'
       <view class="field">
         <text class="field-label">{{ t(lang, 'profileEdit.newPassword') }}</text>
         <view class="input-wrap">
-          <text class="input-icon mat-icon">key</text>
+          <view class="input-icon-box"><text class="input-icon mat-icon">🔑</text></view>
           <input v-model="newPwd" class="text-input qz-pwd-input" type="password" :name="`qz_pwd_${pwdNameSeed}_new`" autocomplete="new-password" readonly data-form-type="other" data-1p-ignore @focus="unlockPwd" :placeholder="t(lang, 'profileEdit.newPasswordPlaceholder')" />
         </view>
       </view>
@@ -351,7 +357,7 @@ const msgOk = (msg: { kind: 'ok' | 'err'; text: string }) => msg.kind === 'ok'
       <view class="field">
         <text class="field-label">{{ t(lang, 'profileEdit.confirmPassword') }}</text>
         <view class="input-wrap">
-          <text class="input-icon mat-icon">shield</text>
+          <view class="input-icon-box"><text class="input-icon mat-icon">🛡️</text></view>
           <input v-model="confirmPwd" class="text-input qz-pwd-input" type="password" :name="`qz_pwd_${pwdNameSeed}_confirm`" autocomplete="new-password" readonly data-form-type="other" data-1p-ignore @focus="unlockPwd" :placeholder="t(lang, 'profileEdit.confirmPasswordPlaceholder')" />
         </view>
       </view>
@@ -363,34 +369,56 @@ const msgOk = (msg: { kind: 'ok' | 'err'; text: string }) => msg.kind === 'ok'
       <view class="card-footer">
         <view class="flex-end">
           <button class="btn-primary" :disabled="savingPwd" @tap="handleChangePassword">
-            <text v-if="savingPwd" class="mat-icon spin">progress_activity</text>
+            <text v-if="savingPwd" class="mat-icon spin">⏳</text>
             {{ t(lang, 'profileEdit.savePassword') }}
           </button>
         </view>
       </view>
     </view>
+    </view>
+    </scroll-view>
   </view>
 </template>
 
 <style scoped>
-.page { min-height: 100vh; background: var(--c-bg); padding: 32rpx; display: flex; flex-direction: column; gap: 32rpx; }
-.card { background: var(--c-bg-card); border-radius: 24rpx; padding: 48rpx; border: 1px solid var(--c-divider); display: flex; flex-direction: column; gap: 0; }
-.section-header { margin-bottom: 40rpx; }
-.section-title { font-size: 40rpx; font-weight: 700; color: var(--c-text); display: block; margin-bottom: 8rpx; }
-.section-desc { font-size: 28rpx; color: var(--c-text-variant); }
-.avatar-center { display: flex; flex-direction: column; align-items: center; gap: 32rpx; margin-bottom: 40rpx; }
+.page-root {
+  display: flex;
+  flex-direction: column;
+  /* 非 tabBar 页:--tab-bar-height 为 0px,等价 100vh,无副作用 */
+  height: calc(100vh - var(--tab-bar-height, 0px));
+  background: var(--c-bg);
+}
+.scroll-area {
+  flex: 1;
+  height: 0;
+  box-sizing: border-box;
+  /* 与其他 tabBar 页对齐:padding-top 20rpx 给 AppHeader 下方留呼吸空间,
+     边距由 scroll-area 统一管理,.page 不再重复 padding。 */
+  padding: 20rpx 24rpx 24rpx;
+  overscroll-behavior: none;
+}
+/* 原来用 min-height:100vh + body 滚动;App.vue 全局禁了 body 滚动后,H5 上无法滚动,
+   所以拆成 page-root + scroll-view,scroll-view 自己滚。去掉 min-height:100vh,
+   短内容时 scroll-view 自然撑满(等同 min-height 效果),长内容溢出滚动。
+   边距交给 scroll-area,padding 改 0,card 间距从 32rpx 收到 20rpx 让排版更细腻。 */
+.page { background: var(--c-bg); padding: 0; display: flex; flex-direction: column; gap: 16rpx; }
+.card { background: var(--c-bg-card); border-radius: 16rpx; padding: 24rpx; border: 1px solid var(--c-divider); display: flex; flex-direction: column; gap: 0; }
+.section-header { margin-bottom: 20rpx; }
+.section-title { font-size: 32rpx; font-weight: 700; color: var(--c-text); display: block; margin-bottom: 6rpx; }
+.section-desc { font-size: 26rpx; color: var(--c-text-variant); }
+.avatar-center { display: flex; flex-direction: column; align-items: center; gap: 24rpx; margin-bottom: 24rpx; }
 .avatar-circle-lg { width: 240rpx; height: 240rpx; border-radius: 50%; background: var(--c-primary-light); display: flex; align-items: center; justify-content: center; overflow: hidden; }
 .avatar-img { width: 100%; height: 100%; }
-.avatar-icon-lg { font-family: 'Material Symbols Outlined'; font-size: 120rpx; font-weight: normal; font-style: normal; color: var(--c-primary); }
+.avatar-icon-lg { font-size: 120rpx; line-height: 1; color: var(--c-primary); }
 .btn-outline { display: inline-flex; align-items: center; justify-content: center; gap: 8rpx; height: 72rpx; line-height: 1; border: 1px solid var(--c-divider); border-radius: 16rpx; padding: 0 32rpx; font-size: 28rpx; color: var(--c-text); background: transparent; margin: 0; }
 .btn-outline::after { border: none; }
-.mat-icon { font-family: 'Material Symbols Outlined'; font-weight: normal; font-style: normal; }
+.mat-icon { font-weight: normal; font-style: normal; line-height: 1; }
 .spin { animation: spin 1s linear infinite; }
 @keyframes spin { from { transform: rotate(0deg); } to { transform: rotate(360deg); } }
 .msg { border-radius: 12rpx; padding: 16rpx 24rpx; font-size: 26rpx; }
 .msg-ok { background: var(--c-secondary-container); color: var(--c-on-secondary-container); }
 .msg-err { background: var(--c-error-container); color: var(--c-on-error-container); }
-.card-footer { border-top: 1px solid var(--c-divider); padding-top: 32rpx; margin-top: 40rpx; }
+.card-footer { border-top: 1px solid var(--c-divider); padding-top: 24rpx; margin-top: 24rpx; }
 .flex-end { display: flex; justify-content: flex-end; }
 .btn-primary { display: inline-flex; align-items: center; justify-content: center; gap: 8rpx; height: 80rpx; line-height: 1; background: var(--c-primary); color: #fff; border-radius: 16rpx; padding: 0 40rpx; font-size: 30rpx; font-weight: 600; border: none; margin: 0; }
 .btn-primary::after { border: none; }
@@ -398,7 +426,21 @@ const msgOk = (msg: { kind: 'ok' | 'err'; text: string }) => msg.kind === 'ok'
 .field { margin-bottom: 32rpx; }
 .field-label { font-size: 32rpx; font-weight: 600; color: var(--c-text); display: block; margin-bottom: 12rpx; }
 .input-wrap { position: relative; display: flex; align-items: center; }
-.input-icon { position: absolute; left: 28rpx; color: var(--c-text-variant); font-size: 40rpx; line-height: 1; }
+/* 跨平台图标居中:MP <text> 不认 transform/vertical-align,absolute 贴顶。
+   改成 view 做 absolute + flex 居中,view 跨平台稳;真正的 <text> 图标只管颜色字号。 */
+.input-icon-box {
+  position: absolute;
+  left: 0;
+  top: 0;
+  bottom: 0;
+  width: 88rpx;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  pointer-events: none;
+  z-index: 1;
+}
+.input-icon { color: var(--c-text-variant); font-size: 40rpx; line-height: 1; }
 .text-input { width: 100%; background: var(--c-bg); border: 1px solid var(--c-divider); border-radius: 16rpx; padding: 28rpx 28rpx 28rpx 88rpx; color: var(--c-text); font-size: 30rpx; box-sizing: border-box; height: 88rpx; }
 /* 覆盖 Chrome 自动填充的浅蓝色高亮,即便它偷偷填了也看不出来 */
 .text-input:-webkit-autofill,

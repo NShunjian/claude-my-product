@@ -11,6 +11,7 @@ import { formatAmount } from '@/utils/finance'
 import MonthPicker from '@/components/MonthPicker.vue'
 import LineChart from '@/components/charts/LineChart.vue'
 import DonutChart from '@/components/DonutChart.vue'
+import AppHeader from '@/components/AppHeader.vue'
 import type { MonthlyReport, DailyPoint, YearlyReport, MonthlyPoint } from '@/api/reports'
 
 const book = useBookStore()
@@ -191,8 +192,14 @@ function onExpenseTap(i: number) {
 </script>
 
 <template>
-  <view class="page">
-    <!-- === Monthly view === -->
+  <view class="page-root">
+    <AppHeader :title="t('pageTitle.reportMonthly')" />
+    <scroll-view
+      scroll-y
+      class="scroll-area"
+      :bounces="false"
+    >
+      <!-- === Monthly view === -->
     <template v-if="mode === 'monthly'">
       <view class="header-row">
         <view class="title-block">
@@ -215,7 +222,7 @@ function onExpenseTap(i: number) {
         <view class="kpi-card kpi-net">
           <view class="kpi-head">
             <view class="kpi-icon-wrap kpi-icon-blue">
-              <text class="kpi-icon">account_balance</text>
+              <text class="kpi-icon">🏦</text>
             </view>
             <text class="kpi-label">{{ t('reportMonthly.netSavings') }}</text>
           </view>
@@ -234,7 +241,7 @@ function onExpenseTap(i: number) {
         <view class="kpi-card kpi-income">
           <view class="kpi-head">
             <view class="kpi-icon-wrap kpi-icon-green">
-              <text class="kpi-icon">trending_down</text>
+              <text class="kpi-icon">📉</text>
             </view>
             <text class="kpi-label">{{ t('reportMonthly.totalIncomeLabel') }}</text>
           </view>
@@ -253,7 +260,7 @@ function onExpenseTap(i: number) {
         <view class="kpi-card kpi-expense">
           <view class="kpi-head">
             <view class="kpi-icon-wrap kpi-icon-red">
-              <text class="kpi-icon">trending_up</text>
+              <text class="kpi-icon">📈</text>
             </view>
             <text class="kpi-label">{{ t('reportMonthly.totalExpenseLabel') }}</text>
           </view>
@@ -353,7 +360,7 @@ function onExpenseTap(i: number) {
         <view class="kpi-card kpi-net">
           <view class="kpi-head">
             <view class="kpi-icon-wrap kpi-icon-blue">
-              <text class="kpi-icon">account_balance</text>
+              <text class="kpi-icon">🏦</text>
             </view>
             <text class="kpi-label">{{ t('reportYearly.netSavingsLabel') }}</text>
           </view>
@@ -364,7 +371,7 @@ function onExpenseTap(i: number) {
         <view class="kpi-card kpi-income">
           <view class="kpi-head">
             <view class="kpi-icon-wrap kpi-icon-green">
-              <text class="kpi-icon">trending_down</text>
+              <text class="kpi-icon">📉</text>
             </view>
             <text class="kpi-label">{{ t('reportYearly.totalIncomeLabel') }}</text>
           </view>
@@ -373,7 +380,7 @@ function onExpenseTap(i: number) {
         <view class="kpi-card kpi-expense">
           <view class="kpi-head">
             <view class="kpi-icon-wrap kpi-icon-red">
-              <text class="kpi-icon">trending_up</text>
+              <text class="kpi-icon">📈</text>
             </view>
             <text class="kpi-label">{{ t('reportYearly.totalExpenseLabel') }}</text>
           </view>
@@ -453,12 +460,38 @@ function onExpenseTap(i: number) {
         </view>
       </view>
     </template>
+    </scroll-view>
   </view>
 </template>
 
 <style scoped>
-.page { padding: 24rpx; display: flex; flex-direction: column; gap: 20rpx; }
-.header-row { display: flex; justify-content: space-between; align-items: center; }
+.page-root {
+  display: flex;
+  flex-direction: column;
+  /* H5:扣掉 tabBar 高度,避免滚到最后一段内容被 fixed tabBar 盖住。
+     uni-h5 运行时把 tabBar 高度写到 --tab-bar-height(非 tabBar 页 0px,tabBar 页 50px+safe-area)。
+     MP 原生 tabBar 已让出空间,fallback 0px 等价 100vh,无副作用。 */
+  height: calc(100vh - var(--tab-bar-height, 0px));
+  background: var(--c-bg);
+}
+.scroll-area {
+  flex: 1;
+  height: 0;
+  box-sizing: border-box;
+  padding: 0 24rpx 24rpx;
+  display: flex;
+  flex-direction: column;
+  gap: 20rpx;
+  overscroll-behavior: none;
+}
+.header-row {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  /* 距离导航栏底部 20rpx:用 margin-top 直接钉 .header-row 的位置(而不是 scroll-area 的 padding-top),
+     避免 padding-top + AppHeader 内边距叠加形成空块。 */
+  margin-top: 20rpx;
+}
 .title-block { display: flex; flex-direction: column; gap: 4rpx; }
 .page-title { font-size: 36rpx; font-weight: 700; color: var(--c-text); }
 .page-subtitle { font-size: 26rpx; color: var(--c-text-variant); }
@@ -466,13 +499,13 @@ function onExpenseTap(i: number) {
 .year-ctrl { display: flex; align-items: center; gap: 12rpx; }
 .year-btn { width: 56rpx; height: 56rpx; border-radius: 28rpx; background: var(--c-surface); display: flex; align-items: center; justify-content: center; font-size: 32rpx; color: var(--c-text-variant); }
 .year-label { font-size: 28rpx; font-weight: 600; color: var(--c-text); padding: 8rpx 16rpx; background: var(--c-surface); border-radius: 8rpx; }
-.tab-bar { display: flex; background: var(--c-surface); border-radius: 12rpx; padding: 4rpx; gap: 4rpx; }
+.tab-bar { display: flex; background: var(--c-surface); border-radius: 12rpx; padding: 4rpx; gap: 4rpx; margin-top: 20rpx; }
 .tab { flex: 1; text-align: center; padding: 12rpx; border-radius: 8rpx; font-size: 26rpx; color: var(--c-text-variant); }
 .tab.active { background: var(--c-bg-card); color: var(--c-primary); font-weight: 600; }
 .error-box { background: #FFEBEE; color: #C62828; border-radius: 12rpx; padding: 20rpx; font-size: 26rpx; }
 .kpi-list { display: flex; flex-direction: column; gap: 16rpx; }
 .kpi-card { background: var(--c-bg-card); border-radius: 16rpx; padding: 24rpx; display: flex; flex-direction: column; gap: 12rpx; border: 1px solid var(--c-divider); }
-.kpi-net { border-left: 4rpx solid var(--c-primary); }
+.kpi-net { border-left: 4rpx solid var(--c-primary); margin-top: 20rpx; }
 .kpi-income { background: rgba(16, 185, 129, 0.06); border-left: 4rpx solid #10B981; }
 .kpi-expense { background: rgba(167, 8, 25, 0.05); border-left: 4rpx solid var(--c-error); }
 .kpi-head { display: flex; align-items: center; gap: 12rpx; color: var(--c-text-variant); }
@@ -480,7 +513,7 @@ function onExpenseTap(i: number) {
 .kpi-icon-blue { background: rgba(0, 83, 148, 0.1); }
 .kpi-icon-green { background: rgba(16, 185, 129, 0.15); }
 .kpi-icon-red { background: rgba(167, 8, 25, 0.12); }
-.kpi-icon { font-family: 'Material Symbols Outlined', sans-serif; font-size: 22rpx; font-weight: normal; font-style: normal; }
+.kpi-icon { font-size: 28rpx; line-height: 1; }
 .kpi-icon-blue .kpi-icon { color: #005394; }
 .kpi-icon-green .kpi-icon { color: #10B981; }
 .kpi-icon-red .kpi-icon { color: #a70819; }
@@ -527,7 +560,7 @@ function onExpenseTap(i: number) {
 .cat-bar-fill { height: 100%; border-radius: 3rpx; transition: width 0.2s ease-out; }
 .cat-icon { width: 56rpx; height: 56rpx; border-radius: 50%; display: flex; align-items: center; justify-content: center; flex-shrink: 0; }
 .cat-icon.yearly { width: 48rpx; height: 48rpx; }
-.cat-icon-text { font-size: 24rpx; font-family: 'Material Symbols Outlined', sans-serif; font-weight: normal; font-style: normal; }
+.cat-icon-text { font-size: 24rpx; line-height: 1; }
 .cat-icon-text.yearly { font-size: 20rpx; }
 .cat-name { flex: 1; min-width: 0; font-size: 26rpx; color: var(--c-text); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .cat-name.yearly { font-size: 24rpx; }

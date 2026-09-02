@@ -90,7 +90,6 @@ function catTint(hex?: string): string {
   flex-shrink: 0;
 }
 .icon-glyph {
-  font-family: 'Material Symbols Outlined', sans-serif;
   font-size: 40rpx;
   line-height: 1;
   font-weight: normal;

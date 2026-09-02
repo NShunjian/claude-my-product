@@ -35,3 +35,19 @@ onLaunch(async () => {
     <ToastHost />
   </view>
 </template>
+
+<style>
+/* H5 全局:关掉 body 滚到顶/底的橡皮筋弹性效果。
+   之前只在 .scroll-area 加了 overscroll-behavior:none,但 H5 上滚动在 body,
+   scroll-view 不接管,所以弹性效果还在 —— 弹性会带动 sticky 元素一起滑动,
+   看起来"导航栏跟着滚"。关 body 弹性后 sticky 元素才真的钉死。 */
+html, body {
+  overscroll-behavior: none;
+}
+/* H5 全局:禁止 body 自身滚动。所有页面都用 scroll-view 处理自己的滚动(已经如此),
+   body 不需要再参与滚动 —— 否则 login 等不需要滚动的页面会被 body 拖动 */
+html, body {
+  height: 100%;
+  overflow: hidden;
+}
+</style>

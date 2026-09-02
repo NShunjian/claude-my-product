@@ -16,6 +16,23 @@ export const useBookStore = defineStore('book', () => {
     loading.value = true
     try {
       books.value = await api.listBooks()
+
+      // 新用户第一次登录 / 微信小程序冷启动时,可能一个账本都没有。
+      // 此时首页 load() 会因为 book.current === null 一直 return,永远显示空数据。
+      // 自动建一个"默认账本"让用户能直接记账,后续可在账本页改名/改图标。
+      if (books.value.length === 0) {
+        try {
+          const def = await api.createBook({
+            name: '默认账本',
+            type: 'personal',
+            currency: 'CNY',
+          })
+          books.value = [def]
+        } catch (e) {
+          console.error('[book] 自动建账本失败:', e)
+        }
+      }
+
       // 持久化的 currentId 不在本次 listBooks 返回里(可能是上一个登录用户留下的),
       // 或者用户根本没账本 —— 都视为无效,清掉,避免后续请求拿旧 UUID 把后端打挂。
       if (currentId.value && !books.value.find(b => b.uuid === currentId.value)) {

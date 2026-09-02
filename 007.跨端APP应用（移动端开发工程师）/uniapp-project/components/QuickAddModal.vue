@@ -493,7 +493,6 @@ const accentBg = computed(() => isExpense.value ? 'var(--c-primary)' : '#10b981'
 .qa-cat-icon {
   font-size: 40rpx;
   line-height: 1;
-  font-family: 'Material Symbols Outlined', sans-serif;
   font-weight: normal;
   font-style: normal;
 }

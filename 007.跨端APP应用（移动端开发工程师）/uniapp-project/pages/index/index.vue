@@ -11,6 +11,7 @@ import { listCategories } from '@/api/categories'
 import TransactionRow from '@/components/TransactionRow.vue'
 import MonthPicker from '@/components/MonthPicker.vue'
 import QuickAddModal from '@/components/QuickAddModal.vue'
+import AppHeader from '@/components/AppHeader.vue'
 import type { Record } from '@/api/records'
 import type { Account } from '@/api/accounts'
 import type { Category } from '@/api/categories'
@@ -136,13 +137,26 @@ watch(
 )
 
 // 切回 tabBar 页时重新拉数据(uni-app 不会重新挂载,只有 watch+immediate 不够)
-onShow(load)
+// 顺带自愈:mp 冷启动 / 切换账号后,token 有但 book.current 还没就绪时,
+// 这里主动 reload 一次,避免首次进首页 book.current === null 导致 load() 提前 return。
+onShow(async () => {
+  if (auth.token && !book.current) {
+    try { await book.reload() } catch { /* 容忍,fallback 到 load 走原流程 */ }
+  }
+  load()
+})
 </script>
 
 <template>
-  <view class="page">
-    <!-- Header -->
-    <view class="header">
+  <view class="page-root">
+    <AppHeader :title="t('pageTitle.home')" />
+    <scroll-view
+      scroll-y
+      class="scroll-area"
+      :bounces="false"
+    >
+      <!-- Header -->
+      <view class="header">
       <view class="greeting">
         <text class="title">{{ t('home.overview') }}</text>
         <text class="subtitle">{{ subtitle }}</text>
@@ -159,7 +173,10 @@ onShow(load)
         <text class="amt-big primary">{{ formatAmount(totalAssets) }}</text>
       </view>
       <text class="card-sub">{{ t('home.accountsCount').replace('{n}', String(accounts.length)) }}</text>
-      <button class="quick-add-btn" @tap="onQuickAdd">{{ t('home.quickAdd') }}</button>
+      <button class="quick-add-btn" @tap="onQuickAdd">
+        <text class="quick-add-plus">+</text>
+        <text>{{ t('home.quickAdd') }}</text>
+      </button>
     </view>
 
     <!-- KPI Stack -->
@@ -227,9 +244,11 @@ onShow(load)
         <view v-if="expenseByCat.length === 0" class="empty-mini">{{ t('home.empty') }}</view>
         <view v-else class="cat-list">
           <view v-for="row in expenseByCat" :key="row.cat.id" class="cat-row">
-            <text class="cat-emoji" :style="{ color: row.color }">{{ row.icon }}</text>
-            <text class="cat-name">{{ row.cat.name }}</text>
-            <text class="cat-amt">¥{{ formatAmount(row.total) }}</text>
+            <view class="cat-row-top">
+              <text class="cat-emoji" :style="{ color: row.color }">{{ row.icon }}</text>
+              <text class="cat-name">{{ row.cat.name }}</text>
+              <text class="cat-amt">¥{{ formatAmount(row.total) }}</text>
+            </view>
             <view class="cat-bar-track">
               <view class="cat-bar-fill" :style="{
                 width: (monthExpense > 0 ? (row.total / monthExpense) * 100 : 0) + '%',
@@ -245,9 +264,11 @@ onShow(load)
         <view v-if="incomeByCat.length === 0" class="empty-mini">{{ t('home.empty') }}</view>
         <view v-else class="cat-list">
           <view v-for="row in incomeByCat" :key="row.cat.id" class="cat-row">
-            <text class="cat-emoji" :style="{ color: row.color }">{{ row.icon }}</text>
-            <text class="cat-name">{{ row.cat.name }}</text>
-            <text class="cat-amt">¥{{ formatAmount(row.total) }}</text>
+            <view class="cat-row-top">
+              <text class="cat-emoji" :style="{ color: row.color }">{{ row.icon }}</text>
+              <text class="cat-name">{{ row.cat.name }}</text>
+              <text class="cat-amt">¥{{ formatAmount(row.total) }}</text>
+            </view>
             <view class="cat-bar-track">
               <view class="cat-bar-fill" :style="{
                 width: (monthIncome > 0 ? (row.total / monthIncome) * 100 : 0) + '%',
@@ -267,12 +288,43 @@ onShow(load)
       :accounts="accounts"
       @saved="onQuickAddSaved"
     />
+    </scroll-view>
   </view>
 </template>
 
 <style scoped>
-.page { padding: 24rpx; display: flex; flex-direction: column; gap: 20rpx; }
-.header { display: flex; justify-content: space-between; align-items: center; }
+.page-root {
+  /* flex column 容器:AppHeader 自然占顶部,scroll-view 用 flex:1 + height:0 占剩余;
+     滚动只在 scroll-view 内发生,AppHeader 钉在视口顶部不跟滚 */
+  display: flex;
+  flex-direction: column;
+  /* H5:扣掉 tabBar 高度,避免滚到最后一段内容被 fixed tabBar 盖住。
+     uni-h5 运行时把 tabBar 高度写到 --tab-bar-height(非 tabBar 页 0px,tabBar 页 50px+safe-area)。
+     MP 原生 tabBar 已让出空间,fallback 0px 等价 100vh,无副作用。 */
+  height: calc(100vh - var(--tab-bar-height, 0px));
+  background: var(--c-bg);
+}
+.scroll-area {
+  /* flex:1 + height:0 是 mp scroll-view 的常见写法,确保 scroll-view 占满剩余高度。
+     padding-top 故意设为 0:用户反馈导航栏下方不需要多余空带,内容要紧贴 nav 底边;
+     各卡片的 margin-top 单独控制(assets-card / kpi-net / tab-bar)。 */
+  flex: 1;
+  height: 0;
+  box-sizing: border-box;
+  padding: 0 24rpx 24rpx;
+  display: flex;
+  flex-direction: column;
+  gap: 20rpx;
+  overscroll-behavior: none;
+}
+.header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  /* 距离导航栏底部 20rpx:用 margin-top 直接钉 .header 的位置(而不是 scroll-area 的 padding-top),
+     避免 padding-top + AppHeader 内边距 + .assets-card margin-top + gap 叠加形成空块。 */
+  margin-top: 20rpx;
+}
 .greeting { display: flex; flex-direction: column; gap: 4rpx; }
 .title { font-size: 36rpx; font-weight: 700; }
 .subtitle { font-size: 26rpx; color: var(--c-text-variant); }
@@ -281,7 +333,7 @@ onShow(load)
 .card-title { font-size: 30rpx; font-weight: 600; }
 .view-all { font-size: 26rpx; color: var(--c-primary); }
 .card-label { font-size: 26rpx; color: var(--c-text-variant); display: block; margin-bottom: 12rpx; }
-.assets-card { position: relative; overflow: hidden; }
+.assets-card { position: relative; overflow: hidden; margin-top: 20rpx; }
 .wallet-icon { position: absolute; top: 24rpx; right: 24rpx; font-size: 96rpx; opacity: 0.12; line-height: 1; }
 .amount-row { display: flex; align-items: baseline; gap: 6rpx; }
 .amt-symbol { font-size: 32rpx; font-weight: 600; line-height: 1; }
@@ -307,58 +359,56 @@ onShow(load)
   display: flex;
   align-items: center;
   justify-content: center;
-  gap: 6rpx;
   width: 100%;
   box-sizing: border-box;
 }
-.quick-add-btn::before { content: '+'; font-size: 28rpx; line-height: 1; font-weight: 400; }
+.quick-add-plus { font-size: 28rpx; line-height: 1; font-weight: 400; margin-right: 6rpx; }
 .empty { text-align: center; padding: 48rpx; color: var(--c-text-variant); font-size: 28rpx; }
 .day-group { border-bottom: 1px solid var(--c-divider); }
 .day-group:last-child { border-bottom: none; }
 .day-header { display: flex; justify-content: space-between; padding: 12rpx 16rpx; background: var(--c-surface); }
 .day-label { font-size: 24rpx; font-weight: 600; color: var(--c-text-variant); }
 .day-net { font-size: 24rpx; font-weight: 600; color: var(--c-text-variant); }
-.breakdown-row { display: grid; grid-template-columns: 1fr 1fr; gap: 16rpx; }
+.breakdown-row { display: flex; flex-direction: row; gap: 16rpx; }
+.breakdown-row > .card { flex: 1; min-width: 0; }
 .breakdown-card { display: flex; flex-direction: column; gap: 24rpx; }
 .empty-mini { text-align: center; padding: 32rpx; color: var(--c-text-variant); font-size: 24rpx; }
 .cat-list { display: flex; flex-direction: column; gap: 24rpx; }
 .cat-row {
-  display: grid;
-  grid-template-columns: 40rpx 1fr auto;
-  grid-template-rows: auto auto;
-  column-gap: 12rpx;
-  row-gap: 8rpx;
+  display: flex;
+  flex-direction: column;
+  gap: 8rpx;
+}
+.cat-row-top {
+  display: flex;
+  flex-direction: row;
   align-items: center;
+  gap: 12rpx;
 }
 .cat-emoji {
-  grid-row: 1;
-  grid-column: 1;
   font-size: 36rpx;
   line-height: 1;
-  font-family: 'Material Symbols Outlined', sans-serif;
   font-weight: normal;
   font-style: normal;
+  flex-shrink: 0;
 }
 .cat-name {
-  grid-row: 1;
-  grid-column: 2;
+  flex: 1;
   font-size: 26rpx;
   color: var(--c-text);
   font-weight: 500;
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
+  min-width: 0;
 }
 .cat-amt {
-  grid-row: 1;
-  grid-column: 3;
+  flex-shrink: 0;
   font-size: 24rpx;
   color: var(--c-text-variant);
   font-variant-numeric: tabular-nums;
 }
 .cat-bar-track {
-  grid-row: 2;
-  grid-column: 1 / -1;
   height: 10rpx;
   background: #E8EEF7;
   border-radius: 6rpx;

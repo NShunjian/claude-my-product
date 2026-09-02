@@ -12,6 +12,7 @@ import { runSilent } from '@/api/http'
 import { categoryPresentation } from '@/utils/category-presentation'
 import { t } from '@/i18n/dict'
 import { exportAll, exportByCategory, exportMonthly } from '@/utils/export'
+import AppHeader from '@/components/AppHeader.vue'
 
 const auth = useAuthStore()
 const theme = useThemeStore()
@@ -78,19 +79,14 @@ const newName = ref('')
 const newIcon = ref('')
 const newColor = ref('#A0AEC0')
 
-// 图标选择面板:MS Outlined 字形 + 系统 emoji(MS 字体不认识 emoji 时由系统 emoji 字体兜底)
-// MS 部分避开预设(餐饮/交通/购物/娱乐/居住/医疗/教育/通讯/工资/兼职/理财/红包等)已用的字形
+// 图标选择面板:微信小程序不支持 Material Symbols Outlined 字体字形,
+// 这里全部用 emoji 跨平台渲染。H5 也会用 emoji,与 mp 视觉一致。
 // 用户不选 → 纯色填充
 const iconChoices = [
-  'fastfood', 'shopping_cart', 'directions_car', 'local_cafe',
-  'cottage', 'fitness_center', 'favorite', 'pets',
-  'attach_money', 'savings', 'music_note', 'cake',
-  'redeem', 'local_hospital', 'contact_phone', 'volunteer_activism',
-  'play_arrow', 'local_movies', 'menu_book', 'spa',
-  'self_improvement', 'flight', 'directions_bike', 'thumb_up',
-  // emoji 部分(系统字体兜底渲染)
   '🍔', '☕', '🛍️', '🚗', '✈️', '🏠',
   '🎮', '🎵', '💰', '❤️', '🎁', '🐱',
+  '🍕', '🍷', '🎬', '📚', '💊', '🎨',
+  '⚽', '🚲', '🚌', '✏️', '🎂', '🌹',
 ] as const
 
 // 颜色选择面板(12 色 swatch)
@@ -109,10 +105,16 @@ const catItems = computed(() => {
   const src = catTab.value === 'expense' ? expenseCats.value : incomeCats.value
   return Array.isArray(src) ? src.filter((c): c is Category => !!c && !!c.id).map((c) => {
     const pres = categoryPresentation(c)
-    // 自定义分类:用后端存的 icon + color;icon 为空时纯色填充(对齐设计:「没有图片就以给的颜色填充」)
+    // 自定义分类:校验 icon 是否在 emoji 白名单里。后端可能存了旧的 Material Symbols
+    // ligature 名字(如 "fastfood"/"restaurant"),直接渲染会显示成英文乱码,
+    // 这里当作空 → 走纯色填充(对齐设计:「没有图片就以给的颜色填充」)。
+    const rawIcon = c.icon ?? ''
+    const validIcon = c.isPreset
+      ? pres.icon
+      : (rawIcon && (iconChoices as readonly string[]).includes(rawIcon)) ? rawIcon : ''
     const disp = c.isPreset
-      ? { icon: pres.icon, color: pres.color, solid: false }
-      : { icon: c.icon ?? '', color: c.color || pres.color, solid: !(c.icon ?? '') }
+      ? { icon: validIcon, color: pres.color, solid: false }
+      : { icon: validIcon, color: c.color || pres.color, solid: !validIcon }
     return { ...c, pres, disp }
   }) : []
 })
@@ -243,8 +245,14 @@ async function runExport(kind: 'monthly' | 'category' | 'all') {
 </script>
 
 <template>
-  <scroll-view scroll-y class="page">
-    <!-- heading -->
+  <view class="page-root">
+    <AppHeader :title="t(lang, 'pageTitle.settings')" />
+    <scroll-view
+      scroll-y
+      class="scroll-area"
+      :bounces="false"
+    >
+      <!-- heading -->
     <view class="section">
       <text class="heading">{{ t(lang, 'settings.heading') }}</text>
     </view>
@@ -257,7 +265,7 @@ async function runExport(kind: 'monthly' | 'category' | 'all') {
         <view class="avatar-wrap">
           <view class="avatar-circle">
             <image v-if="auth.user?.avatar" :src="auth.user.avatar" class="avatar-img" mode="aspectFill" />
-            <text v-else class="avatar-icon">person</text>
+            <text v-else class="avatar-icon">👤</text>
           </view>
         </view>
 
@@ -278,7 +286,7 @@ async function runExport(kind: 'monthly' | 'category' | 'all') {
       <view class="card prefs-card">
         <view class="card-header">
           <view class="icon-circle">
-            <text class="mat-icon">tune</text>
+            <text class="mat-icon">⚙️</text>
           </view>
           <text class="card-title">{{ t(lang, 'settings.prefs.title') }}</text>
         </view>
@@ -311,7 +319,7 @@ async function runExport(kind: 'monthly' | 'category' | 'all') {
           <picker mode="selector" :range="LANGS.map(l => l.label)" :value="langIndex" @change="onLangChange">
             <view class="lang-picker">
               <text>{{ LANGS[langIndex]?.label }}</text>
-              <text class="mat-icon" style="font-size:20px">expand_more</text>
+              <text class="mat-icon" style="font-size:20px">⌄</text>
             </view>
           </picker>
         </view>
@@ -323,12 +331,12 @@ async function runExport(kind: 'monthly' | 'category' | 'all') {
       <view class="card-header-row">
         <view class="card-header">
           <view class="icon-circle icon-circle-lg">
-            <text class="mat-icon">category</text>
+            <text class="mat-icon">📂</text>
           </view>
           <text class="card-title">{{ t(lang, 'settings.categories.title') }}</text>
         </view>
         <button class="btn-add" @tap="showNew = !showNew">
-          <text class="mat-icon btn-add-icon">add</text>
+          <text class="mat-icon btn-add-icon">＋</text>
           <text>{{ t(lang, 'settings.categories.create.toggle') }}</text>
         </button>
       </view>
@@ -377,7 +385,7 @@ async function runExport(kind: 'monthly' | 'category' | 'all') {
     <view class="card data-card">
       <view class="card-header">
         <view class="icon-circle">
-          <text class="mat-icon">database</text>
+          <text class="mat-icon">🗄️</text>
         </view>
         <text class="card-title">{{ t(lang, 'settings.data.title') }}</text>
       </view>
@@ -386,21 +394,21 @@ async function runExport(kind: 'monthly' | 'category' | 'all') {
           :class="['export-btn', exporting ? 'export-disabled' : '']"
           @tap="exporting ? null : runExport('monthly')"
         >
-          <text class="mat-icon export-icon">{{ exporting === 'monthly' ? 'progress_activity' : 'calendar_month' }}</text>
+          <text class="mat-icon export-icon">{{ exporting === 'monthly' ? '⏳' : '📅' }}</text>
           <text class="export-label">{{ exporting === 'monthly' ? t(lang, 'settings.data.exporting') : t(lang, 'settings.data.exportMonthly') }}</text>
         </view>
         <view
           :class="['export-btn', exporting ? 'export-disabled' : '']"
           @tap="exporting ? null : runExport('category')"
         >
-          <text class="mat-icon export-icon">{{ exporting === 'category' ? 'progress_activity' : 'category' }}</text>
+          <text class="mat-icon export-icon">{{ exporting === 'category' ? '⏳' : '📂' }}</text>
           <text class="export-label">{{ exporting === 'category' ? t(lang, 'settings.data.exporting') : t(lang, 'settings.data.exportCategory') }}</text>
         </view>
         <view
           :class="['export-btn', exporting ? 'export-disabled' : '']"
           @tap="exporting ? null : runExport('all')"
         >
-          <text class="mat-icon export-icon">{{ exporting === 'all' ? 'progress_activity' : 'check_circle' }}</text>
+          <text class="mat-icon export-icon">{{ exporting === 'all' ? '⏳' : '✅' }}</text>
           <text class="export-label">{{ exporting === 'all' ? t(lang, 'settings.data.exporting') : t(lang, 'settings.data.exportAll') }}</text>
         </view>
       </view>
@@ -412,7 +420,7 @@ async function runExport(kind: 'monthly' | 'category' | 'all') {
       <!-- about -->
       <view class="card about-card">
         <view class="card-header">
-          <text class="mat-icon primary-icon" style="font-size:22px">info</text>
+          <text class="mat-icon primary-icon" style="font-size:22px">ℹ️</text>
           <text class="card-title">{{ t(lang, 'settings.about.title') }}</text>
         </view>
         <view class="about-logo-row">
@@ -437,19 +445,20 @@ async function runExport(kind: 'monthly' | 'category' | 'all') {
       <!-- account security -->
       <view class="card security-card">
         <view class="card-header">
-          <text class="mat-icon danger-icon" style="font-size:22px; font-variation-settings:'FILL' 1">shield</text>
+          <text class="mat-icon danger-icon" style="font-size:22px">🛡️</text>
           <text class="card-title">{{ t(lang, 'settings.accountSecurity.title') }}</text>
         </view>
         <text class="info-line security-desc">{{ t(lang, 'settings.accountSecurity.desc') }}</text>
         <view class="logout-row">
           <button class="btn-logout" @tap="handleLogout">
-            <text class="mat-icon" style="font-size:18px; font-variation-settings:'FILL' 1">logout</text>
+            <text class="mat-icon" style="font-size:18px">🚪</text>
             {{ t(lang, 'settings.accountSecurity.logout') }}
           </button>
         </view>
       </view>
     </view>
-  </scroll-view>
+    </scroll-view>
+  </view>
 
   <!-- new category modal -->
   <view v-if="showNew" class="modal-mask" @tap.self="showNew = false">
@@ -482,7 +491,7 @@ async function runExport(kind: 'monthly' | 'category' | 'all') {
             :style="{ backgroundColor: color }"
             @tap="newColor = color"
           >
-            <text v-if="newColor === color" class="mat-icon color-check">check</text>
+            <text v-if="newColor === color" class="mat-icon color-check">✓</text>
           </view>
         </view>
       </view>
@@ -526,7 +535,7 @@ async function runExport(kind: 'monthly' | 'category' | 'all') {
             :style="{ backgroundColor: color }"
             @tap="editColor = color"
           >
-            <text v-if="editColor === color" class="mat-icon color-check">check</text>
+            <text v-if="editColor === color" class="mat-icon color-check">✓</text>
           </view>
         </view>
       </view>
@@ -542,8 +551,30 @@ async function runExport(kind: 'monthly' | 'category' | 'all') {
 </template>
 
 <style scoped>
-.page { height: 100vh; background: var(--c-bg); padding: 24rpx; box-sizing: border-box; }
-.section { margin-bottom: 24rpx; }
+.page-root {
+  display: flex;
+  flex-direction: column;
+  /* H5:扣掉 tabBar 高度。uniapp H5 把 tabBar 渲染成 position:fixed 叠在 page-root 底部,
+     100vh 包含 tabBar 区域 → 滚到最后一段内容被 tabBar 盖住。
+     uni-h5 运行时会把 tabBar 高度写到 --tab-bar-height 上(非 tabBar 页 0px,tabBar 页 50px+safe-area)。
+     MP 原生 tabBar 已经在 native 层让出空间,这里 var 拿不到就 fallback 0px,等于 100vh,无副作用。 */
+  height: calc(100vh - var(--tab-bar-height, 0px));
+  background: var(--c-bg);
+}
+.scroll-area {
+  /* 不加 gap/flex-column:settings 用各 section/row 自身的 margin-bottom 控制间距,
+     沿用原 .page 的简单 box 行为,避免和已有 margin 叠加破坏布局。
+     padding-top 故意设为 0:用户反馈导航栏下方不要多余空带,内容紧贴 nav 底边。 */
+  flex: 1;
+  height: 0;
+  box-sizing: border-box;
+  padding: 0 24rpx 24rpx;
+  overscroll-behavior: none;
+}
+.section {
+  margin-top: 20rpx;   /* 距离导航栏底部 20rpx:与首页 .header 一致的处理(避免 scroll-area padding-top + AppHeader 内边距叠加) */
+  margin-bottom: 24rpx;
+}
 .heading { font-size: 32rpx; font-weight: 700; color: var(--c-text); }
 .row { display: flex; flex-direction: column; gap: 24rpx; margin-bottom: 24rpx; }
 .card { background: var(--c-bg-card); border-radius: 16rpx; padding: 32rpx; border: 1px solid var(--c-divider); }
@@ -564,7 +595,7 @@ async function runExport(kind: 'monthly' | 'category' | 'all') {
 .prefs-card {}
 .card-header { display: flex; align-items: center; gap: 16rpx; margin-bottom: 32rpx; }
 .icon-circle { width: 72rpx; height: 72rpx; border-radius: 50%; background: var(--c-primary-light); display: flex; align-items: center; justify-content: center; flex-shrink: 0; }
-.mat-icon { font-family: 'Material Symbols Outlined'; font-size: 20px; font-weight: normal; font-style: normal; }
+.mat-icon { font-size: 20px; font-weight: normal; font-style: normal; line-height: 1; }
 .card-title { font-size: 30rpx; font-weight: 600; color: var(--c-text); }
 .pref-row { display: flex; align-items: center; justify-content: space-between; padding: 24rpx 0; }
 .pref-label {}
@@ -604,7 +635,7 @@ async function runExport(kind: 'monthly' | 'category' | 'all') {
 .cat-list { display: flex; flex-wrap: wrap; }
 .cat-item { width: 16.66%; box-sizing: border-box; display: flex; flex-direction: column; align-items: center; gap: 4rpx; padding: 16rpx 0; }
 .cat-dot { width: 64rpx; height: 64rpx; border-radius: 50%; display: flex; align-items: center; justify-content: center; flex-shrink: 0; }
-.cat-icon-glyph { font-size: 32rpx; font-family: 'Material Symbols Outlined', sans-serif; font-weight: normal; font-style: normal; line-height: 1; }
+.cat-icon-glyph { font-size: 32rpx; font-weight: normal; font-style: normal; line-height: 1; }
 .cat-info { display: flex; flex-direction: column; align-items: center; min-width: 0; max-width: 100%; }
 .cat-name { font-size: 24rpx; color: var(--c-text); display: block; text-align: center; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; max-width: 100%; }
 .cat-color { font-size: 20rpx; color: var(--c-text-variant); display: block; margin-top: 2rpx; text-align: center; }

@@ -41,7 +41,11 @@
                 ]
             },
             /* ios打包配置 */
-            "ios" : {},
+            "ios" : {
+                "NSAppTransportSecurity": {
+                "NSAllowsArbitraryLoads":true
+                }
+            },
             /* SDK配置 */
             "sdkConfigs" : {}
         }

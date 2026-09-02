@@ -118,6 +118,7 @@ qz_start_frontend() {
 
   ( cd "$FRONTEND_DIR" && nohup npm run dev > "$FRONTEND_LOG" 2>&1 & echo $! > "$FRONTEND_PIDFILE" )
   qz_wait_port $FRONTEND_PORT "前端" 30 "$FRONTEND_LOG"
+  qz_print_vite_lan_url "$FRONTEND_LOG"
 }
 
 # === 管理后台前端 ===
@@ -135,6 +136,24 @@ qz_start_admin_frontend() {
 
   ( cd "$ADMIN_FRONTEND_DIR" && nohup npm run dev > "$ADMIN_FRONTEND_LOG" 2>&1 & echo $! > "$ADMIN_FRONTEND_PIDFILE" )
   qz_wait_port $ADMIN_FRONTEND_PORT "管理后台" 30 "$ADMIN_FRONTEND_LOG"
+  qz_print_vite_lan_url "$ADMIN_FRONTEND_LOG"
+}
+
+# 从 Vite 日志里抓 "Network: http://..." 一行打出来。
+# vite.config.ts 需要 server.host: true 才会输出 Network URL。
+qz_print_vite_lan_url() {
+  local log="$1"
+  local net_url=""
+  for _ in 1 2 3 4 5; do
+    net_url=$(grep -E "Network:.*http" "$log" 2>/dev/null | tail -1 | sed -E 's/.*(Network:[[:space:]]+)(https?:\/\/[^[:space:]]+).*/\2/')
+    [[ -n "$net_url" ]] && break
+    sleep 0.2
+  done
+  if [[ -n "$net_url" ]]; then
+    echo "  ✓ LAN  $net_url"
+  else
+    echo "  ! 未打印 LAN URL(vite.config.ts 需要 server.host: true)"
+  fi
 }
 
 # === 全部停掉 ===

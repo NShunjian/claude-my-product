@@ -24,7 +24,12 @@ public class CorsConfig implements WebMvcConfigurer {
                         "http://localhost:5180",
                         "http://127.0.0.1:5180",
                         "http://localhost:5181",
-                        "http://127.0.0.1:5181"
+                        "http://127.0.0.1:5181",
+                        // 局域网访问(本机 IP:192.168.31.46;手机/平板通过此 URL 访问 dev)
+                        "http://192.168.31.46:5173",
+                        "http://192.168.31.46:5174",
+                        "http://192.168.31.46:5180",
+                        "http://192.168.31.46:5181"
                 )
                 .allowedMethods("GET", "POST", "PATCH", "PUT", "DELETE", "OPTIONS")
                 .allowedHeaders("*")

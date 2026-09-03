@@ -355,7 +355,9 @@ export function ReportMonthly() {
           {isLoading ? (
             <p className="text-on-surface-variant font-body-md text-body-md text-center py-12">{t('common.loading')}</p>
           ) : (
-            <LineChart data={dailyData} />
+            // 与 uniapp monthly.vue 对齐:不应用 5 天滑动平均,显示每日真值。
+            // smoothWindow 默认是 5(稀疏数据更平滑),报表里用户要看的是真实波动。
+            <LineChart data={dailyData} smoothWindow={1} />
           )}
         </div>
       </div>

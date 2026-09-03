@@ -286,7 +286,7 @@ export function ReportYearly() {
                 <span className="font-caption-sm text-caption-sm text-on-surface-variant">{t('chart.line.income')}</span>
               </div>
               <div className="flex items-center gap-1.5">
-                <span className="w-2.5 h-2.5 rounded-full bg-gray-300" />
+                <span className="w-2.5 h-2.5 rounded-full bg-error" />
                 <span className="font-caption-sm text-caption-sm text-on-surface-variant">{t('chart.line.expense')}</span>
               </div>
             </div>
@@ -316,7 +316,7 @@ export function ReportYearly() {
                           title={t('reportYearly.incomeTip').replace('{amount}', formatMoney(d.income))}
                         />
                         <div
-                          className="w-full bg-gray-300 transition-all"
+                          className="w-full bg-error transition-all"
                           style={{ height: `${expenseH}%`, minHeight: expenseH > 0 ? '2px' : 0 }}
                           title={t('reportYearly.expenseTip').replace('{amount}', formatMoney(d.expense))}
                         />

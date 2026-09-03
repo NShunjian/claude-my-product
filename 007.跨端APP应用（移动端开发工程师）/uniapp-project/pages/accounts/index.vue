@@ -22,13 +22,16 @@ const error = ref<string | null>(null)
 
 const totalBalance = computed(() => accounts.value.reduce((s, a) => s + (a.balance ?? 0), 0))
 
+// iconName 之前是 Material Symbols ligature 字符串(chat_bubble / credit_card 等),
+// 没加载字体时会渲染成 "credit_card" 这种英文乱码 —— settings 自定义分类踩过同样的坑。
+// 改成跨平台可用的 emoji 字(各家系统 / 小程序 / iOS 都自带,不存在白字)。
 const themeMap: Record<string, { iconBg: string; iconColor: string; iconName: string }> = {
-  wechat: { iconBg: '#E5F5E9', iconColor: '#09B83E', iconName: 'chat_bubble' },
-  alipay: { iconBg: '#E3F2FD', iconColor: '#1677FF', iconName: 'payments' },
-  bank:   { iconBg: '#e5eeff', iconColor: '#005394', iconName: 'account_balance' },
-  credit: { iconBg: 'rgb(167 8 25 / 0.12)', iconColor: '#ba1a1a', iconName: 'credit_card' },
-  cash:   { iconBg: '#dce9ff', iconColor: '#8B6E4E', iconName: 'local_atm' },
-  wallet: { iconBg: '#E5F5E9', iconColor: '#09B83E', iconName: 'account_balance_wallet' },
+  wechat: { iconBg: '#E5F5E9', iconColor: '#09B83E', iconName: '💬' },
+  alipay: { iconBg: '#E3F2FD', iconColor: '#1677FF', iconName: '💰' },
+  bank:   { iconBg: '#e5eeff', iconColor: '#005394', iconName: '🏦' },
+  credit: { iconBg: 'rgb(167 8 25 / 0.12)', iconColor: '#ba1a1a', iconName: '💳' },
+  cash:   { iconBg: '#dce9ff', iconColor: '#8B6E4E', iconName: '💵' },
+  wallet: { iconBg: '#E5F5E9', iconColor: '#09B83E', iconName: '👛' },
 }
 
 async function load() {
@@ -79,53 +82,72 @@ onShow(load)
 </script>
 
 <template>
-  <AppHeader :title="t('pageTitle.accounts')" back @back="goBack" />
-  <view class="page">
-    <!-- Net assets + add -->
-    <view class="net-card">
-      <view class="net-label">{{ t('accounts.netAssets') }}</view>
-      <text class="net-amount">¥ {{ formatAmount(totalBalance, false) }}</text>
-      <view class="add-btn" @tap="uni.navigateTo({ url: '/pages/accounts/new' })">
-        <text class="add-icon">+</text>
-        <text>{{ t('accounts.addCta') }}</text>
-      </view>
-    </view>
+  <view class="page-root">
+    <AppHeader :title="t('pageTitle.accounts')" back @back="goBack" />
+    <scroll-view scroll-y class="scroll-area" :bounces="false">
+      <view class="page">
+        <!-- Net assets + add -->
+        <view class="net-card">
+          <view class="net-label">{{ t('accounts.netAssets') }}</view>
+          <text class="net-amount" :class="totalBalance < 0 ? 'expense' : ''">¥ {{ formatAmount(totalBalance, false) }}</text>
+          <view class="add-btn" @tap="uni.navigateTo({ url: '/pages/accounts/new' })">
+            <text class="add-icon">+</text>
+            <text>{{ t('accounts.addCta') }}</text>
+          </view>
+        </view>
 
-    <!-- Error -->
-    <view v-if="error" class="error-box">{{ t('accounts.loadErrorPrefix') }}{{ error }}</view>
+        <!-- Error -->
+        <view v-if="error" class="error-box">{{ t('accounts.loadErrorPrefix') }}{{ error }}</view>
 
-    <!-- Account list -->
-    <view class="list">
-      <view v-if="loading" class="empty">{{ t('accounts.loading') }}</view>
-      <view v-else-if="accounts.length === 0" class="empty">{{ t('accounts.empty') }}</view>
-      <view v-else class="grid">
-        <view v-for="(acc, idx) in accounts" :key="acc?.id ?? `acc-${idx}`" class="acc-card" @longpress="confirmDelete(acc)">
-          <view class="acc-top">
-            <view class="acc-icon" :style="{ background: getTheme(acc).iconBg }">
-              <text class="icon-text" :style="{ color: getTheme(acc).iconColor }">{{ getTheme(acc).iconName }}</text>
-            </view>
-            <view class="acc-more" @tap="confirmDelete(acc)">
-              <text class="more-icon">⋮</text>
+        <!-- Account list -->
+        <view class="list">
+          <view v-if="loading" class="empty">{{ t('accounts.loading') }}</view>
+          <view v-else-if="accounts.length === 0" class="empty">{{ t('accounts.empty') }}</view>
+          <view v-else class="grid">
+            <view v-for="(acc, idx) in accounts" :key="acc?.id ?? `acc-${idx}`" class="acc-card" @longpress="confirmDelete(acc)">
+              <view class="acc-top">
+                <view class="acc-icon" :style="{ background: getTheme(acc).iconBg }">
+                  <text class="icon-text" :style="{ color: getTheme(acc).iconColor }">{{ getTheme(acc).iconName }}</text>
+                </view>
+                <view class="acc-more" @tap="confirmDelete(acc)">
+                  <text class="more-icon">⋮</text>
+                </view>
+              </view>
+              <view class="acc-body">
+                <text class="acc-name">{{ acc.name }}</text>
+                <text class="acc-sub">{{ subtitleOf(acc) }}</text>
+              </view>
+              <!-- 真实余额:formatAmount(toLocaleString) 会自动给负数加 '-',不再 Math.abs -->
+              <text class="acc-balance" :class="acc.balance < 0 ? 'expense' : ''">
+                ¥ {{ formatAmount(acc.balance, false) }}
+              </text>
             </view>
           </view>
-          <view class="acc-body">
-            <text class="acc-name">{{ acc.name }}</text>
-            <text class="acc-sub">{{ subtitleOf(acc) }}</text>
-          </view>
-          <text class="acc-balance" :class="acc.type === 'credit' ? 'expense' : ''">
-            {{ acc.type === 'credit' ? '-' : '' }}¥ {{ formatAmount(Math.abs(acc.balance), false) }}
-          </text>
         </view>
       </view>
-    </view>
+    </scroll-view>
   </view>
 </template>
 
 <style scoped>
+/* 跨端可滚动外壳:H5 / iOS 需要 scroll-view 才能上下滑动,微信小程序原生就能滚所以包了也无害。
+   page-root 用 calc(100vh - --tab-bar-height) 占满剩余视口,scroll-area flex:1 + height:0 拿到剩余高度。 */
+.page-root {
+  display: flex;
+  flex-direction: column;
+  height: calc(100vh - var(--tab-bar-height, 0px));
+  background: var(--c-bg);
+}
+.scroll-area {
+  flex: 1;
+  height: 0;
+  box-sizing: border-box;
+}
 .page { padding: 24rpx; display: flex; flex-direction: column; gap: 20rpx; }
 .net-card { background: var(--c-bg-card); border-radius: 16rpx; padding: 28rpx; display: flex; flex-direction: column; gap: 8rpx; border: 1px solid var(--c-divider); }
 .net-label { font-size: 24rpx; color: var(--c-text-variant); text-transform: uppercase; letter-spacing: 1px; }
 .net-amount { font-size: 48rpx; font-weight: 700; color: var(--c-text); }
+.net-amount.expense { color: var(--c-error); }
 .add-btn { display: flex; align-items: center; gap: 8rpx; margin-top: 12rpx; background: var(--c-primary); color: #fff; border-radius: 12rpx; padding: 16rpx 24rpx; font-size: 28rpx; font-weight: 600; }
 .add-icon { font-size: 32rpx; }
 .error-box { background: #FFEBEE; color: #C62828; border-radius: 12rpx; padding: 20rpx; font-size: 26rpx; }

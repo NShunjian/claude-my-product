@@ -48,6 +48,9 @@ public class CategoriesService {
                         .eq(Category::getIsActive, (byte) 1)
                         .eq(type != null, Category::getType, type)
                         .orderByAsc(Category::getSortOrder)
+                        // 同 sort_order(自定义默认 0)内,二级按 created_at DESC,保证自定义分类返回时已"最新在前";
+                        // 预设分类 sort_order 各不相同,created_at DESC 不会改变其视觉顺序。
+                        .orderByDesc(Category::getCreatedAt)
         ).stream().map(this::toResponse).toList();
     }
 
@@ -167,7 +170,8 @@ public class CategoriesService {
                 c.getIcon(),
                 c.getColor(),
                 c.getSortOrder(),
-                c.getIsPreset() != null && c.getIsPreset() == 1
+                c.getIsPreset() != null && c.getIsPreset() == 1,
+                c.getCreatedAt() == null ? null : c.getCreatedAt().getEpochSecond()
         );
     }
 }

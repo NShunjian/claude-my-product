@@ -12,5 +12,7 @@ public record CategoryResponse(
         String icon,
         String color,
         Integer sortOrder,
-        Boolean isPreset
+        Boolean isPreset,
+        /** Unix 秒,=categories.created_at。前端用来把自定义分类按「最新在前」排。 */
+        Long createdAt
 ) {}

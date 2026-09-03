@@ -103,7 +103,8 @@ const editColor = ref('')
 
 const catItems = computed(() => {
   const src = catTab.value === 'expense' ? expenseCats.value : incomeCats.value
-  return Array.isArray(src) ? src.filter((c): c is Category => !!c && !!c.id).map((c) => {
+  if (!Array.isArray(src)) return []
+  const items = src.filter((c): c is Category => !!c && !!c.id).map((c) => {
     const pres = categoryPresentation(c)
     // 自定义分类:校验 icon 是否在 emoji 白名单里。后端可能存了旧的 Material Symbols
     // ligature 名字(如 "fastfood"/"restaurant"),直接渲染会显示成英文乱码,
@@ -116,7 +117,20 @@ const catItems = computed(() => {
       ? { icon: validIcon, color: pres.color, solid: false }
       : { icon: validIcon, color: c.color || pres.color, solid: !validIcon }
     return { ...c, pres, disp }
-  }) : []
+  })
+  // 自定义分类按"最新在前"显示:用后端返回的 createdAt(Unix 秒)降序;
+  // 后端 ORDER BY 已按 created_at DESC 兜底,这里再保一层以防旧版本/排序被吃。
+  // createdAt 缺失(老后端)时退回原顺序,不报错。
+  const customs = items
+    .filter((c) => !c.isPreset)
+    .slice()
+    .sort((a, b) => {
+      const ta = a.createdAt ? Date.parse(a.createdAt) : 0
+      const tb = b.createdAt ? Date.parse(b.createdAt) : 0
+      return tb - ta
+    })
+  const presets = items.filter((c) => c.isPreset)
+  return [...customs, ...presets]
 })
 
 async function loadCategories() {
@@ -462,7 +476,10 @@ async function runExport(kind: 'monthly' | 'category' | 'all') {
 
   <!-- new category modal -->
   <view v-if="showNew" class="modal-mask" @tap.self="showNew = false">
-    <view class="modal">
+    <!-- @tap.stop:拦截弹窗内的 tap 冒泡,不让它触发 .modal-mask 的关闭逻辑。
+         MP 里 @tap.self 不可靠(tap 冒泡直接命中 mask),H5/iOS 下 .self 才生效。
+         兼容做法:mask 用 self + modal 用 stop,任一平台单独工作都对。 -->
+    <view class="modal" @tap.stop>
       <text class="modal-title">{{ t(lang, 'settings.categories.create.toggle') }}</text>
       <view class="form-field">
         <text class="field-label">{{ t(lang, 'settings.categories.field.name') }}</text>
@@ -506,7 +523,8 @@ async function runExport(kind: 'monthly' | 'category' | 'all') {
 
   <!-- edit modal -->
   <view v-if="editing" class="modal-mask" @tap.self="editing = null">
-    <view class="modal">
+    <!-- @tap.stop:同上 — 拦截弹窗内 tap 不冒到 mask -->
+    <view class="modal" @tap.stop>
       <text class="modal-title">{{ t(lang, 'settings.categories.edit.title') }}</text>
       <view class="form-field">
         <text class="field-label">{{ t(lang, 'settings.categories.field.name') }}</text>

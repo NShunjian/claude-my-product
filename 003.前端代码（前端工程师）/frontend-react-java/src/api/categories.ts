@@ -12,6 +12,9 @@ export interface Category {
   sortOrder: number
   /** 后端 V1.1 暴露:true=系统预设(只读)/false=用户自定义(可改可删) */
   isPreset: boolean
+  /** Unix 秒,=后端 categories.created_at。uniapp 用它把自定义分类按"最新在前"排;
+   *  React 端目前不在分类管理页用到此字段,这里挂个可选字段以保持类型与后端一致。 */
+  createdAt?: string
 }
 
 export interface ListCategoriesResponse {

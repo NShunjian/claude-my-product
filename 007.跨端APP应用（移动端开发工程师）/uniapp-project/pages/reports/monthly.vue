@@ -428,7 +428,7 @@ function onExpenseTap(i: number) {
                     :class="hoverExpenseIdx <= 1 ? 'tip-right' : hoverExpenseIdx >= 10 ? 'tip-left' : 'tip-center'"
                     :style="{ left: ((hoverExpenseIdx + 0.5) / yearlyMonthlyData.length * 100) + '%' }">
                 <view class="bar-tip-row">
-                  <view class="bar-tip-dot" :style="{ background: '#94a3b8' }" />
+                  <view class="bar-tip-dot" :style="{ background: 'var(--c-error)' }" />
                   <text class="bar-tip-label">{{ t('chart.line.expense') }}</text>
                 </view>
                 <text class="bar-tip-amount">¥{{ formatAmount(yearlyMonthlyData[hoverExpenseIdx].expense, false) }}</text>
@@ -574,7 +574,7 @@ function onExpenseTap(i: number) {
 .bar-group { display: flex; gap: 2rpx; align-items: flex-end; height: 160rpx; }
 .bar { width: 20rpx; border-radius: 4rpx 4rpx 0 0; min-height: 4rpx; position: relative; }
 .bar-income { background: #006d40; }
-.bar-expense { background: #94a3b8; }
+.bar-expense { background: var(--c-error); }
 /* tooltip 作为 bar-chart 顶部 overlay,top: 4rpx 保证在 padding-top 区域内不被任何父级裁剪 */
 .bar-tip {
   position: absolute;

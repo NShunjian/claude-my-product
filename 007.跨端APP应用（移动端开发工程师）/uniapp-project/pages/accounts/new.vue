@@ -20,7 +20,9 @@ const ACCOUNT_TYPES: { value: AccountType; label: string }[] = [
   { value: 'other', label: '其他' },
 ]
 
-const ICONS = ['account_balance_wallet', 'credit_card', 'account_balance', 'payments', 'phone_iphone']
+// 跟 accounts/index.vue themeMap 同样的处理:不用 Material Symbols ligature,改用 emoji,
+// 否则会渲染成 "account_balance_wallet" 这样的英文乱码(无字体加载)。
+const ICONS = ['👛', '💳', '🏦', '💰', '📱']
 
 const name = ref('')
 const type = ref<AccountType>('wallet')

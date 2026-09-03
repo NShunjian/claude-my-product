@@ -24,10 +24,11 @@
     "backgroundColor": "#FFFFFF",
     "borderStyle": "white",
     "list": [
-      { "pagePath": "pages/index/index",        "text": "首页" },
-      { "pagePath": "pages/transactions/index", "text": "流水" },
-      { "pagePath": "pages/reports/monthly",    "text": "报表" },
-      { "pagePath": "pages/settings/index",     "text": "我的" }
+      { "pagePath": "pages/index/index",        "text": "首页", "iconPath": "static/main_normal.png",     "selectedIconPath": "static/main_select.png" },
+      { "pagePath": "pages/transactions/index", "text": "流水", "iconPath": "static/liushui_normal.png",   "selectedIconPath": "static/liushui_select.png" },
+      { "pagePath": "pages/reports/monthly",    "text": "报表", "iconPath": "static/baobiao_normal.png",  "selectedIconPath": "static/baobiao_select.png" },
+      { "pagePath": "pages/accounts/index",     "text": "账户", "iconPath": "static/zhanghu_normal.png",  "selectedIconPath": "static/zhanghu_select.png" },
+      { "pagePath": "pages/settings/index",     "text": "我的", "iconPath": "static/me_normal.png",       "selectedIconPath": "static/me_select.png" }
     ]
   }
 }

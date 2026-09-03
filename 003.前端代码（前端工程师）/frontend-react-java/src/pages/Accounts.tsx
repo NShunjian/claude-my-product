@@ -46,7 +46,11 @@ export function Accounts() {
               {t('accounts.netAssets')}
             </p>
             <div className="flex items-baseline gap-2">
-              <span className="font-display-lg text-display-lg font-bold text-text-primary">
+              <span
+                className={`font-display-lg text-display-lg font-bold ${
+                  totalBalance < 0 ? 'text-error' : 'text-text-primary'
+                }`}
+              >
                 ¥{formatMoney(totalBalance)}
               </span>
               <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full font-caption-sm text-caption-sm text-secondary bg-secondary-container/40">
@@ -94,7 +98,6 @@ export function Accounts() {
         ) : (
           accounts.map((acc) => {
             const theme = ACCOUNT_THEME[acc.themeKey] ?? ACCOUNT_THEME.bank
-            const isCredit = acc.themeKey === 'credit'
             return (
               <article
                 key={acc.id}
@@ -129,22 +132,15 @@ export function Accounts() {
                     {acc.subtitle}
                   </p>
 
-                  {isCredit ? (
-                    <div className="flex justify-between items-end">
-                      <p className="font-label-mono text-label-mono text-error">
-                        -¥{formatMoney(Math.abs(acc.balance))}
-                      </p>
-                      {acc.creditLimit && (
-                        <span className="font-caption-sm text-caption-sm text-outline">
-                          Limit: ¥{acc.creditLimit}
-                        </span>
-                      )}
-                    </div>
-                  ) : (
-                    <p className="font-label-mono text-label-mono text-on-surface">
-                      ¥{formatMoney(acc.balance)}
-                    </p>
-                  )}
+                  {/* 真实余额:formatMoney(toLocaleString) 自动给负数带 '-'。
+                      账户页规则:负数(透支/欠款)=红色,正数/0=默认色 —— 收入不强调绿色。 */}
+                  <p
+                    className={`font-label-mono text-label-mono ${
+                      acc.balance < 0 ? 'text-error' : 'text-on-surface'
+                    }`}
+                  >
+                    ¥{formatMoney(acc.balance)}
+                  </p>
                 </div>
               </article>
             )

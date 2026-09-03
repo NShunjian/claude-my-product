@@ -46,7 +46,9 @@ function detectThemeByName(name: string, fallback: ThemeKey): ThemeKey {
 
 export function getAccountPresentation(a: ApiAccount): AccountPresentation {
   const baseTheme = TYPE_TO_THEME[a.type] ?? 'bank'
-  const themeKey = detectThemeByName(a.name, baseTheme)
+  // backend type 是真相;信用类型不要被名字里的 "银行/招商/工商" 误判成普通借记卡。
+  // 否则 招商银行 这种其实是信用卡的账户,balance 会失去 'credit' 主题的负号渲染。
+  const themeKey = baseTheme === 'credit' ? 'credit' : detectThemeByName(a.name, baseTheme)
   const subtitle = TYPE_TO_SUBTITLE[a.type] ?? 'Account'
   const result: AccountPresentation = { subtitle, themeKey }
   if (a.type === 'credit') {

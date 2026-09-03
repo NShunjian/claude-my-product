@@ -111,6 +111,9 @@
   --color-outline-variant: #30363d;
 
   --color-on-primary: #ffffff;
+
+  /* 深色模式下 secondary(用于收入/正数着色)提亮 */
+  --color-secondary: #4ade80;
 }
 
 .glass-card {

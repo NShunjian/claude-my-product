@@ -59,6 +59,14 @@ describe('getAccountPresentation', () => {
     expect(getAccountPresentation(makeAccount({ name: 'Alipay HK', type: 'wallet' })).themeKey).toBe('alipay')
   })
 
+  it('credit type is sticky — names with 招商/银行 must not downgrade to bank theme', () => {
+    // backend 把招商银行登记成 credit,前端不能因为名字里有 "招商/银行" 而把它当普通借记卡,
+    // 否则 balance 会失去 credit 主题的负号渲染,和 backend 真值不一致。
+    expect(getAccountPresentation(makeAccount({ name: '招商银行', type: 'credit' })).themeKey).toBe('credit')
+    expect(getAccountPresentation(makeAccount({ name: '工商银行信用卡', type: 'credit' })).themeKey).toBe('credit')
+    expect(getAccountPresentation(makeAccount({ name: '招商银行', type: 'credit' })).subtitle).toBe('Credit Card')
+  })
+
   it('credit type adds creditLimit placeholder', () => {
     const out = getAccountPresentation(makeAccount({ type: 'credit' }))
     expect(out.creditLimit).toBe('—')

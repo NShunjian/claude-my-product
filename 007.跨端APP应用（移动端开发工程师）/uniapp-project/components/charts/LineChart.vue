@@ -127,8 +127,8 @@ const tipAnchor = computed(() => {
 })
 // #endif
 
-// ========================= MP: SVG → data URI → <image> =========================
-// #ifdef MP-WEIXIN
+// ========================= MP/APP-PLUS: SVG → data URI → <image> =========================
+// #ifdef MP-WEIXIN || APP-PLUS
 //
 // 思路:把跟 H5 完全一样的 SVG 字符串用 encodeURIComponent 编码后,
 // 塞到 <image src="data:image/svg+xml;charset=utf-8,...">。mp 基础库 ≥ 2.10.0
@@ -229,7 +229,7 @@ const ins = getCurrentInstance()
 
 function queryRect(): Promise<{ left: number; top: number; width: number; height: number } | null> {
   return new Promise((resolve) => {
-    // #ifdef MP-WEIXIN
+    // #ifdef MP-WEIXIN || APP-PLUS
     const q = uni.createSelectorQuery().in(ins)
     q.select('.mp-line-image').boundingClientRect()
     q.exec((res: any) => {
@@ -364,8 +364,8 @@ watch(() => props.data, () => {
     </view>
     <!-- #endif -->
 
-    <!-- MP: SVG → data URI → <image>(基础库 ≥ 2.10.0 原生支持 SVG 图片) -->
-    <!-- #ifdef MP-WEIXIN -->
+    <!-- MP/APP-PLUS: SVG → data URI → <image>(mp 基础库 ≥ 2.10.0 / 原生 webview 都吃) -->
+    <!-- #ifdef MP-WEIXIN || APP-PLUS -->
     <view class="mp-line-frame">
       <image v-if="svgDataUri" :src="svgDataUri" mode="widthFix" class="mp-line-image" />
       <!-- 透明覆盖层:捕获点击/拖动位置,计算最近数据点 -->

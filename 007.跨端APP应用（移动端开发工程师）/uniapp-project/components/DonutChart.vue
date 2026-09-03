@@ -77,8 +77,8 @@ function clearHover() {
 }
 // #endif
 
-// ========================= MP: conic-gradient 环图 =========================
-// #ifdef MP-WEIXIN
+// ========================= MP/APP-PLUS: conic-gradient 环图 =========================
+// #ifdef MP-WEIXIN || APP-PLUS
 //
 // 拼接 conic-gradient stop 字符串。mp 基础库 2.13.0+ 完全支持;
 // 设 background-color 兜底,如果 conic-gradient 被忽略,显示单色 ring + 中心文字。
@@ -258,8 +258,8 @@ watch(() => props.segments, () => {
     </view>
     <!-- #endif -->
 
-    <!-- MP: view + conic-gradient 环图(conic 不支持时退化单色 ring + 中心文字) -->
-    <!-- #ifdef MP-WEIXIN -->
+    <!-- MP/APP-PLUS: view + conic-gradient 环图(mp conic 不支持时退化单色 ring + 中心文字;APP-PLUS webview 完全支持) -->
+    <!-- #ifdef MP-WEIXIN || APP-PLUS -->
     <view class="mp-donut-wrap">
       <view class="mp-donut-stack">
         <view class="mp-donut-ring"

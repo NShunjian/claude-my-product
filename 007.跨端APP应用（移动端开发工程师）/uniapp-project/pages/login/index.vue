@@ -93,9 +93,15 @@ async function submit() {
           微信小程序里 document 不存在,unlockPwd 永远 early-return,readonly 解不掉,
           readonly 的 input 在 mp 里会拦截焦点链 → 把 button 的 tap 也带走。
           所以 mp 端就不加 readonly 了。
+          iOS/Android 原生 APP(APP-PLUS):type="password" 标准支持,不需要 readonly
+          (原生应用没有浏览器 autofill;加了 readonly 反而会跟 mp 一样卡焦点链)。
+          之前漏写 APP-PLUS 分支,iOS 编译时整段被剥 → 密码 input 不渲染 → 用户看不到密码框。
         -->
         <!-- #ifdef H5 -->
         <input v-model="password" class="input qz-pwd-input" :placeholder="t('login.password')" type="password" :name="`qz_login_pwd_${pwdNameSeed}`" autocomplete="new-password" readonly data-form-type="other" data-1p-ignore @focus="unlockPwd" />
+        <!-- #endif -->
+        <!-- #ifdef APP-PLUS -->
+        <input v-model="password" class="input qz-pwd-input" :placeholder="t('login.password')" type="password" :name="`qz_login_pwd_${pwdNameSeed}`" autocomplete="new-password" @focus="unlockPwd" />
         <!-- #endif -->
         <!-- #ifdef MP-WEIXIN -->
         <!-- 微信小程序里 type="password" 渲染失效(显示明文),必须用 type="text" + password="true" 才会出掩码圆点 -->

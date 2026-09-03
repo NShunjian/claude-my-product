@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { ref, computed, watch } from 'vue'
+import { ref, computed, watch, onMounted, onBeforeUnmount } from 'vue'
 import { useBookStore } from '@/stores/book'
 import { useToastStore } from '@/stores/toast'
 import { useLanguage } from '@/i18n/useLanguage'
@@ -12,6 +12,12 @@ import type { RecordType } from '@/api/records'
 import { todayLocal } from '@/utils/date'
 import { formatAmount } from '@/utils/finance'
 import { categoryPresentation } from '@/utils/category-presentation'
+import { modalOpen } from '@/utils/modal-state'
+import {
+  setWindowBackgroundColor,
+  restoreWindowBackgroundColor,
+  captureWindowBackgroundColor,
+} from '@/uni_modules/qa-window-bg/utssdk/index.uts'
 
 /**
  * 快速记账弹框 —— 对齐 frontend-react-java RecordModal
@@ -87,10 +93,81 @@ function reset() {
   activeTab.value = props.kind
 }
 
+// iOS app-plus WKWebView 默认 viewport-fit=auto,viewport = safe-area。
+// position:fixed overlay 撑不到物理圆角区域,两侧露出 WKWebView 底层 bg(默认白)。
+// 解决办法:modal 打开时直接调 WKWebView 原生 API 把外层 bg 也涂成 overlay 同色,
+// 这样"圆角外"和"overlay 内"是同一种深色,视觉合一。
+// 关闭时把 bg 还原到原始值(读取 .__originalBg 没读到就读 #fff 兜底)。
+// 仅 APP-PLUS 生效 — H5 已有 viewport-fit=cover,MP 用原生 navigationStyle。
+// ponytail: 备选改 pages.json per-page app-plus.webviewStyle.background,简单但页面
+// 全程暗底;改成 JS 动态切只在 modal 开期间才暗,体验更好。
+function getWV(): any | null {
+  // #ifdef APP-PLUS
+  try { return (plus as any)?.webview?.currentWebview?.() ?? null } catch { return null }
+  // #endif
+  return null
+}
+// iOS 上 WKWebView 在 UIWindow 圆角 mask 内,圆角外(两侧/顶部两个三角)是 mask 之外的
+// UIWindow.backgroundColor —— JS-only 方案(WebView background / body bg / viewport-fit)
+// 都染不到那块。uni_modules/qa-window-bg 是原生插件,open 时把 UIWindow.backgroundColor
+// 涂成 overlay 同色,close 时还原(原色在首次打开时快照一次)。
+function paintWVOpen() {
+  const wv = getWV()
+  // #ifdef APP-PLUS
+  // 1. 隐藏 status bar + 让 WKWebView 顶到物理屏幕顶 —— 解决 iOS 上 sheet 距离顶部
+  //    太大、navy 顶部区比 H5 高很多的问题。三端 sheet 视觉位置一致,只 iOS 需要 fullscreen。
+  try {
+    plus.navigator.setFullScreen && plus.navigator.setFullScreen(true)
+    plus.navigator.setStatusBarBackground && plus.navigator.setStatusBarBackground('#141E3C')
+  } catch { /* plus API 兼容 */ }
+  // 2. 原生插件 UIWindow.backgroundColor = '#141E3C' —— 仅 HBuilderX 打包后才生效,
+  //    覆盖 WKWebView 圆角 mask cutout 之外(物理圆角那条窄边)区域。
+  try {
+    captureWindowBackgroundColor()
+    setWindowBackgroundColor('#141E3C')
+  } catch { /* 原生插件未编译通过 —— 调试时常见,真机/打包后会好 */ }
+  // #endif
+  if (!wv) return
+  try {
+    if (!(wv as any).__qaOriginalBgCaptured) {
+      let cur = '#ffffff'
+      try {
+        const gs = (typeof wv.getStyle === 'function') ? wv.getStyle() : wv.getStyle
+        if (gs && typeof gs === 'object') {
+          cur = (gs as any).background || (gs as any).backgroundColor || cur
+        }
+      } catch { /* keep fallback #ffffff */ }
+      ;(wv as any).__qaOriginalBg = cur
+      ;(wv as any).__qaOriginalBgCaptured = true
+    }
+    wv.setStyle({ background: '#141E3C' })
+  } catch { /* 兜底:iOS 一些版本 setStyle 不支持这条 */ }
+}
+function paintWVClose() {
+  const wv = getWV()
+  // #ifdef APP-PLUS
+  try {
+    plus.navigator.setFullScreen && plus.navigator.setFullScreen(false)
+    plus.navigator.setStatusBarBackground && plus.navigator.setStatusBarBackground('#FFFFFF')
+  } catch { /* */ }
+  try { restoreWindowBackgroundColor() } catch { /* */ }
+  // #endif
+  if (!wv) return
+  try {
+    const orig = (wv as any).__qaOriginalBg || '#ffffff'
+    wv.setStyle({ background: orig })
+  } catch { /* */ }
+}
+
 watch(
   () => props.show,
   (v) => {
+    // 同步全局 modal 状态 — AppHeader watch modalOpen 在 modal 打开时把自己隐藏。
+    // iOS app-plus WKWebView 里 overlay 偶尔压不住 sticky 元素,见 utils/modal-state。
+    modalOpen.value = v
     if (v) {
+      paintWVOpen()
+      hideAppTabBar()
       reset()
       ensureData().then(() => {
         if (!categoryId.value) {
@@ -100,9 +177,54 @@ watch(
           accountId.value = pickDefaultAccount()
         }
       })
+    } else {
+      paintWVClose()
+      showAppTabBar()
     }
   },
 )
+
+// 模态打开时隐藏底部 tabbar,关闭时恢复 — 否则 modal 遮罩背后能看到 tabbar(三个端都有问题)。
+// H5:tabbar 是 uniapp 渲染的 .uni-tabbar 节点,通过 body 上的 .qa-open 类配合全局 CSS 隐藏。
+// MP/app-plus:tabbar 是原生组件,uni.hideTabBar/showTabBar 单独控制。
+// 用 ref 记状态防止快速 open/close 切换时漏调用 show。
+const tabbarHidden = ref(false)
+function hideAppTabBar() {
+  if (tabbarHidden.value) return
+  tabbarHidden.value = true
+  // #ifdef H5
+  document.body.classList.add('qa-open')
+  // #endif
+  // #ifdef MP-WEIXIN || APP-PLUS
+  uni.hideTabBar({ animation: false })
+  // #endif
+}
+function showAppTabBar() {
+  if (!tabbarHidden.value) return
+  tabbarHidden.value = false
+  // #ifdef H5
+  document.body.classList.remove('qa-open')
+  // #endif
+  // #ifdef MP-WEIXIN || APP-PLUS
+  uni.showTabBar({ animation: false })
+  // #endif
+}
+
+// 兜底:如果初次挂载时 show 就是 true(外部直接 v-if 进来),watch 不会触发,这里手动调一次
+onMounted(() => {
+  if (props.show) {
+    hideAppTabBar()
+    modalOpen.value = true
+  }
+})
+// 组件被卸载时强制恢复 tabbar + 清掉全局 modal 状态,避免父级 navigateBack
+// 导致 modal 还显示着就 destroy,AppHeader 一直停在 display:none 状态
+onBeforeUnmount(() => {
+  if (tabbarHidden.value) showAppTabBar()
+  // 防止 modal 还开着时被卸载 → WKWebView 一直停在深色底
+  if (props.show) paintWVClose()
+  modalOpen.value = false
+})
 
 // 切 tab 时把分类重置到该类型的第一个
 watch(activeTab, () => {
@@ -374,10 +496,12 @@ const accentBg = computed(() => isExpense.value ? 'var(--c-primary)' : '#10b981'
 }
 .qa-sheet {
   background: var(--c-bg-card);
-  border-top-left-radius: 20rpx;
-  border-top-right-radius: 20rpx;
+  /* 四个角都圆,匹配 iPhone 物理圆角 —— 之前只有顶部圆,底部直角在 iPhone 圆角
+     mask 区域里看上去像被切掉一角,keypad 两侧显得被遮挡。*/
+  border-radius: 24rpx;
   border: 1px solid var(--c-divider);
-  border-bottom: none;
+  /* 底部留 1px 让圆角视觉完整(原本 border-bottom:none 是 bottom-sheet 风格,
+     现在 sheet 撑到 viewport 底,要保留圆角边框让边角成型) */
   max-height: 92vh;
   display: flex;
   flex-direction: column;
@@ -573,9 +697,16 @@ const accentBg = computed(() => isExpense.value ? 'var(--c-primary)' : '#10b981'
 .qa-keypad {
   display: grid;
   grid-template-columns: repeat(4, 1fr);
-  padding: 8rpx 16rpx 16rpx;
+  /* 上下左右四边的 padding 都取 env(safe-area-inset-*) + 32rpx,把 keypad 与屏幕
+     边缘之间的"间隙"也当作容器一部分展示出来 —— 上下避开 home indicator / 状态栏,
+     左右避开 iPhone 物理圆角/iPad 安全区。background = sheet bg,这些 padding 区
+     都是 sheet 容器的视觉延伸。横屏时 safe-area-inset-left/right 非零能兜底。*/
+  padding: 8rpx 32rpx calc(env(safe-area-inset-bottom, 0px) + 32rpx);
+  padding-left: calc(env(safe-area-inset-left, 0px) + 32rpx);
+  padding-right: calc(env(safe-area-inset-right, 0px) + 32rpx);
   gap: 8rpx;
   background: var(--c-bg-card);
+  flex-shrink: 0;
 }
 .qa-key {
   height: 80rpx;

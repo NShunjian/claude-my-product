@@ -1,3 +1,4 @@
+// @vitest-environment jsdom
 import { describe, it, expect } from 'vitest'
 import { getCategoryPresentation, getCategoryPresentationById } from './category-presentation'
 import type { Category as ApiCategory } from '../api/categories'

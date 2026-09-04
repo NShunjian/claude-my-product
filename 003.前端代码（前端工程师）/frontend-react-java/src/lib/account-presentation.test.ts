@@ -1,3 +1,4 @@
+// @vitest-environment jsdom
 import { describe, it, expect } from 'vitest'
 import { getAccountPresentation } from './account-presentation'
 import type { Account as ApiAccount } from '../api/accounts'

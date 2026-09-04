@@ -143,7 +143,7 @@ function onAccountChange(e: any) {
 </script>
 
 <template>
-  <view class="page-root">
+  <view class="page-root tabbar-page">
     <AppHeader :title="t('pageTitle.transactions')" />
     <scroll-view
       scroll-y

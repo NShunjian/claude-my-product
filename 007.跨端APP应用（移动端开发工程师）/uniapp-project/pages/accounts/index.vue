@@ -82,7 +82,7 @@ onShow(load)
 </script>
 
 <template>
-  <view class="page-root">
+  <view class="page-root tabbar-page">
     <AppHeader :title="t('pageTitle.accounts')" back @back="goBack" />
     <scroll-view scroll-y class="scroll-area" :bounces="false">
       <view class="page">

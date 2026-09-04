@@ -15,9 +15,9 @@ VALUES
   ('preset-expense-医疗', NULL, 'expense', '医疗', '💊', '#E53E3E', 1, 1, 5),
   ('preset-expense-教育', NULL, 'expense', '教育', '📚', '#319795', 1, 1, 6),
   ('preset-expense-通讯', NULL, 'expense', '通讯', '📱', '#718096', 1, 1, 7),
-  ('preset-expense-其他', NULL, 'expense', '其他', '📌', '#A0AEC0', 1, 1, 8),
+  ('preset-expense-其他', NULL, 'expense', '其他', '🗂️', '#A0AEC0', 1, 1, 8),
   ('preset-income-工资',  NULL, 'income',  '工资', '💰', '#38A169', 1, 1, 0),
   ('preset-income-兼职',  NULL, 'income',  '兼职', '💼', '#4299E1', 1, 1, 1),
   ('preset-income-理财',  NULL, 'income',  '理财', '📈', '#ED8936', 1, 1, 2),
   ('preset-income-红包',  NULL, 'income',  '红包', '🧧', '#E53E3E', 1, 1, 3),
-  ('preset-income-其他',  NULL, 'income',  '其他', '📌', '#A0AEC0', 1, 1, 4);
+  ('preset-income-其他',  NULL, 'income',  '其他', '🗂️', '#A0AEC0', 1, 1, 4);

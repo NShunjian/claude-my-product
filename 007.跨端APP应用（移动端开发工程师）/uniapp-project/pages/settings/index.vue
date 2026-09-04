@@ -81,19 +81,34 @@ const newColor = ref('#A0AEC0')
 
 // 图标选择面板:微信小程序不支持 Material Symbols Outlined 字体字形,
 // 这里全部用 emoji 跨平台渲染。H5 也会用 emoji,与 mp 视觉一致。
-// 用户不选 → 纯色填充
+// 对齐 React Settings.tsx ICON_CHOICES:40 emoji(系统字体自带,跨平台一致),
+// emoji 候选集也用作"自定义分类 icon 是否合法"的校验白名单。
 const iconChoices = [
+  // uniapp 原有 24
   '🍔', '☕', '🛍️', '🚗', '✈️', '🏠',
   '🎮', '🎵', '💰', '❤️', '🎁', '🐱',
   '🍕', '🍷', '🎬', '📚', '💊', '🎨',
   '⚽', '🚲', '🚌', '✏️', '🎂', '🌹',
+  // 新增 16:覆盖更多生活场景(与现有不重复)
+  '🍎', '🍞', '🍜', '🍰',        // 食物
+  '🍵', '🍺',                   // 饮品
+  '🛒', '💳',                   // 购物
+  '📱', '💻',                   // 数码
+  '🏥', '🏋️',                   // 医疗/健身
+  '🎓', '💼',                   // 教育/工作
+  '🐶', '🌷',                   // 宠物/植物
+  '🗂️',                          // 分类/归档(preset 其他 用)
 ] as const
 
-// 颜色选择面板(12 色 swatch)
+// 对齐 React Settings.tsx COLOR_CHOICES:21 色 swatch,白色作为默认色放最前
 const colorChoices = [
+  '#FFFFFF',
   '#ED8936', '#4299E1', '#ED64A6', '#805AD5',
   '#8B6E4E', '#E53E3E', '#319795', '#718096',
   '#A0AEC0', '#38B2AC', '#DD6B20', '#D69E2E',
+  // 新增 8:Tailwind 500 色阶补 emerald / indigo / violet / yellow / lime 等
+  '#10b981', '#3b82f6', '#6366f1', '#ec4899',
+  '#f43f5e', '#84cc16', '#facc15', '#a855f7',
 ] as const
 const busy = ref(false)
 const editing = ref<Category | null>(null)
@@ -259,7 +274,7 @@ async function runExport(kind: 'monthly' | 'category' | 'all') {
 </script>
 
 <template>
-  <view class="page-root">
+  <view class="page-root tabbar-page">
     <AppHeader :title="t(lang, 'pageTitle.settings')" />
     <scroll-view
       scroll-y
@@ -491,7 +506,7 @@ async function runExport(kind: 'monthly' | 'category' | 'all') {
           <view
             v-for="icon in iconChoices" :key="icon"
             :class="['icon-pick', newIcon === icon ? 'icon-pick-active' : '']"
-            :style="newIcon === icon ? { color: newColor } : {}"
+            :style="newIcon === icon ? { backgroundColor: newColor, color: newColor.toUpperCase() === '#FFFFFF' ? '#1a202c' : '#fff' } : {}"
             @tap="newIcon = icon"
           >
             <text class="mat-icon">{{ icon }}</text>
@@ -504,7 +519,7 @@ async function runExport(kind: 'monthly' | 'category' | 'all') {
         <view class="color-picker-grid">
           <view
             v-for="color in colorChoices" :key="color"
-            :class="['color-pick', newColor === color ? 'color-pick-active' : '']"
+            :class="['color-pick', newColor === color ? 'color-pick-active' : '', color.toUpperCase() === '#FFFFFF' ? 'color-pick-white' : '']"
             :style="{ backgroundColor: color }"
             @tap="newColor = color"
           >
@@ -536,7 +551,7 @@ async function runExport(kind: 'monthly' | 'category' | 'all') {
           <view
             v-for="icon in iconChoices" :key="icon"
             :class="['icon-pick', editIcon === icon ? 'icon-pick-active' : '']"
-            :style="editIcon === icon ? { color: editColor } : {}"
+            :style="editIcon === icon ? { backgroundColor: editColor, color: editColor.toUpperCase() === '#FFFFFF' ? '#1a202c' : '#fff' } : {}"
             @tap="editIcon = icon"
           >
             <text class="mat-icon">{{ icon }}</text>
@@ -549,7 +564,7 @@ async function runExport(kind: 'monthly' | 'category' | 'all') {
         <view class="color-picker-grid">
           <view
             v-for="color in colorChoices" :key="color"
-            :class="['color-pick', editColor === color ? 'color-pick-active' : '']"
+            :class="['color-pick', editColor === color ? 'color-pick-active' : '', color.toUpperCase() === '#FFFFFF' ? 'color-pick-white' : '']"
             :style="{ backgroundColor: color }"
             @tap="editColor = color"
           >
@@ -640,12 +655,13 @@ async function runExport(kind: 'monthly' | 'category' | 'all') {
 .field-label { font-size: 22rpx; color: var(--c-text-variant); }
 .form-input { border: 1px solid var(--c-divider); border-radius: 8rpx; padding: 12rpx; background: var(--c-bg); color: var(--c-text); font-size: 26rpx; }
 .field-hint { font-size: 22rpx; color: var(--c-text-variant); margin-top: 4rpx; }
-.icon-picker-grid { display: flex; flex-wrap: wrap; gap: 12rpx; }
-.icon-pick { width: 80rpx; height: 80rpx; border-radius: 12rpx; border: 1px solid var(--c-divider); background: var(--c-bg); display: flex; align-items: center; justify-content: center; color: var(--c-text); transition: all 0.15s; }
-.icon-pick-active { border-color: var(--c-primary); border-width: 2rpx; background: var(--c-primary-light); }
+.icon-picker-grid { display: grid; grid-template-columns: repeat(6, 1fr); gap: 12rpx; }
+.icon-pick { aspect-ratio: 1 / 1; min-height: 72rpx; border-radius: 12rpx; border: 2rpx solid var(--c-divider); background: var(--c-bg); display: flex; align-items: center; justify-content: center; color: var(--c-text); transition: all 0.15s; box-sizing: border-box; }
+.icon-pick-active { border-color: var(--c-primary); }
 .icon-pick .mat-icon { font-size: 40rpx; }
-.color-picker-grid { display: flex; flex-wrap: wrap; gap: 12rpx; }
-.color-pick { width: 72rpx; height: 72rpx; border-radius: 50%; position: relative; border: 2rpx solid transparent; transition: all 0.15s; }
+.color-picker-grid { display: grid; grid-template-columns: repeat(7, 1fr); gap: 10rpx; }
+.color-pick { aspect-ratio: 1 / 1; min-height: 64rpx; border-radius: 50%; position: relative; border: 2rpx solid transparent; transition: all 0.15s; box-sizing: border-box; }
+.color-pick-white { border-color: var(--c-text); }
 .color-pick-active { border-color: var(--c-text); }
 .color-check { font-size: 36rpx; color: #fff; line-height: 1; }
 .form-actions { display: flex; gap: 12rpx; justify-content: flex-end; }
@@ -702,7 +718,7 @@ async function runExport(kind: 'monthly' | 'category' | 'all') {
 
 /* modal */
 .modal-mask { position: fixed; inset: 0; background: rgba(0,0,0,0.4); z-index: 999; display: flex; align-items: center; justify-content: center; padding: 32rpx; }
-.modal { background: var(--c-bg-card); border-radius: 20rpx; padding: 40rpx; width: 100%; max-width: 600rpx; max-height: 80vh; overflow-y: auto; }
+.modal { background: var(--c-bg-card); border-radius: 20rpx; padding: 50rpx; width: 100%; max-width: 600rpx; max-height: 80vh; overflow-y: auto; }
 .modal-title { font-size: 32rpx; font-weight: 600; color: var(--c-text); display: block; margin-bottom: 24rpx; }
 .modal-actions { display: flex; gap: 16rpx; justify-content: space-between; align-items: center; margin-top: 24rpx; }
 .modal-actions-right { display: flex; gap: 16rpx; }

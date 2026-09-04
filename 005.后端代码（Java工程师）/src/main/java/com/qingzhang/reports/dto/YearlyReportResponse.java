@@ -12,5 +12,6 @@ public record YearlyReportResponse(
         @JsonProperty("totalExpense")      BigDecimal totalExpense,
         @JsonProperty("netSavings")        BigDecimal netSavings,
         @JsonProperty("monthlyData")       List<MonthlyPoint> monthlyData,
+        @JsonProperty("incomeByCategory")  List<CategoryTotal> incomeByCategory,
         @JsonProperty("expenseByCategory") List<CategoryTotal> expenseByCategory
 ) {}

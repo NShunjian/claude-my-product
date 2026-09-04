@@ -5,7 +5,7 @@ import { LineChart } from '../components/LineChart'
 import { DonutChart, type DonutSegment } from '../components/DonutChart'
 import { MonthPicker } from '../components/MonthPicker'
 import { useMonthlyReport } from '../lib/hooks'
-import { getCategoryPresentationById } from '../lib/category-presentation'
+import { getCategoryPresentationByTotal } from '../lib/category-presentation'
 import { useLanguage } from '../i18n/LanguageContext'
 import type { CategoryTotal, DailyPoint, MonthlyReport } from '../api/reports'
 
@@ -120,7 +120,7 @@ export function ReportMonthly() {
     return expenseRanking.map((cat) => ({
       label: cat.name,
       value: cat.total,
-      color: getCategoryPresentationById(cat.categoryId).colorHex,
+      color: getCategoryPresentationByTotal(cat).colorHex,
     }))
   }, [expenseRanking])
 
@@ -128,7 +128,7 @@ export function ReportMonthly() {
     return incomeRanking.map((cat) => ({
       label: cat.name,
       value: cat.total,
-      color: getCategoryPresentationById(cat.categoryId).colorHex,
+      color: getCategoryPresentationByTotal(cat).colorHex,
     }))
   }, [incomeRanking])
 
@@ -140,7 +140,7 @@ export function ReportMonthly() {
   const errMsg = reportQ.error?.message ?? null
 
   function renderCategoryRow(cat: CategoryTotal, total: number) {
-    const pres = getCategoryPresentationById(cat.categoryId)
+    const pres = getCategoryPresentationByTotal(cat)
     const pct = total > 0 ? (cat.total / total) * 100 : 0
     return (
       <div key={cat.categoryId}>

@@ -1,5 +1,6 @@
 <script setup lang="ts">
 import { ref } from 'vue'
+import { modalOpen } from '@/utils/modal-state'
 defineProps<{ title: string; back?: boolean }>()
 
 // 微信小程序 / app 需要让出顶部状态栏;h5 这里 statusBarHeight=0,不占空间
@@ -13,7 +14,11 @@ try {
 </script>
 
 <template>
-  <view class="app-header-wrapper">
+  <!-- modal-open:QuickAddModal 打开时会挂 modalOpen=true,这里 AppHeader 整段 display:none。
+       iOS WKWebView 里 .qa-overlay 偶尔压不住 sticky 的 AppHeader(z-index 10000 vs 100 失效),
+       让 AppHeader 直接消失最稳;H5/MP 上原本就被遮罩盖住,效果一致。
+       见 utils/modal-state.ts 注释。 -->
+  <view class="app-header-wrapper" :class="{ 'modal-open': modalOpen }">
     <view class="status-bar" :style="{ height: statusBarHeight + 'px' }" />
     <view class="app-header">
       <view v-if="back" class="back-btn" @tap="$emit('back')">
@@ -37,6 +42,12 @@ try {
   z-index: 100;
   flex-shrink: 0;
   background: var(--c-bg);
+}
+/* modal 打开时整段 AppHeader 隐藏 — iOS 修 WKWebView sticky 元素 elevated stacking
+   压不过 overlay 的问题。H5/MP 上原本就被半透明遮罩盖住,这里变成 display:none,
+   视觉效果一致。 */
+.app-header-wrapper.modal-open {
+  display: none;
 }
 .status-bar { width: 100%; }
 .app-header {

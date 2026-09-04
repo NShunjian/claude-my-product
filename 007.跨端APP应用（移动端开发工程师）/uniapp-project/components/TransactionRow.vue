@@ -6,7 +6,7 @@ import type { Category } from '@/api/categories'
 import { formatAmount } from '@/utils/finance'
 import { formatLocalHHMM, formatLocalYMD } from '@/utils/date'
 import { useLanguage } from '@/i18n/useLanguage'
-import { categoryPresentation } from '@/utils/category-presentation'
+import { categoryPresentation, FALLBACK_ICON } from '@/utils/category-presentation'
 
 const props = defineProps<{
   record: Record
@@ -51,7 +51,7 @@ function catTint(hex?: string): string {
         color: pres?.color ?? 'var(--c-text-variant)',
       }"
     >
-      <text class="icon-glyph">{{ pres?.icon ?? 'more_horiz' }}</text>
+      <text class="icon-glyph">{{ pres?.icon ?? FALLBACK_ICON }}</text>
     </view>
 
     <!-- 中间:标题 + 副标题 -->

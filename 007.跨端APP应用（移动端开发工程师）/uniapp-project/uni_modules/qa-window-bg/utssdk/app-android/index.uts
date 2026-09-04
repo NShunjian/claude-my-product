@@ -1,0 +1,9 @@
+/**
+ * Android 不需要这个修复 —— plus.navigator.setStatusBarBackground 已经能控 Android
+ * 的状态栏色,且 Android WebView 一般不强制圆角 mask。这里留 no-op 占位即可。
+ */
+export function setWindowBackgroundColor(color: string): void {}
+
+export function restoreWindowBackgroundColor(): void {}
+
+export function captureWindowBackgroundColor(): void {}

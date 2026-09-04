@@ -22,7 +22,8 @@ const COLOR_MAP: Record<Category['colorToken'], string> = {
 export function CategoryBadge({ category, size = 'md' }: CategoryBadgeProps) {
   const sizeClasses = size === 'sm' ? 'w-10 h-10' : 'w-10 h-10'
   const iconSize = size === 'sm' ? '20px' : '20px'
-  const color = COLOR_MAP[category.colorToken]
+  // 自定义分类用后端存的 colorHex;内置分类用 colorToken 映射
+  const color = category.colorHex ?? COLOR_MAP[category.colorToken]
   // Append 33 hex (= 51/255 ≈ 20% alpha) so bg is 20% opacity but icon stays full color.
   const bg = `${color}33`
 

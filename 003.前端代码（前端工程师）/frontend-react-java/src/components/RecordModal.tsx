@@ -310,7 +310,11 @@ export function RecordModal({
               ) : (
                 <div className="grid grid-cols-4 gap-y-5 gap-x-2">
                   {categories.map((cat) => {
-                    const c = COLOR_MAP[cat.colorToken] ?? COLOR_MAP['outline']
+                    // 自定义分类:用后端存的 colorHex 算 solid/tint/label;
+                    // tint = color + '1F' (≈ 12% alpha,8-digit hex);label 用 solid 同色(自定义色用户自己挑)
+                    const c = cat.colorHex
+                      ? { solid: cat.colorHex, tint: `${cat.colorHex}1F`, label: cat.colorHex }
+                      : (COLOR_MAP[cat.colorToken] ?? COLOR_MAP['outline'])
                     const isSelected = cat.id === categoryId
                     return (
                       <button

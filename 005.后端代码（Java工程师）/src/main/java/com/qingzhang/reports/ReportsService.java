@@ -99,13 +99,14 @@ public class ReportsService {
         BigDecimal totalIncome  = zeroOnNull(reportMapper.sumByMonth(userId, bookId, from, to).get("total_income"));
         BigDecimal totalExpense = zeroOnNull(reportMapper.sumByMonth(userId, bookId, from, to).get("total_expense"));
 
+        List<CategoryTotal> incomeByCat  = categoryTotals(userId, "income",  bookId, from, to);
         List<CategoryTotal> expenseByCat = categoryTotals(userId, "expense", bookId, from, to);
         List<MonthlyPoint> monthlyData = monthlyData(year, reportMapper.monthlySum(userId, bookId, from, to));
 
         return new YearlyReportResponse(
                 year, totalIncome, totalExpense,
                 totalIncome.subtract(totalExpense),
-                monthlyData, expenseByCat
+                monthlyData, incomeByCat, expenseByCat
         );
     }
 

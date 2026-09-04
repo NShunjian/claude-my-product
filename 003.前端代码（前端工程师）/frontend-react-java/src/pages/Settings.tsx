@@ -419,9 +419,46 @@ function CategoriesSection() {
   const [tab, setTab] = useState<CategoryType>('expense')
   const [showNew, setShowNew] = useState(false)
   const [newName, setNewName] = useState('')
-  const [newIcon, setNewIcon] = useState('🏷️')
+  // 与 uniapp settings/index.vue 同款规则:不选图标 → 纯色填充。
+  // 所以默认空串,而不是 '🏷️' 之类的兜底 emoji。
+  const [newIcon, setNewIcon] = useState('')
+  // 默认灰色背景(对齐 uniapp settings/index.vue 的 #A0AEC0):
+  // 之前默认白色时,选中图标底色白底+白卡=反馈色看不出来;
+  // 用灰色作为默认值,选图标就能立刻看到颜色预览;白色仍在 COLOR_CHOICES 第一个可选。
   const [newColor, setNewColor] = useState('#A0AEC0')
   const [busy, setBusy] = useState(false)
+
+  // 与 uniapp settings/index.vue 同款候选集基础上扩展:40 个 emoji(系统字体自带,跨平台一致),
+  // 21 个品牌色 swatch(含 #FFFFFF)。emoji 候选集也用作"自定义分类 icon 是否合法"的校验白名单。
+  const ICON_CHOICES = [
+    // uniapp 原有 24
+    '🍔', '☕', '🛍️', '🚗', '✈️', '🏠',
+    '🎮', '🎵', '💰', '❤️', '🎁', '🐱',
+    '🍕', '🍷', '🎬', '📚', '💊', '🎨',
+    '⚽', '🚲', '🚌', '✏️', '🎂', '🌹',
+    // 新增 16:覆盖更多生活场景(与现有不重复)
+    '🍎', '🍞', '🍜', '🍰',        // 食物
+    '🍵', '🍺',                   // 饮品
+    '🛒', '💳',                   // 购物
+    '📱', '💻',                   // 数码
+    '🏥', '🏋️',                   // 医疗/健身
+    '🎓', '💼',                   // 教育/工作
+    '🐶', '🌷',                   // 宠物/植物
+    '🗂️',                          // 分类/归档(preset 其他 用)
+  ] as const
+
+  const COLOR_CHOICES = [
+    // 用户要求:白色作为默认色,放在最前面
+    '#FFFFFF',
+    // uniapp 原有 12
+    '#ED8936', '#4299E1', '#ED64A6', '#805AD5',
+    '#8B6E4E', '#E53E3E', '#319795', '#718096',
+    '#A0AEC0', '#38B2AC', '#DD6B20', '#D69E2E',
+    // 新增 8:Tailwind 500 色阶补 emerald / indigo / violet / yellow / lime 等(与现有不重复)
+    '#10b981', '#3b82f6', '#6366f1', '#ec4899',
+    '#f43f5e', '#84cc16', '#facc15', '#a855f7',
+  ] as const
+
   const [editing, setEditing] = useState<Category | null>(null)
   const [editName, setEditName] = useState('')
   const [editColor, setEditColor] = useState('')
@@ -437,15 +474,16 @@ function CategoriesSection() {
     if (!newName.trim()) return
     setBusy(true)
     try {
+      // 没选图标 → 后端存空串 → 列表渲染纯色圆(uniapp 同款规则)
       await categoriesApi.createCategory({
         type: tab,
         name: newName.trim(),
-        icon: newIcon || '🏷️',
+        icon: newIcon,
         color: newColor,
       })
       setShowNew(false)
       setNewName('')
-      setNewIcon('🏷️')
+      setNewIcon('')
       setNewColor('#A0AEC0')
       toast.show(t('settings.categories.create.success'))
       await reload()
@@ -543,39 +581,93 @@ function CategoriesSection() {
       </div>
 
       {showNew && (
-        <div className="border border-divider rounded-lg p-4 mb-4 grid grid-cols-1 md:grid-cols-4 gap-3">
-          <label className="flex flex-col gap-1 md:col-span-2">
+        <div className="border border-divider rounded-lg p-5 mb-5 space-y-4">
+          {/* 名称 */}
+          <div className="flex flex-col gap-2">
             <span className="text-xs text-on-surface-variant">{t('settings.categories.field.name')}</span>
             <input
               value={newName}
               onChange={(e) => setNewName(e.target.value)}
               maxLength={20}
-              className="border border-outline rounded-lg px-3 py-1.5 text-sm bg-surface-container-lowest focus:border-primary"
+              className="border border-outline rounded-lg px-3 py-2 text-sm bg-surface-container-lowest focus:border-primary"
+              autoFocus
             />
-          </label>
-          <label className="flex flex-col gap-1">
+          </div>
+
+          {/* 图标选择:与 uniapp 同款 24 emoji picker grid,点击再点取消选中 */}
+          <div className="flex flex-col gap-2">
             <span className="text-xs text-on-surface-variant">{t('settings.categories.field.icon')}</span>
-            <input
-              value={newIcon}
-              onChange={(e) => setNewIcon(e.target.value)}
-              maxLength={32}
-              className="border border-outline rounded-lg px-3 py-1.5 text-sm bg-surface-container-lowest focus:border-primary"
-            />
-          </label>
-          <label className="flex flex-col gap-1">
+            <div className="grid grid-cols-10 sm:grid-cols-12 md:grid-cols-16 gap-1.5">
+              {ICON_CHOICES.map((icon) => {
+                const active = newIcon === icon
+                // 选中态:背景 = newColor(实时预览「图标 + 颜色」的最终效果),
+                // 边框永远 = primary(反馈色,与 newColor 解耦 → 即使选白色也能看出已选);
+                // 白色背景时 emoji 切深字。无 ✓ 徽章。
+                const isWhiteBg = active && newColor.toUpperCase() === '#FFFFFF'
+                return (
+                  <button
+                    key={icon}
+                    type="button"
+                    onClick={() => setNewIcon(active ? '' : icon)}
+                    aria-pressed={active}
+                    title={icon}
+                    className={
+                      'w-10 h-10 rounded-lg border-2 flex items-center justify-center text-xl transition-all ' +
+                      (active
+                        ? 'border-primary ' + (isWhiteBg ? 'text-text-primary' : 'text-white')
+                        : 'border-outline bg-surface-container-lowest hover:border-primary')
+                    }
+                    style={active ? { backgroundColor: newColor } : undefined}
+                  >
+                    {icon}
+                  </button>
+                )
+              })}
+            </div>
+            <span className="text-xs text-on-surface-variant">不选图标 = 纯色填充</span>
+          </div>
+
+          {/* 颜色选择:与 uniapp 同款 12 swatch grid */}
+          <div className="flex flex-col gap-2">
             <span className="text-xs text-on-surface-variant">{t('settings.categories.field.color')}</span>
-            <input
-              type="color"
-              value={newColor}
-              onChange={(e) => setNewColor(e.target.value)}
-              className="border border-outline rounded-lg h-9 w-full bg-surface-container-lowest"
-            />
-          </label>
-          <div className="md:col-span-4 flex justify-end gap-2">
+            <div className="flex flex-wrap gap-2">
+              {COLOR_CHOICES.map((color) => {
+                const active = newColor === color
+                // 白色 swatch:勾选用深色,且始终保留 outline 边框,
+                // 否则白底白卡 + 透明边框 → 完全看不见。
+                const isWhite = color.toUpperCase() === '#FFFFFF'
+                return (
+                  <button
+                    key={color}
+                    type="button"
+                    onClick={() => setNewColor(color)}
+                    aria-pressed={active}
+                    aria-label={color}
+                    className={
+                      'w-9 h-9 rounded-full flex items-center justify-center transition-all border-2 ' +
+                      (active
+                        ? 'border-text-primary'
+                        : (isWhite ? 'border-outline' : 'border-transparent'))
+                    }
+                    style={{ backgroundColor: color }}
+                  >
+                    {active && (
+                      <span className={(isWhite ? 'text-text-primary' : 'text-white') + ' text-base leading-none'}>
+                        ✓
+                      </span>
+                    )}
+                  </button>
+                )
+              })}
+            </div>
+          </div>
+
+          {/* 取消 / 保存 */}
+          <div className="flex justify-end gap-2 pt-2">
             <button
               type="button"
               onClick={() => setShowNew(false)}
-              className="px-3 py-1.5 text-sm border border-outline rounded-lg"
+              className="px-3 py-1.5 text-sm border border-outline rounded-lg hover:bg-surface-container-low"
             >
               {t('common.cancel')}
             </button>
@@ -592,13 +684,30 @@ function CategoriesSection() {
       )}
 
       <div className="divide-y divide-divider">
-        {items?.map((c) => (
+        {items?.map((c) => {
+          // 自定义分类:校验 icon 是否在 emoji 白名单里。后端可能存了旧的 Material Symbols
+          // ligature 名字(如 "restaurant"),直接渲染会显示成英文乱码。
+          // 没选 / 非白名单 → 走「纯色填充」规则(对齐 uniapp settings/index.vue disp.solid)。
+          const rawIcon = c.icon ?? ''
+          const validIcon = (rawIcon && (ICON_CHOICES as readonly string[]).includes(rawIcon)) ? rawIcon : ''
+          const solid = !validIcon
+          // 白色背景 + 实色填充 → 白卡白点看不见,加一圈 outline 描边保可见性。
+          const isWhiteBg = solid && c.color.toUpperCase() === '#FFFFFF'
+          return (
           <div key={c.id} className="flex items-center gap-3 py-3">
             <span
-              className="w-8 h-8 rounded-full flex items-center justify-center flex-shrink-0"
-              style={{ backgroundColor: c.color + '33' }}
+              className={
+                'w-8 h-8 rounded-full flex items-center justify-center flex-shrink-0 ' +
+                (isWhiteBg ? 'border border-outline' : '')
+              }
+              // 没图标 → 实色圆;有图标 → 半透明背景 + 彩色 emoji
+              style={{ backgroundColor: solid ? c.color : c.color + '33' }}
             >
-              <span style={{ fontSize: '18px' }}>{c.icon}</span>
+              {validIcon && (
+                <span style={{ fontSize: '18px', color: solid ? '#fff' : c.color }}>
+                  {validIcon}
+                </span>
+              )}
             </span>
             <div className="flex-1 min-w-0">
               <p className="text-sm text-text-primary truncate">{c.name}</p>
@@ -630,7 +739,8 @@ function CategoriesSection() {
               )}
             </div>
           </div>
-        ))}
+          )
+        })}
         {items && items.length === 0 && (
           <p className="text-sm text-on-surface-variant py-6 text-center">{t('common.empty')}</p>
         )}

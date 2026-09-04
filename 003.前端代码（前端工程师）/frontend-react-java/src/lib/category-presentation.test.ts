@@ -35,19 +35,37 @@ describe('getCategoryPresentation', () => {
     expect(out.colorHex).toBe('#10b981')
   })
 
-  it('falls back to outline/more_horiz for unknown id', () => {
+  it('falls back to outline/more_horiz for unknown id with no icon/color', () => {
+    // 后端 icon/color 缺失(老数据 / 删除一半) → 退回 outline 兜底
     const c: ApiCategory = {
       id: 'expense-mystery',
       type: 'expense',
       name: '神秘',
-      icon: '❓',
-      color: '#000000',
+      icon: '',
+      color: '',
       sortOrder: 99,
       isPreset: false,
     }
     const out = getCategoryPresentation(c)
     expect(out.icon).toBe('more_horiz')
     expect(out.colorToken).toBe('outline')
+    expect(out.colorHex).toBe('#727782')
+  })
+
+  it('uses backend icon/color for unknown id (custom category)', () => {
+    // 自定义分类:TABLE 查不到,直接用后端存的 c.icon (emoji) / c.color (#RRGGBB)
+    const c: ApiCategory = {
+      id: 'uuid-custom-1',
+      type: 'expense',
+      name: '测试自定义',
+      icon: '🎯',
+      color: '#A0AEC0',
+      sortOrder: 99,
+      isPreset: false,
+    }
+    const out = getCategoryPresentation(c)
+    expect(out.icon).toBe('🎯')
+    expect(out.colorHex).toBe('#A0AEC0')
   })
 
   it('covers all 9 expense + 5 income default categories', () => {

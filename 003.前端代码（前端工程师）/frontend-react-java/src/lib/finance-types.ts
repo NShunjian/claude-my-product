@@ -23,8 +23,11 @@ export type ColorToken =
 export interface Category {
   id: string
   name: string
-  icon: string // Material Symbols name
+  icon: string // Material Symbols name（自定义分类存后端 emoji,字体 fallback 后会渲染成 emoji）
   colorToken: ColorToken
+  /** hex 颜色,自定义分类存用户选的 #RRGGBB,内置分类用 colorToken 映射的 hex;
+   *  UI 组件优先用 colorHex(直接拿色),colorToken 只用于 outline 兜底。 */
+  colorHex?: string
   kind: CategoryKind
 }
 

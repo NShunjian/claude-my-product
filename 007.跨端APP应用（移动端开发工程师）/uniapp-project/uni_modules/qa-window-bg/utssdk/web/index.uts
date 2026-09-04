@@ -1,0 +1,9 @@
+/**
+ * H5 端不涉及 UIWindow —— index.html 里 `viewport-fit=cover` + body bg 已经能解决
+ * 模态两侧留白。这里留 no-op 占位。
+ */
+export function setWindowBackgroundColor(color: string): void {}
+
+export function restoreWindowBackgroundColor(): void {}
+
+export function captureWindowBackgroundColor(): void {}

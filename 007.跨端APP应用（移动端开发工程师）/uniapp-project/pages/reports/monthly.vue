@@ -67,26 +67,26 @@ const monthlyNetChangePct = computed(() => {
 const incomeRanking = computed(() => {
   if (!monthlyReport.value) return []
   return [...monthlyReport.value.incomeByCategory].sort((a, b) => b.total - a.total)
-    .map((c) => ({ ...c, pres: categoryPresentation({ id: c.categoryId, type: 'income', name: c.name }) }))
+    .map((c) => ({ ...c, pres: categoryPresentation({ id: c.categoryId, type: 'income', name: c.name, icon: c.icon, color: c.color }) }))
 })
 const expenseRanking = computed(() => {
   if (!monthlyReport.value) return []
   return [...monthlyReport.value.expenseByCategory].sort((a, b) => b.total - a.total)
-    .map((c) => ({ ...c, pres: categoryPresentation({ id: c.categoryId, type: 'expense', name: c.name }) }))
+    .map((c) => ({ ...c, pres: categoryPresentation({ id: c.categoryId, type: 'expense', name: c.name, icon: c.icon, color: c.color }) }))
 })
 const topExpense = computed(() => expenseRanking.value[0] ?? null)
 const incomeDonutSegments = computed(() =>
   incomeRanking.value.map((cat) => ({
     label: cat.name,
     value: cat.total,
-    color: categoryPresentation({ id: cat.categoryId, type: 'income', name: cat.name }).color,
+    color: categoryPresentation({ id: cat.categoryId, type: 'income', name: cat.name, icon: cat.icon, color: cat.color }).color,
   }))
 )
 const expenseDonutSegments = computed(() =>
   expenseRanking.value.map((cat) => ({
     label: cat.name,
     value: cat.total,
-    color: categoryPresentation({ id: cat.categoryId, type: 'expense', name: cat.name }).color,
+    color: categoryPresentation({ id: cat.categoryId, type: 'expense', name: cat.name, icon: cat.icon, color: cat.color }).color,
   }))
 )
 
@@ -103,10 +103,22 @@ const yearlyNetSavings = computed(() => yearlyReport.value?.netSavings ?? 0)
 const yearlyExpenseByCategory = computed(() => {
   if (!yearlyReport.value) return []
   return [...yearlyReport.value.expenseByCategory].sort((a, b) => b.total - a.total)
-    .map((c) => ({ ...c, pres: categoryPresentation({ id: c.categoryId, type: 'expense', name: c.name }) }))
+    .map((c) => ({ ...c, pres: categoryPresentation({ id: c.categoryId, type: 'expense', name: c.name, icon: c.icon, color: c.color }) }))
 })
 const yearlyDonutSegments = computed(() =>
   yearlyExpenseByCategory.value.map((cat) => ({
+    label: cat.name,
+    value: cat.total,
+    color: cat.pres.color,
+  }))
+)
+const yearlyIncomeByCategory = computed(() => {
+  if (!yearlyReport.value) return []
+  return [...yearlyReport.value.incomeByCategory].sort((a, b) => b.total - a.total)
+    .map((c) => ({ ...c, pres: categoryPresentation({ id: c.categoryId, type: 'income', name: c.name, icon: c.icon, color: c.color }) }))
+})
+const yearlyIncomeDonutSegments = computed(() =>
+  yearlyIncomeByCategory.value.map((cat) => ({
     label: cat.name,
     value: cat.total,
     color: cat.pres.color,
@@ -192,7 +204,7 @@ function onExpenseTap(i: number) {
 </script>
 
 <template>
-  <view class="page-root">
+  <view class="page-root tabbar-page">
     <AppHeader :title="t('pageTitle.reportMonthly')" />
     <scroll-view
       scroll-y
@@ -453,6 +465,28 @@ function onExpenseTap(i: number) {
                 </view>
                 <view class="cat-bar">
                   <view class="cat-bar-fill" :style="{ width: (yearlyTotalExpense > 0 ? (cat.total / yearlyTotalExpense) * 100 : 0) + '%', background: cat.pres.color }" />
+                </view>
+              </view>
+            </view>
+          </template>
+        </view>
+
+        <view class="card card-donut">
+          <text class="card-title">{{ t('reportYearly.incomeShare') }}</text>
+          <view v-if="yearlyIncomeDonutSegments.length === 0" class="empty-sm">{{ t('reportYearly.noIncomeRecords') }}</view>
+          <template v-else>
+            <DonutChart :segments="yearlyIncomeDonutSegments" :total-value="`¥${(yearlyTotalIncome / 1000).toFixed(1)}k`" :hide-legend="true" />
+            <view class="cat-list">
+              <view v-for="cat in yearlyIncomeByCategory" :key="cat.categoryId" class="cat-item">
+                <view class="cat-row">
+                  <view class="cat-icon" :style="{ background: cat.pres.color + '22' }">
+                    <text class="cat-icon-text" :style="{ color: cat.pres.color }">{{ cat.pres.icon }}</text>
+                  </view>
+                  <text class="cat-name">{{ cat.name }}</text>
+                  <text class="cat-amount">¥{{ formatAmount(cat.total, false) }}</text>
+                </view>
+                <view class="cat-bar">
+                  <view class="cat-bar-fill" :style="{ width: (yearlyTotalIncome > 0 ? (cat.total / yearlyTotalIncome) * 100 : 0) + '%', background: cat.pres.color }" />
                 </view>
               </view>
             </view>

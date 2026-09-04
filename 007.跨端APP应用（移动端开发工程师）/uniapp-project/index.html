@@ -2,6 +2,14 @@
 <html lang="zh-CN">
 	<head>
 		<meta charset="UTF-8" />
+		<!-- H5 (iOS Safari) Dynamic Island / status bar 那条窄带默认是 Safari
+		     自己渲染的(非 WebView 内容),body bg 染不到,modal 顶部 navy 会左右
+		     漏两条白边。theme-color / apple-mobile-web-app-status-bar-style 是
+		     Apple 官方控制那条带子底色的口子 —— QuickAddModal 打开时用
+		     document.querySelector('meta[name="theme-color"]').setAttribute(
+		     'content', '#141E3C') 动态切,关闭切回原色。 -->
+		<meta name="theme-color" content="#FFFFFF" />
+		<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
 		<script>
 			var coverSupport = 'CSS' in window && typeof CSS.supports === 'function' && (CSS.supports('top: env(a)') ||
 				CSS.supports('top: constant(a)'))

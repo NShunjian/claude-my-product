@@ -47,15 +47,10 @@ function useAsync<T>(
       })
       .catch((err: unknown) => {
         if (myToken !== tokenRef.current) return
-        if (err instanceof ApiError) {
-          setState({ data: null, loading: false, error: err })
-        } else {
-          setState({
-            data: null,
-            loading: false,
-            error: new ApiError('INTERNAL', String(err), 500),
-          })
-        }
+        // 保留旧 data —— 比列表突然清空更友好;reload 失败时用户至少还能看到 stale 数据。
+        // 调用方可在 useEffect / render 里读 error 字段决定是否 toast 提示。
+        const apiErr = err instanceof ApiError ? err : new ApiError('INTERNAL', String(err), 500)
+        setState((s) => ({ ...s, loading: false, error: apiErr }))
       })
   }, [])
 

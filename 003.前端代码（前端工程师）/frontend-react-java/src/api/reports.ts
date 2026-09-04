@@ -45,6 +45,7 @@ export interface YearlyReport {
   totalExpense: number
   netSavings: number
   monthlyData: MonthlyPoint[]
+  incomeByCategory: CategoryTotal[]
   expenseByCategory: CategoryTotal[]
 }
 

@@ -40,6 +40,8 @@ export function toCategory(c: ApiCategory): Category {
     name: c.name,
     icon: pres.icon,
     colorToken: pres.colorToken,
+    // 自定义分类的 hex 直接透传;UI 组件优先用 colorHex,colorToken 只用于没设的兜底
+    colorHex: pres.colorHex,
     kind: c.type,
   }
 }

@@ -11,6 +11,7 @@ import { listCategories } from '@/api/categories'
 import TransactionRow from '@/components/TransactionRow.vue'
 import MonthPicker from '@/components/MonthPicker.vue'
 import QuickAddModal from '@/components/QuickAddModal.vue'
+import { useQuickAddStore } from '@/stores/quick-add'
 import AppHeader from '@/components/AppHeader.vue'
 import type { Record } from '@/api/records'
 import type { Account } from '@/api/accounts'
@@ -88,17 +89,14 @@ const incomeByCat = computed(() => incomeCats.value.map(c => {
 function findAccount(id: string) { return accounts.value.find(a => a.id === id) }
 function findCat(id: string | null) { return cats.value.find(c => c.id === id) }
 
-const showQuickAdd = ref(false)
-const quickAddKind = ref<'expense' | 'income'>('expense')
+// modal 通过 Teleport 渲染到 body(脱离 page-root 容器),state 由
+// useQuickAddStore 控制 —— 在 page 写 <QuickAddModal /> 是为了挂载组件
+// (Teleport 需要组件 mount 才生效),实际显示位置在 body 末尾。
+const quickAddStore = useQuickAddStore()
+watch(() => quickAddStore.savedAt, () => load())
 
 function onQuickAdd() {
-  quickAddKind.value = 'expense'
-  showQuickAdd.value = true
-}
-
-function onQuickAddSaved() {
-  // 弹框关闭 + 数据落库后,重新拉当前月流水与账户余额
-  load()
+  quickAddStore.open('expense')
 }
 
 // "查看全部 →" 跳流水页:uni.switchTab 不支持 url query,改用一次性意图
@@ -148,7 +146,7 @@ onShow(async () => {
 </script>
 
 <template>
-  <view class="page-root">
+  <view class="page-root tabbar-page">
     <AppHeader :title="t('pageTitle.home')" />
     <scroll-view
       scroll-y
@@ -280,15 +278,10 @@ onShow(async () => {
       </view>
     </view>
 
-    <!-- Quick Add Modal -->
-    <QuickAddModal
-      v-model:show="showQuickAdd"
-      :kind="quickAddKind"
-      :categories="cats"
-      :accounts="accounts"
-      @saved="onQuickAddSaved"
-    />
     </scroll-view>
+    <!-- modal 组件挂在这里只是为了 mount,内容 Teleport 到 body。
+         实际显示位置不在这,跟 page-root 容器无关。 -->
+    <QuickAddModal />
   </view>
 </template>
 

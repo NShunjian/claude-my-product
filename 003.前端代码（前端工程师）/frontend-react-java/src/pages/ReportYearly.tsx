@@ -3,7 +3,7 @@ import { Link } from 'react-router-dom'
 import { usePageTitle, usePageBack } from '../components/PageTitleContext'
 import { DonutChart, type DonutSegment } from '../components/DonutChart'
 import { useYearlyReport } from '../lib/hooks'
-import { getCategoryPresentationById } from '../lib/category-presentation'
+import { getCategoryPresentationByTotal } from '../lib/category-presentation'
 import { useLanguage } from '../i18n/LanguageContext'
 import type { CategoryTotal, MonthlyPoint, YearlyReport } from '../api/reports'
 
@@ -57,19 +57,29 @@ export function ReportYearly() {
 
   const expenseByCategory = useMemo(() => {
     if (!report) return []
-    return report.expenseByCategory.slice().sort((a, b) => b.total - a.total)
+    return (report.expenseByCategory ?? []).slice().sort((a, b) => b.total - a.total)
   }, [report])
 
-  // 环形图下方显示全部分类(与首页/月报一致,按金额降序)
-  const topCategories = expenseByCategory
+  const incomeByCategory = useMemo(() => {
+    if (!report) return []
+    return (report.incomeByCategory ?? []).slice().sort((a, b) => b.total - a.total)
+  }, [report])
 
-  const donutSegments: DonutSegment[] = useMemo(() => {
+  const expenseDonutSegments: DonutSegment[] = useMemo(() => {
     return expenseByCategory.map((cat) => ({
       label: cat.name,
       value: cat.total,
-      color: getCategoryPresentationById(cat.categoryId).colorHex,
+      color: getCategoryPresentationByTotal(cat).colorHex,
     }))
   }, [expenseByCategory])
+
+  const incomeDonutSegments: DonutSegment[] = useMemo(() => {
+    return incomeByCategory.map((cat) => ({
+      label: cat.name,
+      value: cat.total,
+      color: getCategoryPresentationByTotal(cat).colorHex,
+    }))
+  }, [incomeByCategory])
 
   const monthKeys = useMemo(
     () => [
@@ -94,31 +104,41 @@ export function ReportYearly() {
   const isError = !isLoading && !!reportQ.error
   const errMsg = reportQ.error?.message ?? null
 
-  function renderCategoryRow(cat: CategoryTotal) {
-    const pres = getCategoryPresentationById(cat.categoryId)
-    const pct = totalExpense > 0 ? (cat.total / totalExpense) * 100 : 0
+  function renderCategoryRow(cat: CategoryTotal, total: number) {
+    const pres = getCategoryPresentationByTotal(cat)
+    const pct = total > 0 ? (cat.total / total) * 100 : 0
     return (
-      <div key={cat.categoryId} className="flex items-center gap-3">
-        <span
-          className="w-9 h-9 rounded-full flex items-center justify-center"
-          style={{ backgroundColor: `${pres.colorHex}26` }}
-        >
-          <span
-            className="material-symbols-outlined"
-            style={{ fontSize: '18px', color: pres.colorHex, fontVariationSettings: "'FILL' 1" }}
-          >
-            {pres.icon}
-          </span>
-        </span>
-        <div className="flex-1">
-          <p className="font-body-md text-body-md text-text-primary font-medium">{cat.name}</p>
-          <p className="font-caption-sm text-caption-sm text-on-surface-variant">
-            {pct.toFixed(0)}%
-          </p>
+      <div key={cat.categoryId}>
+        <div className="flex justify-between items-center mb-2">
+          <div className="flex items-center gap-2">
+            <span
+              className="w-8 h-8 rounded-full flex items-center justify-center"
+              style={{ backgroundColor: `${pres.colorHex}26` }}
+            >
+              <span
+                className="material-symbols-outlined"
+                style={{ fontSize: '16px', color: pres.colorHex, fontVariationSettings: "'FILL' 1" }}
+              >
+                {pres.icon}
+              </span>
+            </span>
+            <span className="font-body-md text-body-md text-text-primary font-medium">{cat.name}</span>
+          </div>
+          <div className="text-right">
+            <p className="font-body-md text-body-md text-text-primary font-semibold">
+              ¥{formatMoney(cat.total)}
+            </p>
+            <p className="font-caption-sm text-caption-sm text-on-surface-variant">
+              {pct.toFixed(0)}%
+            </p>
+          </div>
         </div>
-        <p className="font-body-md text-body-md text-text-primary font-semibold">
-          ¥{formatMoney(cat.total)}
-        </p>
+        <div className="h-2 bg-surface-container rounded-full overflow-hidden">
+          <div
+            className="h-full rounded-full transition-all"
+            style={{ width: `${pct}%`, backgroundColor: pres.colorHex }}
+          />
+        </div>
       </div>
     )
   }
@@ -275,9 +295,10 @@ export function ReportYearly() {
         </div>
       </div>
 
-      {/* 柱状图 + 环形图 */}
-      <div className="grid grid-cols-1 md:grid-cols-12 gap-6">
-        <div className="bento-item bg-bg-card md:col-span-8 min-h-[420px] flex flex-col">
+      {/* 柱状图 + 环形图(年报布局:柱状图全宽,环形图+分类进度条放在底下) */}
+      <div className="space-y-6">
+        {/* 柱状图(全宽) */}
+        <div className="bento-item bg-bg-card min-h-[420px] flex flex-col">
           <div className="flex justify-between items-center mb-6">
             <h3 className="font-headline-md text-headline-md text-text-primary">{t('reportYearly.monthlyTrend')}</h3>
             <div className="flex items-center gap-4">
@@ -300,24 +321,24 @@ export function ReportYearly() {
                 <span>{Math.round(yAxisMax / 2).toLocaleString('zh-CN')}</span>
                 <span>0</span>
               </div>
-              <div className="flex-1 ml-10 flex items-end gap-2 h-full pb-6 relative">
-                <div className="absolute inset-x-0 top-0 border-t border-divider" style={{ top: '0%' }} />
+              <div className="flex-1 ml-10 flex gap-2 relative pb-6 h-[260px]">
+                <div className="absolute inset-x-0 top-0 border-t border-divider" />
                 <div className="absolute inset-x-0 border-t border-divider" style={{ top: '50%' }} />
                 <div className="absolute inset-x-0 bottom-6 border-t border-divider" />
                 {monthlyData.map((d, i) => {
-                  const incomeH = yAxisMax > 0 ? (d.income / yAxisMax) * 100 : 0
-                  const expenseH = yAxisMax > 0 ? (d.expense / yAxisMax) * 100 : 0
+                  const incomeH = yAxisMax > 0 ? (d.income / yAxisMax) * 200 : 0
+                  const expenseH = yAxisMax > 0 ? (d.expense / yAxisMax) * 200 : 0
                   return (
-                    <div key={d.month} className="flex-1 flex flex-col items-center gap-1 h-full justify-end relative z-10">
-                      <div className="w-full flex flex-col h-full justify-end">
+                    <div key={d.month} className="flex-1 h-full flex flex-col items-center justify-end relative">
+                      <div className="w-full flex gap-0.5 items-end h-[200px]">
                         <div
-                          className="w-full bg-secondary rounded-t-sm transition-all"
-                          style={{ height: `${incomeH}%`, minHeight: incomeH > 0 ? '2px' : 0 }}
+                          className="flex-1 bg-secondary rounded-t-sm transition-all"
+                          style={{ height: `${incomeH}px`, minHeight: incomeH > 0 ? '2px' : 0 }}
                           title={t('reportYearly.incomeTip').replace('{amount}', formatMoney(d.income))}
                         />
                         <div
-                          className="w-full bg-error transition-all"
-                          style={{ height: `${expenseH}%`, minHeight: expenseH > 0 ? '2px' : 0 }}
+                          className="flex-1 bg-error transition-all"
+                          style={{ height: `${expenseH}px`, minHeight: expenseH > 0 ? '2px' : 0 }}
                           title={t('reportYearly.expenseTip').replace('{amount}', formatMoney(d.expense))}
                         />
                       </div>
@@ -332,23 +353,60 @@ export function ReportYearly() {
           )}
         </div>
 
-        <div className="bento-item bg-bg-card md:col-span-4 min-h-[420px] flex flex-col">
-          <h3 className="font-headline-md text-headline-md text-text-primary mb-4">{t('reportYearly.expenseBreakdown')}</h3>
-          {donutSegments.length === 0 ? (
-            <p className="text-on-surface-variant text-center py-12">{t('reportYearly.noExpenseRecords')}</p>
-          ) : (
-            <>
-              <div className="flex-1 relative flex items-center justify-center min-h-[220px]">
+        {/* 收入占比 + 收入排行(参考月报布局:环形图 + 排行进度条 side-by-side) */}
+        <div className="grid grid-cols-1 md:grid-cols-12 gap-6">
+          <div className="bento-item bg-bg-card md:col-span-4 h-[420px] flex flex-col">
+            <h3 className="font-headline-md text-headline-md text-text-primary mb-6">{t('reportYearly.incomeShare')}</h3>
+            {incomeDonutSegments.length === 0 ? (
+              <p className="text-on-surface-variant text-center py-12">{t('reportYearly.noIncomeRecords')}</p>
+            ) : (
+              <div className="flex-1 relative flex items-center justify-center">
                 <DonutChart
-                  segments={donutSegments}
-                  totalValue={`¥${(totalExpense / 1000).toFixed(1)}k`}
+                  segments={incomeDonutSegments}
+                  totalValue={`¥${Math.round(totalIncome).toLocaleString('zh-CN')}`}
                 />
               </div>
-              <div className="mt-6 space-y-3 pt-4 border-t border-divider">
-                {topCategories.map((cat) => renderCategoryRow(cat))}
+            )}
+          </div>
+
+          <div className="bento-item bg-bg-card md:col-span-8 p-6 flex flex-col">
+            <h3 className="font-headline-md text-headline-md text-text-primary mb-4">{t('reportYearly.incomeRanking')}</h3>
+            {incomeByCategory.length === 0 ? (
+              <p className="text-on-surface-variant text-center py-8">{t('reportYearly.noIncomeRecords')}</p>
+            ) : (
+              <div className="space-y-5 flex-1">
+                {incomeByCategory.map((cat) => renderCategoryRow(cat, totalIncome))}
               </div>
-            </>
-          )}
+            )}
+          </div>
+        </div>
+
+        {/* 支出占比 + 支出排行(与收入配对布局一致) */}
+        <div className="grid grid-cols-1 md:grid-cols-12 gap-6">
+          <div className="bento-item bg-bg-card md:col-span-4 h-[420px] flex flex-col">
+            <h3 className="font-headline-md text-headline-md text-text-primary mb-6">{t('reportYearly.expenseShare')}</h3>
+            {expenseDonutSegments.length === 0 ? (
+              <p className="text-on-surface-variant text-center py-12">{t('reportYearly.noExpenseRecords')}</p>
+            ) : (
+              <div className="flex-1 relative flex items-center justify-center">
+                <DonutChart
+                  segments={expenseDonutSegments}
+                  totalValue={`¥${Math.round(totalExpense).toLocaleString('zh-CN')}`}
+                />
+              </div>
+            )}
+          </div>
+
+          <div className="bento-item bg-bg-card md:col-span-8 p-6 flex flex-col">
+            <h3 className="font-headline-md text-headline-md text-text-primary mb-4">{t('reportYearly.expenseRanking')}</h3>
+            {expenseByCategory.length === 0 ? (
+              <p className="text-on-surface-variant text-center py-8">{t('reportYearly.noExpenseRecords')}</p>
+            ) : (
+              <div className="space-y-5 flex-1">
+                {expenseByCategory.map((cat) => renderCategoryRow(cat, totalExpense))}
+              </div>
+            )}
+          </div>
         </div>
       </div>
     </div>

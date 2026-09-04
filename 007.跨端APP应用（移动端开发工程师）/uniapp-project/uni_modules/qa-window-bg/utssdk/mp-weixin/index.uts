@@ -1,0 +1,8 @@
+/**
+ * 微信小程序没有 UIWindow —— 原生 cover-view / page bg 已经够用。no-op。
+ */
+export function setWindowBackgroundColor(color: string): void {}
+
+export function restoreWindowBackgroundColor(): void {}
+
+export function captureWindowBackgroundColor(): void {}

@@ -51,7 +51,7 @@ export function CategoryBreakdown({
       <div className="space-y-4">
         {rows.map(({ cat, total: catTotal }) => {
           const pct = totalAmount > 0 ? (catTotal / totalAmount) * 100 : 0
-          const color = COLORS[cat.colorToken] ?? '#727782'
+          const color = cat.colorHex ?? COLORS[cat.colorToken] ?? '#727782'
 
           return (
             <div key={cat.id}>

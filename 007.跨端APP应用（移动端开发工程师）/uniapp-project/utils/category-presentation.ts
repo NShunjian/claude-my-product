@@ -8,6 +8,9 @@
  *
  * 查找键:统一用 `${type}-${name}`(后端 ID 形如 'preset-expense-餐饮' 也兼容,
  * 通过 normalizeId 去掉 'preset-' 前缀)。
+ *
+ * 自定义分类:TABLE 查不到时,直接用后端存的 `c.icon`/`c.color`(用户在 Settings 选的 emoji 和颜色),
+ * 不再走 FALLBACK('⋯' + 灰色),否则用户在自定义分类里选的图标在快速记账弹窗里看不到。
  */
 import type { Category } from '@/api/categories'
 
@@ -46,27 +49,50 @@ const TABLE: Record<string, Entry> = {
   'expense-医疗': { icon: '🏥', token: 'teal' },
   'expense-教育': { icon: '🎓', token: 'orange' },
   'expense-通讯': { icon: '📱', token: 'indigo' },
-  'expense-其他': { icon: '⋯', token: 'outline' },
+  'expense-其他': { icon: '🗂️', token: 'outline' },
   // 收入
   'income-工资':  { icon: '💵', token: 'green' },
   'income-兼职':  { icon: '💼', token: 'cyan' },
   'income-理财':  { icon: '📈', token: 'indigo' },
   'income-红包':  { icon: '🧧', token: 'pink' },
-  'income-其他':  { icon: '⋯', token: 'outline' },
+  'income-其他':  { icon: '🗂️', token: 'outline' },
 }
 
-const FALLBACK: Entry = { icon: '⋯', token: 'outline' }
+// 导出供 TransactionRow 等组件复用:null/无 category 时的安全占位(unicode 字符,跨平台稳)。
+export const FALLBACK_ICON = '⋯'
+export const FALLBACK_COLOR = '#727782'
 
-function normalizeKey(c: Pick<Category, 'id' | 'type' | 'name'>): string {
+function lookupKey(c: Pick<Category, 'id' | 'type' | 'name'>): string {
   // 优先用 id 去 preset- 前缀;再退回 `${type}-${name}` 兜底(兼容自定义分类或 ID 格式差异)
   const stripped = c.id.replace(/^preset-/, '')
   if (TABLE[stripped]) return stripped
   return `${c.type}-${c.name}`
 }
 
+// 检测 Material Symbols 风格的 ligature 名(如 'restaurant' / 'fastfood' / 'more_horiz')。
+// 微信小程序/H5 默认不加载 MS Outlined 字体,直接渲染会显示字面文字,因此当作无效输入处理。
+function isProbablyMsLigatureName(s: string): boolean {
+  return /^[a-zA-Z0-9_]+$/.test(s)
+}
+
+/**
+ * 自定义分类兜底:用后端存的 c.icon/c.color(用户在 Settings 自定义分类页选的)。
+ * 传 undefined/空的对象时(如 report 场景只有 id+name),返回 FALLBACK。
+ *
+ * 若 c.icon 看起来是 MS ligature 名(纯 ASCII 字母/数字/下划线)而非 emoji,
+ * 一律退回 FALLBACK_ICON —— 跨端展示页直接渲染会显示 'restaurant' / 'fastfood' 字面文字。
+ */
+function customPresentation(c: Pick<Category, 'id' | 'type' | 'name'>): CategoryPresentation {
+  const icon = (c as Partial<Category>).icon
+  const color = (c as Partial<Category>).color
+  if (icon && color && !isProbablyMsLigatureName(icon)) return { icon, color }
+  return { icon: FALLBACK_ICON, color: color || FALLBACK_COLOR }
+}
+
 export function categoryPresentation(c: Pick<Category, 'id' | 'type' | 'name'>): CategoryPresentation {
-  const entry = TABLE[normalizeKey(c)] ?? FALLBACK
-  return { icon: entry.icon, color: COLOR_HEX[entry.token] ?? COLOR_HEX.outline }
+  const entry = TABLE[lookupKey(c)]
+  if (entry) return { icon: entry.icon, color: COLOR_HEX[entry.token] ?? COLOR_HEX.outline }
+  return customPresentation(c)
 }
 
 /** 仅取 MS 图标名(给已经自己用 cat.color 的场景,例如 breakdown 卡) */

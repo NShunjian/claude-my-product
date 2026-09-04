@@ -1,8 +1,9 @@
 <script setup lang="ts">
-import { ref, computed, watch, onMounted, onBeforeUnmount } from 'vue'
+import { ref, computed, watch } from 'vue'
 import { useBookStore } from '@/stores/book'
 import { useToastStore } from '@/stores/toast'
 import { useLanguage } from '@/i18n/useLanguage'
+import { useQuickAddStore } from '@/stores/quick-add'
 import { listAccounts } from '@/api/accounts'
 import { listCategories } from '@/api/categories'
 import { createRecord } from '@/api/records'
@@ -20,29 +21,35 @@ import {
 } from '@/uni_modules/qa-window-bg/utssdk/index.uts'
 
 /**
- * 快速记账弹框 —— 对齐 frontend-react-java RecordModal
- * Props: show (v-model:show), kind ('expense' | 'income'), 可选 categories/accounts 传入避免重复请求
- * Emits: update:show, saved
+ * 快速记账弹框 —— 对齐 frontend-react-java RecordModal。
+ * 状态来源:useQuickAddStore(show / kind / savedAt),而不是 props/emit。
+ * 渲染位置:Vue3 <Teleport to="body"> 把 modal 节点搬到 body 末尾,
+ * 脱离 page-root position:fixed + bottom:var(--tab-bar-height) 的裁切。
+ * iOS Safari 上 qa-sheet bottom:0 真正钉到 viewport 底,不再漏底部 navy。
+ * saved 回调:不再 emit,改成 store.notifySaved() 把 savedAt++,调用方 watch 它。
  */
-const props = withDefaults(
-  defineProps<{
-    show: boolean
-    kind?: 'expense' | 'income'
-    categories?: Category[]
-    accounts?: Account[]
-  }>(),
-  { kind: 'expense', categories: () => [], accounts: () => [] },
-)
-const emit = defineEmits<{
-  (e: 'update:show', v: boolean): void
-  (e: 'saved'): void
-}>()
+const store = useQuickAddStore()
+
+// iOS APP-PLUS 单独判断 —— Vue 3 <Teleport> 在 iOS Safari + WKWebView + uniapp
+// 编译产物下,即使 :disabled=true 仍会被 Vue patch,触发 nextSibling / _vei /
+// setAttribute null pointer 崩,导致 modal 永远不弹。所以 iOS 必须完全跳过
+// Teleport 节点,在 template 里走单独的"直接渲染"分支。
+// H5 Chrome / Android APP-PLUS 不受影响(isIOS=false 走 Teleport);mp-weixin
+// 这行被 #ifdef strip 完全看不到,零干扰。
+// #ifdef H5 || APP-PLUS
+const isIOS = (() => {
+  try {
+    const sys = (uni.getSystemInfoSync?.() ?? {}) as { system?: string }
+    return /iOS|iPad/i.test(sys.system ?? '')
+  } catch { return false }
+})()
+// #endif
 
 const book = useBookStore()
 const toast = useToastStore()
 const { t } = useLanguage()
 
-const activeTab = ref<RecordType>(props.kind)
+const activeTab = ref<RecordType>('expense')
 const note = ref('')
 const categoryId = ref<string>('')
 const accountId = ref<string>('')
@@ -55,8 +62,8 @@ const errorMsg = ref<string | null>(null)
 // 本地缓存:分类与账户(若父组件没传则自己拉)
 const catsLocal = ref<Category[]>([])
 const acctsLocal = ref<Account[]>([])
-const catsActive = computed<Category[]>(() => props.categories.length ? props.categories : catsLocal.value)
-const acctsActive = computed<Account[]>(() => props.accounts.length ? props.accounts : acctsLocal.value)
+const catsActive = computed<Category[]>(() => catsLocal.value)
+const acctsActive = computed<Account[]>(() => acctsLocal.value)
 const visibleCats = computed(() =>
   catsActive.value
     .filter(c => c.type === activeTab.value)
@@ -74,11 +81,11 @@ function pickDefaultAccount(): string {
 
 async function ensureData() {
   if (!book.current) return
-  if (!props.categories.length && catsLocal.value.length === 0) {
+  if (catsLocal.value.length === 0) {
     const [e, i] = await Promise.all([listCategories('expense'), listCategories('income')])
     catsLocal.value = [...e, ...i]
   }
-  if (!props.accounts.length && acctsLocal.value.length === 0) {
+  if (acctsLocal.value.length === 0) {
     acctsLocal.value = await listAccounts({ bookId: book.current.uuid })
   }
 }
@@ -90,7 +97,7 @@ function reset() {
   expression.value = ''
   note.value = ''
   recordDate.value = todayLocal()
-  activeTab.value = props.kind
+  activeTab.value = store.kind
 }
 
 // iOS app-plus WKWebView 默认 viewport-fit=auto,viewport = safe-area。
@@ -159,8 +166,54 @@ function paintWVClose() {
   } catch { /* */ }
 }
 
+// 模态打开时隐藏底部 tabbar,关闭时恢复 — 否则 modal 遮罩背后能看到 tabbar(三个端都有问题)。
+// H5:tabbar 是 uniapp 渲染的 .uni-tabbar 节点,通过 body 上的 .qa-open 类配合全局 CSS 隐藏。
+// MP/app-plus:tabbar 是原生组件,uni.hideTabBar/showTabBar 单独控制。
+// 用 ref 记状态防止快速 open/close 切换时漏调用 show。
+// 注意:tabbarHidden 必须先于下方 watch 声明,否则 watch immediate:true 在第一次同步回调
+// (store.show === false → showAppTabBar)时访问 tabbarHidden,触发 const TDZ 报错
+// "Cannot access 'tabbarHidden' before initialization"。
+const tabbarHidden = ref(false)
+function hideAppTabBar() {
+  if (tabbarHidden.value) return
+  tabbarHidden.value = true
+  // #ifdef H5
+  document.body.classList.add('qa-open')
+  // 同时挂到 html —— iOS Safari + viewport-fit=cover 下,html 的 bg 才是真正
+  // 撑到物理屏幕边缘(包括圆角那条窄边)的层,body 在 html 内可能因 overflow:
+  // hidden / height:100% 被裁掉最外圈。App.vue 里 html.qa-open 也定义 navy bg。
+  document.documentElement.classList.add('qa-open')
+  // iOS Safari / WKWebView 在 Dynamic Island 那条窄带下用浏览器自己的页面背景
+  // 渲染(不是 WebView 内容),body bg 染不到。theme-color 是 Apple 官方控制
+  // 那条带子底色的口子 —— 打开 modal 时切 navy,关闭切回。动态改 meta 而不是
+  // 写死,避免影响其它页面。
+  try {
+    const meta = document.querySelector('meta[name="theme-color"]') as HTMLMetaElement | null
+    if (meta) meta.setAttribute('content', '#141E3C')
+  } catch { /* meta 不存在或 DOM 还没好,跳过 */ }
+  // #endif
+  // #ifdef MP-WEIXIN || APP-PLUS
+  uni.hideTabBar({ animation: false })
+  // #endif
+}
+function showAppTabBar() {
+  if (!tabbarHidden.value) return
+  tabbarHidden.value = false
+  // #ifdef H5
+  document.body.classList.remove('qa-open')
+  document.documentElement.classList.remove('qa-open')
+  try {
+    const meta = document.querySelector('meta[name="theme-color"]') as HTMLMetaElement | null
+    if (meta) meta.setAttribute('content', '#FFFFFF')
+  } catch { /* */ }
+  // #endif
+  // #ifdef MP-WEIXIN || APP-PLUS
+  uni.showTabBar({ animation: false })
+  // #endif
+}
+
 watch(
-  () => props.show,
+  () => store.show,
   (v) => {
     // 同步全局 modal 状态 — AppHeader watch modalOpen 在 modal 打开时把自己隐藏。
     // iOS app-plus WKWebView 里 overlay 偶尔压不住 sticky 元素,见 utils/modal-state。
@@ -182,49 +235,14 @@ watch(
       showAppTabBar()
     }
   },
+  // immediate:true —— modal 是 v-if 挂载,挂上来时 store.show 已经是 true,
+  // 监听不会自己 fire,会导致 reset / ensureData / hideAppTabBar 全不跑,
+  // 弹框出来但里面没数据 + tabbar 还在。打开首次回调即可。
+  { immediate: true },
 )
 
-// 模态打开时隐藏底部 tabbar,关闭时恢复 — 否则 modal 遮罩背后能看到 tabbar(三个端都有问题)。
-// H5:tabbar 是 uniapp 渲染的 .uni-tabbar 节点,通过 body 上的 .qa-open 类配合全局 CSS 隐藏。
-// MP/app-plus:tabbar 是原生组件,uni.hideTabBar/showTabBar 单独控制。
-// 用 ref 记状态防止快速 open/close 切换时漏调用 show。
-const tabbarHidden = ref(false)
-function hideAppTabBar() {
-  if (tabbarHidden.value) return
-  tabbarHidden.value = true
-  // #ifdef H5
-  document.body.classList.add('qa-open')
-  // #endif
-  // #ifdef MP-WEIXIN || APP-PLUS
-  uni.hideTabBar({ animation: false })
-  // #endif
-}
-function showAppTabBar() {
-  if (!tabbarHidden.value) return
-  tabbarHidden.value = false
-  // #ifdef H5
-  document.body.classList.remove('qa-open')
-  // #endif
-  // #ifdef MP-WEIXIN || APP-PLUS
-  uni.showTabBar({ animation: false })
-  // #endif
-}
-
-// 兜底:如果初次挂载时 show 就是 true(外部直接 v-if 进来),watch 不会触发,这里手动调一次
-onMounted(() => {
-  if (props.show) {
-    hideAppTabBar()
-    modalOpen.value = true
-  }
-})
-// 组件被卸载时强制恢复 tabbar + 清掉全局 modal 状态,避免父级 navigateBack
-// 导致 modal 还显示着就 destroy,AppHeader 一直停在 display:none 状态
-onBeforeUnmount(() => {
-  if (tabbarHidden.value) showAppTabBar()
-  // 防止 modal 还开着时被卸载 → WKWebView 一直停在深色底
-  if (props.show) paintWVClose()
-  modalOpen.value = false
-})
+// 兜底:如果初次挂载时 show 就是 true,watch immediate:true 已经会跑,
+// 不需要 onMounted。保留 watch 单一入口,避免双跑。
 
 // 切 tab 时把分类重置到该类型的第一个
 watch(activeTab, () => {
@@ -234,7 +252,7 @@ watch(activeTab, () => {
 
 function close() {
   if (submitting.value) return
-  emit('update:show', false)
+  store.close()
 }
 
 function pressKey(key: string) {
@@ -310,7 +328,7 @@ async function submit() {
     })
     showSuccess.value = true
     setTimeout(() => {
-      emit('saved')
+      store.notifySaved()
       close()
     }, 1200)
   } catch (e: any) {
@@ -354,9 +372,25 @@ const accentBg = computed(() => isExpense.value ? 'var(--c-primary)' : '#10b981'
 </script>
 
 <template>
-  <!-- 整页遮罩 + 底部弹出 sheet -->
-  <view v-if="show" class="qa-overlay" @tap.self="close">
-    <view class="qa-sheet">
+  <!-- Teleport 把 modal 节点搬到 body 末尾 —— 在 page 树里写
+       <QuickAddModal /> 但实际渲染位置是 <body>,彻底脱离 page-root
+       position:fixed + bottom:var(--tab-bar-height) 的裁切。iOS Safari
+       上 qa-sheet bottom:0 真正钉到 viewport 底,不再漏底部 navy。
+       条件编译:mp-weixin 不支持 Teleport(WXML 无此概念,编译报
+       "not supported: Teleport");APP-PLUS 用 webview 跟 H5 一样支持。
+       mp 直接走 <view> 渲染,虽然仍被 page-root 容器裁 —— 之后如需 mp
+       也脱离裁切,再单独处理(可能需要写原生插件)。 -->
+  <!-- 分支 1:iOS APP-PLUS 直接渲染 —— Vue 3 <Teleport> 在 iOS Safari + WKWebView +
+       uniapp 编译产物下被 patch 时会触发 nextSibling/_vei/setAttribute/parentNode
+       null 崩。iOS 必须完全跳过 Teleport 节点,直挂 + position:fixed 撑到
+       viewport(与 mp-weixin 一致)。这里用独立 v-if="isIOS && store.show",
+       跟下方 Teleport 互不构成 v-else 关系,避免 Vue Fragment 切占位节点
+       在 iOS 上 parentNode 为 null 的二次崩。
+       H5 Chrome 端 isIOS=false → 这条 v-if 短路、不渲染;mp-weixin 端
+       #ifdef H5 || APP-PLUS 把整段 strip 掉,零影响。-->
+  <!-- #ifdef H5 || APP-PLUS -->
+  <view v-if="isIOS && store.show" class="qa-overlay" @tap="close">
+    <view class="qa-sheet" @tap.stop>
       <!-- 成功态 -->
       <view v-if="showSuccess" class="qa-success">
         <view class="qa-success-circle" :style="{ background: isExpense ? 'var(--c-primary-light)' : 'rgba(16,185,129,0.14)', color: accentBg }">
@@ -480,32 +514,182 @@ const accentBg = computed(() => isExpense.value ? 'var(--c-primary)' : '#10b981'
       </template>
     </view>
   </view>
+  <!-- #endif -->
+
+  <!-- 分支 2:H5 Chrome / 非 iOS APP-PLUS —— Teleport 把 modal 节点搬到 body 末尾。
+       v-if="!isIOS" 独立判断(不与分支 1 构成 v-else),避免 Vue Fragment 占位节点
+       在 iOS 上 parentNode 为 null 二次崩。mp-weixin 端 #ifdef 把 Teleport 标签
+       strip 掉,只剩 <view v-if="store.show">...</view> 直挂逻辑,行为不变。-->
+  <!-- #ifdef H5 || APP-PLUS -->
+  <Teleport v-if="!isIOS" to="body">
+  <!-- #endif -->
+    <!-- 关闭逻辑:overlay 直接 @tap=close,sheet @tap.stop 拦住冒泡。
+         原版用 @tap.self="close" 在 mp-weixin 不可靠(self 修饰符在 mp 偶尔
+         不生效,点 sheet 内部也会冒到 overlay 触发关闭) → sheet 上手动
+         .stop 阻止冒泡最稳。H5 / APP-PLUS / mp-weixin 三端行为一致。-->
+    <view v-if="store.show" class="qa-overlay" @tap="close">
+      <view class="qa-sheet" @tap.stop>
+      <!-- 成功态 -->
+      <view v-if="showSuccess" class="qa-success">
+        <view class="qa-success-circle" :style="{ background: isExpense ? 'var(--c-primary-light)' : 'rgba(16,185,129,0.14)', color: accentBg }">
+          <text class="qa-success-check">✓</text>
+        </view>
+        <text class="qa-success-text">
+          {{ activeTab === 'expense' ? t('recordExpense.success') : t('recordIncome.success') }}
+        </text>
+      </view>
+
+      <!-- 表单态 -->
+      <template v-else>
+        <!-- 顶部:关闭 + tab 切换 -->
+        <view class="qa-head">
+          <view class="qa-close" @tap="close">✕</view>
+          <view class="qa-tabs">
+            <view class="qa-tab" :class="{ active: activeTab === 'expense' }" @tap="activeTab = 'expense'">
+              {{ t('recordModal.expense') }}
+            </view>
+            <view class="qa-tab" :class="{ active: activeTab === 'income' }" @tap="activeTab = 'income'">
+              {{ t('recordModal.income') }}
+            </view>
+          </view>
+          <view class="qa-head-spacer" />
+        </view>
+
+        <!-- 金额显示 -->
+        <view class="qa-amount">
+          <text class="qa-amount-hint">
+            {{ activeTab === 'expense' ? t('recordExpense.amountPrompt') : t('recordIncome.amountPrompt') }}
+          </text>
+          <view class="qa-amount-row">
+            <text class="qa-yen">¥</text>
+            <text class="qa-amount-num">{{ displayAmount() }}</text>
+            <text class="qa-cursor">|</text>
+          </view>
+        </view>
+
+        <!-- 分类网格 -->
+        <view class="qa-cats">
+          <view v-if="visibleCats.length === 0" class="qa-empty">
+            {{ t('recordModal.categoryLoading') }}
+          </view>
+          <view v-else class="qa-cats-grid">
+            <view
+              v-for="cat in visibleCats"
+              :key="cat.id"
+              class="qa-cat"
+              @tap="categoryId = cat.id"
+            >
+              <view
+                class="qa-cat-circle"
+                :style="{
+                  background: categoryId === cat.id ? cat.color : catTint(cat.color),
+                  borderColor: categoryId === cat.id ? cat.color : 'transparent',
+                }"
+              >
+                <text class="qa-cat-icon" :style="{ color: categoryId === cat.id ? '#fff' : cat.color }">
+                  {{ cat.icon }}
+                </text>
+              </view>
+              <text class="qa-cat-name" :style="{ color: categoryId === cat.id ? cat.color : 'var(--c-text)', fontWeight: categoryId === cat.id ? 600 : 400 }">
+                {{ cat.name }}
+              </text>
+            </view>
+          </view>
+        </view>
+
+        <!-- 账户 chips -->
+        <view v-if="acctsActive.length > 0" class="qa-accounts">
+          <text class="qa-acct-label">{{ t('recordModal.accountLabel') }}</text>
+          <scroll-view scroll-x class="qa-acct-scroll">
+            <view class="qa-acct-list">
+              <view
+                v-for="a in acctsActive"
+                :key="a.id"
+                class="qa-acct-chip"
+                :class="{ active: a.id === accountId }"
+                @tap="accountId = a.id"
+              >
+                <text class="qa-acct-chip-icon">💳</text>
+                <text>{{ a.name }}</text>
+              </view>
+            </view>
+          </scroll-view>
+        </view>
+
+        <!-- 日期 + 备注 -->
+        <view class="qa-meta">
+          <picker mode="date" :value="recordDate" @change="(e: any) => recordDate = e.detail.value">
+            <view class="qa-date">
+              <text>📅</text>
+              <text>{{ recordDate }}</text>
+            </view>
+          </picker>
+          <input
+            v-model="note"
+            :placeholder="t('recordModal.notePlaceholder')"
+            class="qa-note"
+            :maxlength="50"
+          />
+        </view>
+
+        <!-- 错误 -->
+        <view v-if="errorMsg" class="qa-error">{{ errorMsg }}</view>
+
+        <!-- 数字键盘 -->
+        <view class="qa-keypad">
+          <view
+            v-for="(k, i) in KEYS"
+            :key="i"
+            class="qa-key"
+            :class="[k.kind === 'confirm' ? 'confirm' : '', k.kind === 'back' ? 'back' : '', k.kind === 'op' ? 'op' : '']"
+            :style="k.span === 2 ? { gridColumn: 'span 2' } : {}"
+            @tap="pressKey(k.value)"
+          >
+            <text v-if="k.kind === 'confirm' && submitting" class="qa-key-loading">⏳</text>
+            <text v-else>{{ k.label }}</text>
+          </view>
+        </view>
+      </template>
+      </view>
+    </view>
+  <!-- #ifdef H5 || APP-PLUS -->
+  </Teleport>
+  <!-- #endif -->
 </template>
 
 <style scoped>
 .qa-overlay {
   position: fixed;
-  inset: 0;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
   z-index: 999;
-  background: rgba(20, 30, 60, 0.78);
-  backdrop-filter: blur(6px);
-  -webkit-backdrop-filter: blur(6px);
-  display: flex;
-  flex-direction: column;
-  justify-content: flex-end;
+  /* 顶部 navy 实心填充 —— 把页面背景完全遮住,modal 上半部只看到 navy 和 sheet。
+     Teleport to body 后 overlay 直接挂在 body 下,position:fixed 相对 viewport。*/
+  background: #141E3C;
 }
+/* sheet absolute bottom:0,containing block = qa-overlay = viewport(Teleport 后
+   overlay 是 body 直接子级,fixed 相对 body) → iOS Safari 上 sheet 底 = 屏幕底,
+   不再漏底部 navy。内部 UI 全部不动。*/
 .qa-sheet {
+  position: absolute;
+  bottom: 0;
+  left: 0;
+  right: 0;
   background: var(--c-bg-card);
-  /* 四个角都圆,匹配 iPhone 物理圆角 —— 之前只有顶部圆,底部直角在 iPhone 圆角
-     mask 区域里看上去像被切掉一角,keypad 两侧显得被遮挡。*/
-  border-radius: 24rpx;
+  /* 直角矩形贴在 navy backdrop 上 —— 顶部跟 navy 实色无缝衔接,不出现圆角漏 navy
+     的小三角;底部 0 边距直达屏幕底,直角也不会被 iPhone 圆角 mask 截掉。
+     !important 防 uniapp H5 编译/全局样式继承把圆角再补回来。
+     仅顶部两角圆 —— 顶部衔接 navy backdrop,圆角让 sheet 视觉像一张卡片浮起;
+     底部抵屏幕边,直角更干净。*/
+  border-radius: 24rpx 24rpx 0 0 !important;
   border: 1px solid var(--c-divider);
-  /* 底部留 1px 让圆角视觉完整(原本 border-bottom:none 是 bottom-sheet 风格,
-     现在 sheet 撑到 viewport 底,要保留圆角边框让边角成型) */
-  max-height: 92vh;
+  max-height: 96vh;
+  max-height: 100dvh;
   display: flex;
   flex-direction: column;
-  padding-bottom: env(safe-area-inset-bottom);
+  overflow-y: auto;
 }
 .qa-head {
   display: flex;
@@ -527,13 +711,15 @@ const accentBg = computed(() => isExpense.value ? 'var(--c-primary)' : '#10b981'
 .qa-tabs {
   display: flex;
   background: var(--c-surface);
-  border-radius: 12rpx;
+  /* 直角 —— 顶部 sheet 已取消圆角,tabs 容器跟 sheet 边沿平直衔接,
+     不在 navy backdrop 旁露出小圆角。*/
+  border-radius: 0;
   padding: 4rpx;
   gap: 4rpx;
 }
 .qa-tab {
   padding: 10rpx 32rpx;
-  border-radius: 8rpx;
+  border-radius: 0;
   font-size: 26rpx;
   color: var(--c-text-variant);
 }
@@ -546,7 +732,9 @@ const accentBg = computed(() => isExpense.value ? 'var(--c-primary)' : '#10b981'
 .qa-amount {
   background: var(--c-bg);
   text-align: center;
-  padding: 32rpx 24rpx 24rpx;
+  /* padding 32→16,跟 keypad 行高 80→72 一起,把 sheet 总高压到 96vh 内,
+     多数情况下 keypad 不再溢出、不用滚动。*/
+  padding: 16rpx 24rpx 16rpx;
 }
 .qa-amount-hint {
   display: block;
@@ -565,7 +753,9 @@ const accentBg = computed(() => isExpense.value ? 'var(--c-primary)' : '#10b981'
   color: var(--c-text-variant);
 }
 .qa-amount-num {
-  font-size: 72rpx;
+  /* 72→56rpx,跟 amount padding 缩、keypad 行高缩配合,让 sheet 总高能在 96vh 内
+     不溢出 keypad。字号仍读得清、视觉重心不变。*/
+  font-size: 56rpx;
   font-weight: 700;
   color: var(--c-text);
   border-bottom: 2rpx solid var(--c-primary);
@@ -707,9 +897,18 @@ const accentBg = computed(() => isExpense.value ? 'var(--c-primary)' : '#10b981'
   gap: 8rpx;
   background: var(--c-bg-card);
   flex-shrink: 0;
+  /* sticky 钉在 sheet 视口底 —— sheet 内容总高还是超过 96vh(尤其多分类时),
+     之前 keypad 排在 sheet 末尾,溢出就被 overflow-y:auto 截掉,看起来"键盘被挡"。
+     钉在底后,sheet 内部可滚看 head/amount/cats,keypad 永远在底,不再被吃。
+     z-index 让它滚到内容上面时压在前景。*/
+  position: sticky;
+  bottom: 0;
+  z-index: 1;
 }
 .qa-key {
-  height: 80rpx;
+  /* 80→72rpx,4 行省 32rpx = ~10pt,跟 amount 缩、sheet 96vh 一起凑合,多数情况
+     keypad 4 行都进 sheet 内、不用滚动。视觉上比 80 略小但还点得动。*/
+  height: 72rpx;
   border-radius: 12rpx;
   background: var(--c-surface);
   display: flex;

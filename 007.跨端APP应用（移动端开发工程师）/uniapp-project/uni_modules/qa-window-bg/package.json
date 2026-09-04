@@ -1,0 +1,32 @@
+{
+  "id": "qa-window-bg",
+  "name": "qa-window-bg",
+  "version": "0.1.1",
+  "description": "运行时切换 iOS UIWindow.backgroundColor —— 修复 WKWebView 在圆角 mask 外侧漏白的问题。",
+  "main": "utssdk/index.uts",
+  "uni_modules": {
+    "uts": {
+      "apiExt": {
+        "setWindowBackgroundColor": {
+          "params": ["color: string"],
+          "result": "void"
+        },
+        "restoreWindowBackgroundColor": {
+          "params": [],
+          "result": "void"
+        },
+        "captureWindowBackgroundColor": {
+          "params": [],
+          "result": "void"
+        }
+      },
+      "iOS": {
+        "header": null,
+        "module": "QaWindowBg"
+      },
+      "Android": {},
+      "web": {},
+      "mp-weixin": {}
+    }
+  }
+}

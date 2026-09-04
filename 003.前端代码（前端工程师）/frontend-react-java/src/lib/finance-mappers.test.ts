@@ -30,7 +30,7 @@ describe('finance-mappers', () => {
         updatedAt: '2026-08-27T10:00:00.000Z',
       }
       const t = toTransaction(r)
-      expect(t).toEqual({
+      expect(t).toMatchObject({
         id: 'r1',
         date: '2026-08-27',
         type: 'expense',

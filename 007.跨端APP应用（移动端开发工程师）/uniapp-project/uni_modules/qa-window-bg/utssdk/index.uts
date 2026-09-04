@@ -1,0 +1,12 @@
+/**
+ * qa-window-bg —— 跨端声明。实际实现在 app-ios / app-android / web / mp-weixin 目录下;
+ * uniapp 编译时会按平台选对应的 .uts。
+ *
+ * 不要在这里写实际逻辑,只声明 export 让 TS/Vue 编译能过。
+ */
+
+export function setWindowBackgroundColor(color: string): void {}
+
+export function restoreWindowBackgroundColor(): void {}
+
+export function captureWindowBackgroundColor(): void {}

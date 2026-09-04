@@ -1,0 +1,68 @@
+/**
+ * iOS 原生实现 —— 设置 UIWindow 的 backgroundColor。
+ *
+ * 直接走 Apple UIKit:
+ *   UIApplication.shared.connectedScenes → UIWindowScene → windows[*].backgroundColor
+ *
+ * iOS 13+ 多 scene 模型下,要遍历所有 scene 的 window。
+ *
+ * 原色由 captureWindowBackgroundColor() 内部缓存;restoreWindowBackgroundColor()
+ * 还原到那次快照值(默认兜底 #FFFFFF)。这样调用方不需要关心原色是什么。
+ */
+
+// 模块级静态变量 —— 缓存"modal 打开之前"UIWindow 的 bg。
+// 二次打开时不重复快照(否则会快照到 modal 自己染上的暗色)。
+var _originalBgHex: string = '#FFFFFF'
+var _captured: boolean = false
+
+import { UIApplication, UIColor } from 'UIKit'
+import type { UIWindowScene, UIWindow } from 'UIKit'
+
+function setAllWindowsColor(hex: string): void {
+  const clean = hex.replace('#', '').toUpperCase()
+  if (clean.length !== 6 && clean.length !== 8) {
+    console.warn('[qa-window-bg] invalid color:', hex)
+    return
+  }
+  const r = parseInt(clean.substring(0, 2), 16) / 255.0
+  const g = parseInt(clean.substring(2, 4), 16) / 255.0
+  const b = parseInt(clean.substring(4, 6), 16) / 255.0
+  const a = clean.length === 8 ? parseInt(clean.substring(6, 8), 16) / 255.0 : 1.0
+  const c = UIColor.colorWithRed(r, green: g, blue: b, alpha: a)
+
+  const app = UIApplication.sharedApplication()
+  const scenes = app.connectedScenes
+  const n = scenes.count
+  for (let i = 0; i < n; i++) {
+    const scene = scenes.objectAtIndex(i) as UIWindowScene
+    const wins = scene.windows
+    const wn = wins.count
+    for (let j = 0; j < wn; j++) {
+      const win = wins.objectAtIndex(j) as UIWindow
+      if (win != null) {
+        win.backgroundColor = c
+      }
+    }
+  }
+}
+
+function currentWindowBgHex(): string {
+  // 取第一个 window 的 bg,转 hex。这里只支持常见 UIColor,白/黑/灰/rgb。
+  // ponytail: 取真实 bg 需要拿 cgColor / components,UTS 类型支持有限;如未来需要
+  // 识别深色模式 (UIColor.systemBackgroundColor) 再升级。当前兜底 '#FFFFFF'。
+  return '#FFFFFF'
+}
+
+export function captureWindowBackgroundColor(): void {
+  if (_captured) return
+  _originalBgHex = currentWindowBgHex()
+  _captured = true
+}
+
+export function setWindowBackgroundColor(color: string): void {
+  setAllWindowsColor(color)
+}
+
+export function restoreWindowBackgroundColor(): void {
+  setAllWindowsColor(_originalBgHex)
+}

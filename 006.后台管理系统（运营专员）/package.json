@@ -8,7 +8,14 @@
     "build": "tsc -b && vite build",
     "lint": "oxlint",
     "preview": "vite preview",
-    "test": "vitest run"
+    "test": "vitest run",
+    "test:watch": "vitest",
+    "test:integration": "vitest run 'tests/integration/**'",
+    "test:permissions": "vitest run 'tests/permissions/**'",
+    "test:e2e": "playwright test --config=tests/playwright.config.ts",
+    "test:coverage": "vitest run --coverage",
+    "test:report": "npm run test:coverage && npm run test:report:copy",
+    "test:report:copy": "node tests/scripts/copy-report.mjs 006-admin-frontend"
   },
   "dependencies": {
     "react": "^19.2.8",
@@ -16,11 +23,17 @@
     "react-router-dom": "^7.18.2"
   },
   "devDependencies": {
+    "@playwright/test": "^1.50.0",
     "@tailwindcss/vite": "^4.3.3",
+    "@testing-library/jest-dom": "^6.6.3",
+    "@testing-library/react": "^16.1.0",
+    "@testing-library/user-event": "^14.5.0",
     "@types/node": "^24.13.3",
     "@types/react": "^19.2.18",
     "@types/react-dom": "^19.2.4",
     "@vitejs/plugin-react": "^6.1.0",
+    "happy-dom": "^15.11.0",
+    "msw": "^2.7.0",
     "oxlint": "^1.79.0",
     "tailwindcss": "^4.3.3",
     "typescript": "~6.0.2",

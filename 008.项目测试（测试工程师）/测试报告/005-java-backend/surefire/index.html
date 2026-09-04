@@ -1,0 +1,325 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+  <meta charset="utf-8" />
+  <title>005 java-backend · Surefire 测试报告</title>
+  <style>
+    :root {
+      --bg: #f7f8fa;
+      --card: #ffffff;
+      --border: #e2e8f0;
+      --text: #1a202c;
+      --muted: #718096;
+      --green: #10b981;
+      --red: #ef4444;
+      --blue: #3b82f6;
+      --amber: #f59e0b;
+    }
+    * { box-sizing: border-box; }
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, "PingFang SC", "Hiragino Sans GB", "Microsoft YaHei", sans-serif;
+      margin: 0;
+      padding: 32px;
+      background: var(--bg);
+      color: var(--text);
+      line-height: 1.6;
+    }
+    .container { max-width: 1100px; margin: 0 auto; }
+    h1 { font-size: 28px; margin: 0 0 8px; }
+    .subtitle { color: var(--muted); margin-bottom: 32px; font-size: 14px; }
+    .summary-row {
+      display: grid;
+      grid-template-columns: repeat(4, 1fr);
+      gap: 16px;
+      margin-bottom: 32px;
+    }
+    .summary-card {
+      background: var(--card);
+      border: 1px solid solid var(--border);
+      border: 1px solid var(--border);
+      border-radius: 8px;
+      padding: 20px;
+    }
+    .summary-card .label { font-size: 13px; color: var(--muted); margin-bottom: 8px; }
+    .summary-card .value { font-size: 28px; font-weight: 600; color: var(--green); }
+    .summary-card .delta { font-size: 12px; color: var(--muted); margin-top: 4px; }
+
+    table {
+      width: 100%;
+      background: var(--card);
+      border: 1px solid var(--border);
+      border-radius: 8px;
+      border-collapse: collapse;
+      overflow: hidden;
+    }
+    th, td {
+      padding: 12px 16px;
+      text-align: left;
+      border-bottom: 1px solid var(--border);
+      font-size: 13px;
+    }
+    th {
+      background: #f9fafb;
+      font-weight: 600;
+      color: var(--muted);
+      text-transform: uppercase;
+      font-size: 11px;
+      letter-spacing: 0.05em;
+    }
+    tr:last-child td { border-bottom: none; }
+    tr:hover td { background: #f9fafb; }
+    td.right, th.right { text-align: right; }
+    .num-pass { color: var(--green); font-weight: 600; }
+    .num-zero { color: var(--muted); }
+    .class-name {
+      font-family: "SF Mono", Menlo, monospace;
+      font-size: 12px;
+      color: var(--blue);
+    }
+    .back-link {
+      display: inline-block;
+      margin-bottom: 16px;
+      color: var(--blue);
+      text-decoration: none;
+      font-size: 13px;
+    }
+    .back-link:hover { text-decoration: underline; }
+    .footer {
+      margin-top: 32px;
+      padding-top: 16px;
+      border-top: 1px solid var(--border);
+      color: var(--muted);
+      font-size: 12px;
+    }
+    .badge {
+      display: inline-block;
+      padding: 2px 8px;
+      border-radius: 4px;
+      font-size: 11px;
+      font-weight: 600;
+    }
+    .badge-pass { background: #d1fae5; color: #065f46; }
+    code {
+      font-family: "SF Mono", Menlo, monospace;
+      font-size: 11px;
+      background: #f1f5f9;
+      padding: 2px 6px;
+      border-radius: 3px;
+    }
+    pre {
+      font-family: "SF Mono", Menlo, monospace;
+      font-size: 12px;
+      background: #1e293b;
+      color: #e2e8f0;
+      padding: 16px;
+      border-radius: 6px;
+      overflow-x: auto;
+    }
+  </style>
+</head>
+<body>
+  <div class="container">
+    <a class="back-link" href="../../index.html">← 回到总览</a>
+    <h1>005 java-backend · Surefire 测试报告</h1>
+    <div class="subtitle">
+      Java 21 + Spring Boot 3.5 + JUnit 5 · 8 个测试类 · 全部通过
+    </div>
+
+    <div class="summary-row">
+      <div class="summary-card">
+        <div class="label">总测试数</div>
+        <div class="value">48</div>
+        <div class="delta">8 个测试类</div>
+      </div>
+      <div class="summary-card">
+        <div class="label">已通过</div>
+        <div class="value">48</div>
+        <div class="delta">100%</div>
+      </div>
+      <div class="summary-card">
+        <div class="label">失败</div>
+        <div class="value" style="color: var(--muted);">0</div>
+        <div class="delta">无失败 / 错误</div>
+      </div>
+      <div class="summary-card">
+        <div class="label">总耗时</div>
+        <div class="value" style="color: var(--blue); font-size: 22px;">4.31s</div>
+        <div class="delta">MyBatis-Plus lambda 缓存生效</div>
+      </div>
+    </div>
+
+    <h3 style="font-size: 14px; color: var(--muted); text-transform: uppercase; letter-spacing: 0.05em; margin: 32px 0 12px;">测试类明细</h3>
+    <table>
+      <thead>
+        <tr>
+          <th>测试类</th>
+          <th class="right">用例</th>
+          <th class="right">失败</th>
+          <th class="right">错误</th>
+          <th class="right">跳过</th>
+          <th class="right">耗时 (s)</th>
+          <th>状态</th>
+        </tr>
+      </thead>
+      <tbody>
+        <tr>
+          <td class="class-name">com.qingzhang.accounts.AccountsServiceTest</td>
+          <td class="right num-pass">9</td>
+          <td class="right num-zero">0</td>
+          <td class="right num-zero">0</td>
+          <td class="right num-zero">0</td>
+          <td class="right">0.260</td>
+          <td><span class="badge badge-pass">PASS</span></td>
+        </tr>
+        <tr>
+          <td class="class-name">com.qingzhang.admin.security.AdminAuthInterceptorRulesTest</td>
+          <td class="right num-pass">1</td>
+          <td class="right num-zero">0</td>
+          <td class="right num-zero">0</td>
+          <td class="right num-zero">0</td>
+          <td class="right">0.350</td>
+          <td><span class="badge badge-pass">PASS</span></td>
+        </tr>
+        <tr>
+          <td class="class-name">com.qingzhang.auth.AuthServiceTest</td>
+          <td class="right num-pass">6</td>
+          <td class="right num-zero">0</td>
+          <td class="right num-zero">0</td>
+          <td class="right num-zero">0</td>
+          <td class="right">0.815</td>
+          <td><span class="badge badge-pass">PASS</span></td>
+        </tr>
+        <tr>
+          <td class="class-name">com.qingzhang.categories.CategoriesServiceTest</td>
+          <td class="right num-pass">8</td>
+          <td class="right num-zero">0</td>
+          <td class="right num-zero">0</td>
+          <td class="right num-zero">0</td>
+          <td class="right">0.055</td>
+          <td><span class="badge badge-pass">PASS</span></td>
+        </tr>
+        <tr>
+          <td class="class-name">com.qingzhang.common.ApiResponseTest</td>
+          <td class="right num-pass">8</td>
+          <td class="right num-zero">0</td>
+          <td class="right num-zero">0</td>
+          <td class="right num-zero">0</td>
+          <td class="right">0.175</td>
+          <td><span class="badge badge-pass">PASS</span></td>
+        </tr>
+        <tr>
+          <td class="class-name">com.qingzhang.records.RecordsServiceErrorCodesTest</td>
+          <td class="right num-pass">11</td>
+          <td class="right num-zero">0</td>
+          <td class="right num-zero">0</td>
+          <td class="right num-zero">0</td>
+          <td class="right">2.534</td>
+          <td><span class="badge badge-pass">PASS</span></td>
+        </tr>
+        <tr>
+          <td class="class-name">com.qingzhang.records.RecordsServiceTransferTest</td>
+          <td class="right num-pass">2</td>
+          <td class="right num-zero">0</td>
+          <td class="right num-zero">0</td>
+          <td class="right num-zero">0</td>
+          <td class="right">0.017</td>
+          <td><span class="badge badge-pass">PASS</span></td>
+        </tr>
+        <tr>
+          <td class="class-name">com.qingzhang.reports.ReportsServiceMonthFormatTest</td>
+          <td class="right num-pass">3</td>
+          <td class="right num-zero">0</td>
+          <td class="right num-zero">0</td>
+          <td class="right num-zero">0</td>
+          <td class="right">0.092</td>
+          <td><span class="badge badge-pass">PASS</span></td>
+        </tr>
+      </tbody>
+      <tfoot>
+        <tr>
+          <td><strong>合计</strong></td>
+          <td class="right"><strong style="color: var(--green);">48</strong></td>
+          <td class="right"><strong>0</strong></td>
+          <td class="right"><strong>0</strong></td>
+          <td class="right"><strong>0</strong></td>
+          <td class="right"><strong>4.298</strong></td>
+          <td><span class="badge badge-pass">ALL PASS</span></td>
+        </tr>
+      </tfoot>
+    </table>
+
+    <h3 style="font-size: 14px; color: var(--muted); text-transform: uppercase; letter-spacing: 0.05em; margin: 32px 0 12px;">关键测试覆盖</h3>
+    <table>
+      <thead>
+        <tr>
+          <th>模块</th>
+          <th>覆盖用例</th>
+        </tr>
+      </thead>
+      <tbody>
+        <tr>
+          <td><strong>Auth</strong> (6 cases)</td>
+          <td>
+            <code>1001 用户名已存在</code> · <code>1002 密码错误</code> · <code>1012 用户不存在</code> ·
+            <code>register 成功 + BCrypt 校验</code> · <code>login 成功 + JWT 生成</code> ·
+            <code>token 无效 → 401</code>
+          </td>
+        </tr>
+        <tr>
+          <td><strong>Accounts</strong> (9 cases)</td>
+          <td>
+            <code>3001 账户不存在</code> · <code>3002 余额不足</code> · <code>3003 非默认账户</code> ·
+            <code>create / list / update / delete 全流程</code> ·
+            <code>默认账户标记唯一性</code>
+          </td>
+        </tr>
+        <tr>
+          <td><strong>Categories</strong> (8 cases)</td>
+          <td>
+            <code>5001 类目不存在</code> · <code>5002 类目已存在</code> · <code>5003 类目有账目</code> ·
+            <code>create / list / update / delete</code> ·
+            <code>类型枚举校验(income / expense)</code>
+          </td>
+        </tr>
+        <tr>
+          <td><strong>Records</strong> (13 cases)</td>
+          <td>
+            <code>3010 账目不存在</code> · <code>3011 余额不足</code> · <code>3012 类别不匹配</code> ·
+            <code>3013 金额非法</code> · <code>3014 日期格式</code> · <code>3015 转出账户无效</code> ·
+            <code>3016 转入账户无效</code> · <code>3017 转账同账户</code> ·
+            <code>create / update / delete / list by month</code> ·
+            <code>Transfer 双账户原子性</code>
+          </td>
+        </tr>
+        <tr>
+          <td><strong>Reports</strong> (3 cases)</td>
+          <td>
+            <code>月份格式 yyyy-MM</code> · <code>月份边界(01 / 12)</code> · <code>无数据返回空</code>
+          </td>
+        </tr>
+        <tr>
+          <td><strong>Common</strong> (8 cases)</td>
+          <td>
+            <code>ApiResponse&lt;T&gt; 泛型信封</code> · <code>code=0 成功</code> ·
+            <code>code≠0 业务错误</code> · <code>data null 序列化</code> ·
+            <code>success() / error() 工厂</code>
+          </td>
+        </tr>
+        <tr>
+          <td><strong>Admin Security</strong> (1 case)</td>
+          <td>
+            <code>AdminAuthInterceptor 规则校验</code>
+          </td>
+        </tr>
+      </tbody>
+    </table>
+
+    <h3 style="font-size: 14px; color: var(--muted); text-transform: uppercase; letter-spacing: 0.05em; margin: 32px 0 12px;">运行命令</h3>
+    <pre>mvn test -Djacoco.skip=true</pre>
+    <div class="footer">
+      JaCoCo 0.8.12 不支持 Java 21 class file major version 70,coverage 报告待升级 JaCoCo 后再生成。
+      当前用 Surefire XML 解析生成此 HTML,数据来源 <code>target/surefire-reports/</code>。
+    </div>
+  </div>
+</body>
+</html>

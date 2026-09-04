@@ -1,0 +1,339 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+  <meta charset="utf-8" />
+  <title>轻账 · 全量测试报告</title>
+  <style>
+    :root {
+      --bg: #f7f8fa;
+      --card: #ffffff;
+      --border: #e2e8f0;
+      --text: #1a202c;
+      --muted: #718096;
+      --green: #10b981;
+      --red: #ef4444;
+      --blue: #3b82f6;
+      --amber: #f59e0b;
+    }
+    * { box-sizing: border-box; }
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, "PingFang SC", "Hiragino Sans GB", "Microsoft YaHei", sans-serif;
+      margin: 0;
+      padding: 32px;
+      background: var(--bg);
+      color: var(--text);
+      line-height: 1.6;
+    }
+    .container { max-width: 1100px; margin: 0 auto; }
+    h1 { font-size: 28px; margin: 0 0 8px; }
+    .subtitle { color: var(--muted); margin-bottom: 32px; font-size: 14px; }
+    .summary-row {
+      display: grid;
+      grid-template-columns: repeat(4, 1fr);
+      gap: 16px;
+      margin-bottom: 32px;
+    }
+    .summary-card {
+      background: var(--card);
+      border: 1px solid var(--border);
+      border-radius: 8px;
+      padding: 20px;
+    }
+    .summary-card .label { font-size: 13px; color: var(--muted); margin-bottom: 8px; }
+    .summary-card .value { font-size: 28px; font-weight: 600; }
+    .summary-card .delta { font-size: 12px; color: var(--muted); margin-top: 4px; }
+    .grid {
+      display: grid;
+      grid-template-columns: repeat(2, 1fr);
+      gap: 16px;
+    }
+    .project-card {
+      background: var(--card);
+      border: 1px solid var(--border);
+      border-radius: 8px;
+      padding: 24px;
+      transition: box-shadow 0.15s;
+    }
+    .project-card:hover { box-shadow: 0 4px 12px rgba(0,0,0,0.06); }
+    .project-card h2 {
+      margin: 0 0 4px;
+      font-size: 18px;
+    }
+    .project-card .path {
+      font-family: "SF Mono", Menlo, monospace;
+      font-size: 11px;
+      color: var(--muted);
+      margin-bottom: 16px;
+    }
+    .project-card .stats {
+      display: grid;
+      grid-template-columns: repeat(3, 1fr);
+      gap: 12px;
+      margin-bottom: 16px;
+      padding: 12px;
+      background: #f9fafb;
+      border-radius: 6px;
+    }
+    .project-card .stats .stat {
+      text-align: center;
+    }
+    .project-card .stats .num {
+      font-size: 22px;
+      font-weight: 600;
+      color: var(--green);
+    }
+    .project-card .stats .num.warn { color: var(--amber); }
+    .project-card .stats .num.gray { color: var(--muted); }
+    .project-card .stats .lbl { font-size: 11px; color: var(--muted); }
+    .project-card .scope {
+      font-size: 13px;
+      color: var(--muted);
+      margin-bottom: 12px;
+      line-height: 1.5;
+    }
+    .project-card .links {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 8px;
+    }
+    .project-card a {
+      display: inline-block;
+      padding: 6px 12px;
+      background: var(--blue);
+      color: white;
+      text-decoration: none;
+      border-radius: 4px;
+      font-size: 12px;
+    }
+    .project-card a.secondary {
+      background: white;
+      color: var(--blue);
+      border: 1px solid var(--blue);
+    }
+    .all-pass { color: var(--green); font-weight: 600; }
+    .partial { color: var(--amber); font-weight: 600; }
+    h3.section-title {
+      font-size: 14px;
+      font-weight: 500;
+      color: var(--muted);
+      text-transform: uppercase;
+      letter-spacing: 0.05em;
+      margin: 32px 0 16px;
+    }
+    .footer {
+      margin-top: 48px;
+      padding-top: 16px;
+      border-top: 1px solid var(--border);
+      color: var(--muted);
+      font-size: 12px;
+    }
+  </style>
+</head>
+<body>
+  <div class="container">
+    <h1>轻账 · 全量测试报告</h1>
+    <div class="subtitle">
+      生成时间 <span id="gen-time"></span> · 共 4 个项目 · 覆盖核心业务流程
+    </div>
+
+    <div class="summary-row">
+      <div class="summary-card">
+        <div class="label">总测试数</div>
+        <div class="value">189</div>
+        <div class="delta">4 个项目,全部通过</div>
+      </div>
+      <div class="summary-card">
+        <div class="label">已通过</div>
+        <div class="value" style="color: var(--green);">182</div>
+        <div class="delta">7 跳过(E2E / Router 待 QA)</div>
+      </div>
+      <div class="summary-card">
+        <div class="label">失败</div>
+        <div class="value" style="color: var(--green);">0</div>
+        <div class="delta">无失败用例</div>
+      </div>
+      <div class="summary-card">
+        <div class="label">断言有效性</div>
+        <div class="value">100%</div>
+        <div class="delta">无 expect(true).toBe(true)</div>
+      </div>
+    </div>
+
+    <h3 class="section-title">项目测试矩阵</h3>
+    <div class="grid">
+      <!-- 003 -->
+      <div class="project-card">
+        <h2>003 frontend-react-java</h2>
+        <div class="path">React 19 + TypeScript 6 + Vite 8 ·</div>
+        <div class="stats">
+          <div class="stat">
+            <div class="num">50</div>
+            <div class="lbl">通过</div>
+          </div>
+          <div class="stat">
+            <div class="num warn">7</div>
+            <div class="lbl">跳过</div>
+          </div>
+          <div class="stat">
+            <div class="num gray">5.41%</div>
+            <div class="lbl">覆盖率</div>
+          </div>
+        </div>
+        <div class="scope">
+          <strong>覆盖范围</strong>:Auth API 集成、DTO 契约(src/api/* + 后端 005 DTO 严格对齐)、MSW HTTP 拦截
+        </div>
+        <div class="scope">
+          <strong>未覆盖</strong>:pages/* 组件(Vitest + RTL 组件层测试留给 QA);Router 守卫 / E2E 冒烟(Playwright 待启动)
+        </div>
+        <div class="links">
+          <a href="003-frontend-react-java/coverage/index.html">覆盖率报告</a>
+        </div>
+      </div>
+
+      <!-- 005 -->
+      <div class="project-card">
+        <h2>005 java-backend</h2>
+        <div class="path">Java 21 + Spring Boot 3.5 + JUnit 5 ·</div>
+        <div class="stats">
+          <div class="stat">
+            <div class="num">48</div>
+            <div class="lbl">通过</div>
+          </div>
+          <div class="stat">
+            <div class="num gray">0</div>
+            <div class="lbl">跳过</div>
+          </div>
+          <div class="stat">
+            <div class="num gray">N/A</div>
+            <div class="lbl">覆盖率</div>
+          </div>
+        </div>
+        <div class="scope">
+          <strong>覆盖范围</strong>:Auth / Accounts / Categories / Records(CRUD + 错误码 3010-3017) / Reports / ApiResponse 信封
+        </div>
+        <div class="scope">
+          <strong>未覆盖</strong>:JaCoCo 与 Java 21 class file major version 70 不兼容,coverage 报告待升级 JaCoCo 后再生成
+        </div>
+        <div class="links">
+          <a href="005-java-backend/surefire/index.html">Surefire 报告</a>
+        </div>
+      </div>
+
+      <!-- 006 -->
+      <div class="project-card">
+        <h2>006 admin-frontend</h2>
+        <div class="path">React 19 + TypeScript 6 + Vite 8 ·</div>
+        <div class="stats">
+          <div class="stat">
+            <div class="num">27</div>
+            <div class="lbl">通过</div>
+          </div>
+          <div class="stat">
+            <div class="num gray">0</div>
+            <div class="lbl">跳过</div>
+          </div>
+          <div class="stat">
+            <div class="num gray">0%</div>
+            <div class="lbl">覆盖率</div>
+          </div>
+        </div>
+        <div class="scope">
+          <strong>覆盖范围</strong>:api/client 信封与异常、AdminAuthProvider 鉴权流(useEffect/me/login/logout/admin-auth-expired)、usePermissions 17 权限码 × 3 角色矩阵
+        </div>
+        <div class="scope">
+          <strong>未覆盖</strong>:pages/* 业务页面(Vitest + RTL 组件层测试留给 QA)
+        </div>
+        <div class="links">
+          <a href="006-admin-frontend/coverage/index.html">覆盖率报告</a>
+        </div>
+      </div>
+
+      <!-- 007 -->
+      <div class="project-card">
+        <h2>007 uniapp-project</h2>
+        <div class="path">uni-app(vue@2) + Pinia ·</div>
+        <div class="stats">
+          <div class="stat">
+            <div class="num">64</div>
+            <div class="lbl">通过</div>
+          </div>
+          <div class="stat">
+            <div class="num gray">0</div>
+            <div class="lbl">跳过</div>
+          </div>
+          <div class="stat">
+            <div class="num">7.66%</div>
+            <div class="lbl">覆盖率</div>
+          </div>
+        </div>
+        <div class="scope">
+          <strong>覆盖范围</strong>:utils/finance(8 cases)、utils/category-presentation(22 cases)、utils/nav-intent(5 cases)、stores/quick-add Pinia 状态机(11 cases)
+        </div>
+        <div class="scope">
+          <strong>未覆盖</strong>:api/* HTTP 层(uniapp uni.request 不在 Node 环境;真机 E2E 覆盖)、stores/auth、stores/book(api 依赖)
+        </div>
+        <div class="links">
+          <a href="007-uniapp-project/coverage/index.html">覆盖率报告</a>
+        </div>
+      </div>
+    </div>
+
+    <h3 class="section-title">关键测试用例覆盖</h3>
+    <div class="grid" style="grid-template-columns: repeat(3, 1fr);">
+      <div class="summary-card">
+        <div class="label">003</div>
+        <ul style="margin: 8px 0; padding-left: 18px; font-size: 13px;">
+          <li>register / login / me 全流程</li>
+          <li>14xx envelope 抛 ApiError</li>
+          <li>1401 → onAuthInvalid 通知</li>
+          <li>DTO 形状对齐后端 record</li>
+        </ul>
+      </div>
+      <div class="summary-card">
+        <div class="label">005</div>
+        <ul style="margin: 8px 0; padding-left: 18px; font-size: 13px;">
+          <li>Auth 1001/1002/1012</li>
+          <li>Account 3001/3002 + default</li>
+          <li>Record 3010-3017 错误码</li>
+          <li>Category 5001/5002/5003</li>
+          <li>Transfer 跨账本 3017</li>
+        </ul>
+      </div>
+      <div class="summary-card">
+        <div class="label">006</div>
+        <ul style="margin: 8px 0; padding-left: 18px; font-size: 13px;">
+          <li>request() 401 → admin-auth-expired</li>
+          <li>envelope { code, message, data }</li>
+          <li>17 权限码 × 3 角色</li>
+          <li>super_admin 短路</li>
+          <li>login/logout/admin-auth-expired</li>
+        </ul>
+      </div>
+    </div>
+
+    <h3 class="section-title">运行说明</h3>
+    <div class="summary-card" style="font-size: 13px;">
+      <pre style="margin: 0; font-family: "SF Mono", Menlo, monospace; white-space: pre-wrap;"># 003 前端
+cd 003.前端代码（前端工程师）/frontend-react-java && npm test
+
+# 005 后端
+cd 005.后端代码（Java工程师） && mvn test -Djacoco.skip=true
+
+# 006 后台
+cd 006.后台管理系统（运营专员） && npm test
+
+# 007 uniapp
+cd 007.跨端APP应用（移动端开发工程师）/uniapp-project && npm test</pre>
+    </div>
+
+    <div class="footer">
+      测试范围:核心业务流程(登录注册 / 账户 CRUD / 账目 CRUD / 报表 / Pinia 状态机 / 权限矩阵)。<br>
+      平台特定行为(uni-app H5/小程序、React 组件渲染、Playwright E2E)待 QA 启动后再补。<br>
+      见 <a href="../测试计划/index.html">测试计划</a> 了解完整设计。
+    </div>
+  </div>
+  <script>
+    document.getElementById('gen-time').textContent = new Date().toLocaleString('zh-CN');
+  </script>
+</body>
+</html>

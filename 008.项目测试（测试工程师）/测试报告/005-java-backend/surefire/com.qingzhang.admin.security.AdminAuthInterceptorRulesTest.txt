@@ -1,0 +1,4 @@
+-------------------------------------------------------------------------------
+Test set: com.qingzhang.admin.security.AdminAuthInterceptorRulesTest
+-------------------------------------------------------------------------------
+Tests run: 1, Failures: 0, Errors: 0, Skipped: 0, Time elapsed: 0.350 s -- in com.qingzhang.admin.security.AdminAuthInterceptorRulesTest

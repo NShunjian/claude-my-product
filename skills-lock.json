@@ -1,0 +1,17 @@
+{
+  "version": 1,
+  "skills": {
+    "find-skills": {
+      "source": "vercel-labs/skills",
+      "sourceType": "github",
+      "skillPath": "skills/find-skills/SKILL.md",
+      "computedHash": "b146008599c31057cef1c145774cea5d5afb30e8f43fa802e47a4b461419aaaf"
+    },
+    "skill-vetter": {
+      "source": "useai-pro/openclaw-skills-security",
+      "sourceType": "github",
+      "skillPath": "skills/skill-vetter/SKILL.md",
+      "computedHash": "5172ac6d437a5f41b5fa8be0def458a48b0e73c6b901c3f4e5e792434c4dc133"
+    }
+  }
+}

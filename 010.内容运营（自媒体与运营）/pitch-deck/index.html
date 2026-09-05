@@ -1,0 +1,240 @@
+<!DOCTYPE html>
+<html lang="zh-CN" data-theme="pitch-deck-vc">
+<head>
+<meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<title>轻账 · 投资人简报</title>
+<link rel="stylesheet" href="assets/fonts.css">
+<link rel="stylesheet" href="assets/base.css">
+<link rel="stylesheet" id="theme-link" href="assets/themes/pitch-deck-vc.css">
+<link rel="stylesheet" href="assets/animations/animations.css">
+</head>
+<body data-themes="pitch-deck-vc,corporate-clean,swiss-grid" data-theme-base="assets/themes/">
+<div class="deck">
+
+  <!-- 浮层提示 + 导航按钮(防止键盘焦点丢失或 file:// 限制) -->
+  <style>
+    .nav-hint{position:fixed;top:16px;right:24px;z-index:100;display:flex;gap:8px;align-items:center;
+      background:rgba(0,0,0,.55);color:#fff;padding:6px 12px;border-radius:999px;font-size:12px;
+      backdrop-filter:blur(10px);font-family:var(--font-sans)}
+    .nav-hint kbd{font-family:var(--font-mono);background:rgba(255,255,255,.18);padding:1px 6px;border-radius:4px;font-size:11px}
+    .nav-btn{position:fixed;top:50%;transform:translateY(-50%);z-index:99;
+      width:48px;height:48px;border-radius:50%;border:1px solid rgba(255,255,255,.2);
+      background:rgba(0,0,0,.4);color:#fff;font-size:20px;cursor:pointer;
+      backdrop-filter:blur(10px);transition:background .2s;font-family:var(--font-sans)}
+    .nav-btn:hover{background:rgba(0,0,0,.7)}
+    .nav-btn.prev{left:16px}
+    .nav-btn.next{right:16px}
+    .nav-counter{position:fixed;bottom:24px;right:24px;z-index:99;
+      background:rgba(0,0,0,.55);color:#fff;padding:6px 14px;border-radius:999px;
+      font-size:12px;font-family:var(--font-mono);backdrop-filter:blur(10px)}
+  </style>
+  <div class="nav-hint">← → 翻页 · <kbd>T</kbd> 换主题 · <kbd>F</kbd> 全屏 · <kbd>S</kbd> 演讲模式</div>
+  <button class="nav-btn prev" onclick="window.__nav(-1)" aria-label="上一页">‹</button>
+  <button class="nav-btn next" onclick="window.__nav(1)" aria-label="下一页">›</button>
+  <div class="nav-counter"><span id="nav-cur">1</span> / <span id="nav-total">6</span></div>
+  <script>
+    // 兜底导航 — 不依赖 runtime.js 的内部 go(),直接操作 DOM
+    (function(){
+      var slides = document.querySelectorAll('.slide');
+      var total = slides.length;
+      var idx = 0;
+      document.getElementById('nav-total').textContent = total;
+
+      function show(n){
+        n = Math.max(0, Math.min(total-1, n));
+        slides.forEach(function(s,i){
+          s.classList.toggle('is-active', i===n);
+          s.classList.toggle('is-prev', i<n);
+        });
+        idx = n;
+        document.getElementById('nav-cur').textContent = n+1;
+        try { history.replaceState(null,'','#/'+(n+1)); } catch(e){}
+      }
+      window.__nav = function(delta){ show(idx + delta); };
+
+      // 键盘支持(双保险,即使 runtime.js 失败也能翻页)
+      document.addEventListener('keydown', function(e){
+        if (e.metaKey||e.ctrlKey||e.altKey) return;
+        if (e.key==='ArrowRight'||e.key===' '||e.key==='PageDown'){ show(idx+1); e.preventDefault(); }
+        else if (e.key==='ArrowLeft'||e.key==='PageUp'){ show(idx-1); e.preventDefault(); }
+        else if (e.key==='Home'){ show(0); e.preventDefault(); }
+        else if (e.key==='End'){ show(total-1); e.preventDefault(); }
+      });
+
+      // 点击页面左右区域翻页
+      document.addEventListener('click', function(e){
+        if (e.target.closest('.nav-btn,.nav-hint,.nav-counter,a,button,kbd')) return;
+        show(e.clientX > window.innerWidth/2 ? idx+1 : idx-1);
+      });
+
+      show(0); // 初始显示第一页
+    })();
+  </script>
+
+  <!-- ============ 1. Cover ============ -->
+  <section class="slide cover" data-title="Cover">
+    <div class="cover-bg"></div>
+    <div class="cover-blob"></div>
+    <p class="kicker">Seed Round · 2026 · 投资人简报</p>
+    <h1 class="h1 anim-fade-up" data-anim="fade-up">
+      轻账<br>
+      <span class="gradient-text">把记账这件事</span><br>
+      做得轻一点
+    </h1>
+    <p class="lede mt-m">三端一体的轻量记账产品 · 服务个人、家庭与小微生意主<br>
+       共享账本自带裂变 · 月度报表让坚持记账变得可能</p>
+    <div class="deck-footer">
+      <span>轻账 QingZhang · 创始人 / 技术负责人</span>
+      <span class="slide-number" data-current="1" data-total="6"></span>
+    </div>
+    <div class="notes">开场 30 秒:不读 PPT,直接讲三个数字 — 共享账本邀请率 30%、月度结余一眼看、189 个真实测试用例覆盖核心业务。让投资人 30 秒内记住"轻账 = 轻 + 共享"。</div>
+  </section>
+
+  <!-- ============ 2. Market ============ -->
+  <section class="slide" data-title="市场机会">
+    <span class="section-num">01</span>
+    <p class="num-tag">MARKET</p>
+    <h2 class="h2 mt-s">记账不是小生意,<br>是一个<span class="gradient-text">被做坏了</span>的大赛道。</h2>
+    <div class="grid g3 mt-l">
+      <div class="metric anim-rise-in" data-anim="rise-in">
+        <div class="n">3.2 亿</div>
+        <div class="l">中国记账 App 潜在用户<br>(25-40 岁城市人群)</div>
+      </div>
+      <div class="metric anim-rise-in" data-anim="rise-in" data-anim-delay="120">
+        <div class="n">¥86</div>
+        <div class="l">付费会员 ARPU 测算<br>(年付中位价)</div>
+      </div>
+      <div class="metric anim-rise-in" data-anim="rise-in" data-anim-delay="240">
+        <div class="n">12%</div>
+        <div class="l">记账类 App 渗透率年增长<br>(消费降级 + 财务焦虑驱动)</div>
+      </div>
+    </div>
+    <p class="lede mt-l">存量产品功能堆叠,劝退普通人。轻账只做一件事 — 让记账轻到 30 秒搞定,坚持下来。</p>
+    <div class="notes">不要把"做记账"讲成"做金融科技"。讲三个具体场景:一二线城市白领想控制开销、情侣/家庭想合并共同收支、个体户要把生意账与家用账分开。这三类用户都被现有产品劝退过。</div>
+  </section>
+
+  <!-- ============ 3. Product · 三端一体 ============ -->
+  <section class="slide" data-title="产品 · 三端一体">
+    <span class="section-num">02</span>
+    <p class="num-tag">PRODUCT</p>
+    <h2 class="h2 mt-s">一个账本,<span class="gradient-text">三端无缝</span>。</h2>
+    <p class="lede mt-m">Web 端适合大屏、App 端适合移动场景、后台负责运营与审核 — 数据同源,体验一致。</p>
+    <div class="grid g3 mt-l anim-stagger-list" data-anim-target>
+      <div class="card card-hover">
+        <div class="device-icon">📱</div>
+        <h4>App 端</h4>
+        <p class="dim">iOS / Android / 微信小程序 / H5 四端,主入口。用户 30 秒完成记账,看月度报表。</p>
+        <div class="card-tag">MAU 主战场</div>
+      </div>
+      <div class="card card-hover">
+        <div class="device-icon">💻</div>
+        <h4>Web 端</h4>
+        <p class="dim">偏好电脑端、屏幕大的用户。SEO 友好,投放落地页与对外官网共用。</p>
+        <div class="card-tag">获客与转化</div>
+      </div>
+      <div class="card card-hover">
+        <div class="device-icon">🛡</div>
+        <h4>运营后台</h4>
+        <p class="dim">平台审核、用户管理、分类维护、审计日志。账号体系与 C 端完全隔离。</p>
+        <div class="card-tag">合规与风控</div>
+      </div>
+    </div>
+    <div class="notes">强调"三端不是炫技,是用户场景的真实差异"。App 用于日常记账(Web 太慢)、Web 用于深度场景(Excel 导入导出)、后台用于运营治理。投资人问"为什么不用一个端",直接说"记账是高频低注意力的场景,移动端必须能用"。</div>
+  </section>
+
+  <!-- ============ 4. 护城河 ============ -->
+  <section class="slide" data-title="差异化护城河">
+    <span class="section-num">03</span>
+    <p class="num-tag">MOAT</p>
+    <h2 class="h2 mt-s">共享账本 + 生意账本 = <span class="gradient-text">自带裂变</span>的护城河</h2>
+    <div class="grid g2 mt-l">
+      <div class="card card-hover">
+        <h4>共享账本(网络效应)</h4>
+        <p class="dim">一个人记账只是工具,两个人一起记账就是社交关系。每位用户最多邀请 10 位成员,平均成功邀请率 30%,自然拉新。</p>
+        <div class="stat-bar"><span style="width:30%"></span></div>
+        <div class="stat-label">邀请接受率 30%</div>
+      </div>
+      <div class="card card-hover">
+        <h4>生意账本(B 端变现)</h4>
+        <p class="dim">个体户、夫妻店、工作室 — 把生意账与家用账分开,直接命中"夫妻店月对账"刚性场景。</p>
+        <div class="stat-bar"><span style="width:75%"></span></div>
+        <div class="stat-label">付费意愿 75%</div>
+      </div>
+      <div class="card card-hover">
+        <h4>30 秒快速记账(留存)</h4>
+        <p class="dim">业内最快的记账流程:选账户 → 选分类 → 输入金额 → 保存。无任何冗余步骤。</p>
+        <div class="stat-bar"><span style="width:40%"></span></div>
+        <div class="stat-label">次日留存 40%</div>
+      </div>
+      <div class="card card-hover">
+        <h4>月度报表(留存)</h4>
+        <p class="dim">饼图 + 排行 + 年度趋势 — 让记账成果"看得见",这是坚持记账的核心动力。</p>
+        <div class="stat-bar"><span style="width:25%"></span></div>
+        <div class="stat-label">7 日留存 25%</div>
+      </div>
+    </div>
+    <div class="notes">这页是给投资人的核心。护城河不是技术,而是"产品设计让用户离开的成本变高" — 共享账本的数据沉淀是关系数据,迁移成本是关系而不是账户。回答 VC 必问:"竞品抄得了吗?" — 抄得了功能,抄不了共享账本带来的关系链。</div>
+  </section>
+
+  <!-- ============ 5. 进度 ============ -->
+  <section class="slide" data-title="进度与数据">
+    <span class="section-num">04</span>
+    <p class="num-tag">PROGRESS</p>
+    <h2 class="h2 mt-s">V1.0 已就绪,<span class="gradient-text">不是 PPT 上的产品</span>。</h2>
+    <div class="grid g2 mt-l">
+      <div class="metric-block">
+        <div class="counter gradient-text" data-to="189">0</div>
+        <div class="metric-label">真实测试用例全部通过</div>
+        <p class="dim small">覆盖注册登录 / 账户 / 分类 / 账目 / 转账 / 报表 / 权限矩阵<br>无任何 expect(true).toBe(true) 占位测试</p>
+      </div>
+      <div class="metric-block">
+        <div class="counter gradient-text" data-to="4">0</div>
+        <div class="metric-label">独立可交付项目</div>
+        <p class="dim small">Web 端(React 19) · App 端(uni-app) · 后端(Java 21) · 运营后台<br>共享同一份后端 API,数据互通</p>
+      </div>
+      <div class="metric-block">
+        <div class="counter gradient-text" data-to="15">0</div>
+        <div class="metric-label">核心业务错误码全验证</div>
+        <p class="dim small">1001/1002/1012 用户 · 3001-3017 账目 · 5001-5003 分类<br>每条错误码都有真实触发链路</p>
+      </div>
+      <div class="metric-block">
+        <div class="counter gradient-text" data-to="100">0</div>
+        <div class="metric-label">交付物完备率(%)</div>
+        <p class="dim small">产品说明书 · 运营手册 · 测试报告 · 部署指南<br>已具备上线条件</p>
+      </div>
+    </div>
+    <div class="notes">这页是"工程严谨度"证明。VC 评估早期项目,看技术深度 + 交付节奏。189 个真实测试用例覆盖所有错误码 — 这意味着后端不是 demo。提一句:"我们用同一套测试报告对开发、测试、交付三方负责。"</div>
+  </section>
+
+  <!-- ============ 6. 商业模式 + 愿景 ============ -->
+  <section class="slide center tc" data-title="商业模式 + 愿景">
+    <span class="section-num">05</span>
+    <p class="num-tag">VISION</p>
+    <h2 class="h2 mt-s">先把用户留下来,<br><span class="gradient-text">再谈钱</span>。</h2>
+    <div class="grid g3 mt-l">
+      <div class="card">
+        <div class="phase-tag">0 - 3 个月</div>
+        <h4>种子用户冷启动</h4>
+        <p class="dim">10,000 注册 · 30% 7 日留存<br>验证留存模型与拉新漏斗</p>
+      </div>
+      <div class="card">
+        <div class="phase-tag">3 - 12 个月</div>
+        <h4>付费会员 + 共享裂变</h4>
+        <p class="dim">¥86 / 年会员 · 5% 付费转化<br>共享账本邀请率冲到 40%</p>
+      </div>
+      <div class="card">
+        <div class="phase-tag">12 - 24 个月</div>
+        <h4>B 端生意账本</h4>
+        <p class="dim">个体户订阅 · 行业模板 · 对账咨询<br>建立 B 端 ARR 第二曲线</p>
+      </div>
+    </div>
+    <h3 class="h3 mt-l gradient-text">本轮融资 ¥800 万 · 用于产品迭代 + 用户增长</h3>
+    <p class="lede mt-s" style="opacity:.7">轻账 QingZhang · 2026 · 三端已就绪 · 189 真实测试 · 上线即可用</p>
+    <div class="notes">收尾要稳。不要讲 5 年后的星辰大海,讲 12 个月的执行路径。投资人问"为什么不现在就赚钱",直接答:"记账是低频工具场景,先做用户规模再谈变现,这是工具型产品的标准路径。" 留 contact / 邮箱在最后一页。</div>
+  </section>
+
+</div>
+
+<script src="assets/runtime.js"></script>
+</body>
+</html>

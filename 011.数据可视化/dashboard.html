@@ -1,0 +1,649 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>轻账 · 个人财务数据可视化看板</title>
+<script src="https://cdn.jsdelivr.net/npm/echarts@5.5.0/dist/echarts.min.js"></script>
+<style>
+:root{
+  --navy:#0E1530; --navy-2:#181F3F; --navy-3:#222B5E;
+  --gold:#F0B500; --gold-2:#FFD56B; --red:#E63946; --green:#4CD97C;
+  --white:#FFFFFF; --dim:#A8B0C8; --dim2:#707898;
+  --line:rgba(255,255,255,.06);
+}
+*{box-sizing:border-box;margin:0;padding:0}
+html,body{background:var(--navy);color:var(--white);font-family:"PingFang SC","Microsoft YaHei",-apple-system,BlinkMacSystemFont,sans-serif;
+  font-weight:300;letter-spacing:-.01em;min-height:100vh}
+.wrap{max-width:1480px;margin:0 auto;padding:32px 40px 80px}
+
+/* ====== Header ====== */
+.hdr{display:flex;align-items:flex-end;justify-content:space-between;margin-bottom:36px;padding-bottom:24px;border-bottom:1px solid var(--line)}
+.hdr h1{font-size:34px;font-weight:600;color:var(--white);letter-spacing:-.02em}
+.hdr .sub{font-size:13px;color:var(--dim);margin-top:8px;font-weight:300}
+.hdr .badge{display:inline-block;padding:4px 12px;border:1px solid var(--gold);color:var(--gold);
+  font-size:11px;border-radius:999px;font-weight:500;letter-spacing:.1em;margin-bottom:10px}
+
+/* ====== KPI ====== */
+.kpi{display:grid;grid-template-columns:repeat(5,1fr);gap:16px;margin-bottom:28px}
+.kpi .card{background:linear-gradient(135deg,var(--navy-2) 0%,var(--navy-3) 100%);
+  border:1px solid var(--line);border-radius:12px;padding:20px 22px;position:relative;overflow:hidden}
+.kpi .card::before{content:"";position:absolute;top:0;left:0;right:0;height:3px;background:var(--gold)}
+.kpi .card.green::before{background:var(--green)}
+.kpi .card.red::before{background:var(--red)}
+.kpi .label{font-size:11px;color:var(--dim);letter-spacing:.12em;text-transform:uppercase;margin-bottom:10px}
+.kpi .v{font-size:30px;font-weight:600;color:var(--white);font-family:"SF Mono","Helvetica Neue",monospace;letter-spacing:-.02em;line-height:1.1}
+.kpi .v.gold{color:var(--gold)}
+.kpi .v.green{color:var(--green)}
+.kpi .v.red{color:var(--red)}
+.kpi .hint{font-size:11px;color:var(--dim2);margin-top:6px}
+
+/* ====== Grid ====== */
+.grid{display:grid;gap:18px;margin-bottom:18px}
+.r2{grid-template-columns:1fr 1fr}
+.r3{grid-template-columns:1.4fr 1fr 1fr}
+.r12{grid-template-columns:2fr 1fr}
+
+/* ====== Chart card ====== */
+.c{background:var(--navy-2);border:1px solid var(--line);border-radius:14px;padding:20px 24px 16px}
+.c h3{font-size:14px;color:var(--white);font-weight:500;margin-bottom:4px;letter-spacing:-.01em}
+.c .ctip{font-size:11px;color:var(--dim2);margin-bottom:12px;font-weight:300}
+.c .chart{width:100%;height:340px}
+.c .chart.tall{height:380px}
+.c .chart.short{height:280px}
+
+/* ====== Footer ====== */
+.ftr{margin-top:48px;padding-top:24px;border-top:1px solid var(--line);
+  display:flex;justify-content:space-between;color:var(--dim2);font-size:11px}
+
+/* ====== Responsive ====== */
+@media (max-width: 1100px){
+  .kpi{grid-template-columns:repeat(3,1fr)}
+  .r2,.r3,.r12{grid-template-columns:1fr}
+}
+@media (max-width: 600px){
+  .kpi{grid-template-columns:repeat(2,1fr)}
+  .wrap{padding:20px}
+}
+</style>
+</head>
+<body>
+<div class="wrap">
+
+  <!-- Header -->
+  <div class="hdr">
+    <div>
+      <span class="badge">QingZhang · DASHBOARD</span>
+      <h1>个人财务数据可视化看板</h1>
+      <p class="sub">覆盖 <b id="sub-range" style="color:var(--gold)">…</b> · 共 <b id="sub-count" style="color:var(--gold)">…</b> 条交易记录</p>
+    </div>
+    <div style="text-align:right;color:var(--dim2);font-size:12px;font-weight:300">
+      数据源:轻账-全部数据-2026-08-28.xlsx<br>
+      渲染:ECharts 5 · 2026-09-05
+    </div>
+  </div>
+
+  <!-- KPI -->
+  <div class="kpi">
+    <div class="card">
+      <div class="label">总交易笔数</div>
+      <div class="v" id="kpi-cnt">—</div>
+      <div class="hint" id="kpi-span">—</div>
+    </div>
+    <div class="card red">
+      <div class="label">总支出 (CNY)</div>
+      <div class="v red" id="kpi-exp">—</div>
+      <div class="hint" id="kpi-exp-avg">—</div>
+    </div>
+    <div class="card green">
+      <div class="label">总收入 (CNY)</div>
+      <div class="v green" id="kpi-inc">—</div>
+      <div class="hint" id="kpi-inc-avg">—</div>
+    </div>
+    <div class="card">
+      <div class="label">净结余 (CNY)</div>
+      <div class="v gold" id="kpi-net">—</div>
+      <div class="hint">收入 - 支出</div>
+    </div>
+    <div class="card">
+      <div class="label">储蓄率</div>
+      <div class="v gold" id="kpi-rate">—</div>
+      <div class="hint">结余 / 收入</div>
+    </div>
+  </div>
+
+  <!-- Row 1: 月度趋势 + 收入分类饼图 -->
+  <div class="grid r12">
+    <div class="c">
+      <h3>月度收支趋势 · 60 个月</h3>
+      <p class="ctip">蓝色柱:月支出 · 绿色柱:月收入 · 红线:月储蓄(收入-支出) · 灰线:交易笔数</p>
+      <div id="c-trend" class="chart tall"></div>
+    </div>
+    <div class="c">
+      <h3>收入构成</h3>
+      <p class="ctip">红包 / 理财 / 工资 / 兼职 / 其他</p>
+      <div id="c-inc" class="chart tall"></div>
+    </div>
+  </div>
+
+  <!-- Row 2: 分类堆叠 + 支出分类饼 -->
+  <div class="grid r12">
+    <div class="c">
+      <h3>支出分类趋势 · TOP 6 堆叠</h3>
+      <p class="ctip">按月累计 · 看哪个分类在膨胀</p>
+      <div id="c-stack" class="chart tall"></div>
+    </div>
+    <div class="c">
+      <h3>支出分类构成</h3>
+      <p class="ctip">全周期累计 · 餐饮占大头</p>
+      <div id="c-cat-exp" class="chart tall"></div>
+    </div>
+  </div>
+
+  <!-- Row 3: 账户分布 + 账户笔数 -->
+  <div class="grid r2">
+    <div class="c">
+      <h3>账户支出分布</h3>
+      <p class="ctip">5 个账户,谁花得多</p>
+      <div id="c-acc-exp" class="chart"></div>
+    </div>
+    <div class="c">
+      <h3>账户使用频次</h3>
+      <p class="ctip">每账户的交易笔数</p>
+      <div id="c-acc-cnt" class="chart"></div>
+    </div>
+  </div>
+
+  <!-- Row 4: 年度对比 -->
+  <div class="grid r2">
+    <div class="c">
+      <h3>年度收支对比</h3>
+      <p class="ctip">蓝色:支出 · 绿色:收入 · 红色折线:净储蓄</p>
+      <div id="c-year" class="chart"></div>
+    </div>
+    <div class="c">
+      <h3>年度交易笔数</h3>
+      <p class="ctip">每年记账活跃度</p>
+      <div id="c-year-cnt" class="chart"></div>
+    </div>
+  </div>
+
+  <!-- Row 5: 周内分布 + 月内日期分布 -->
+  <div class="grid r2">
+    <div class="c">
+      <h3>一周内哪天最爱花钱</h3>
+      <p class="ctip">蓝色柱:笔数 · 红色折线:金额</p>
+      <div id="c-weekday" class="chart"></div>
+    </div>
+    <div class="c">
+      <h3>月内日期分布</h3>
+      <p class="ctip">每月的哪几天记账最频繁</p>
+      <div id="c-dom" class="chart"></div>
+    </div>
+  </div>
+
+  <!-- Row 6: 热力图 (大) -->
+  <div class="grid">
+    <div class="c">
+      <h3>月度活跃热力图 · 60 个月 × 31 天</h3>
+      <p class="ctip">越亮 = 当天交易越多 · 月初月末通常是高亮区</p>
+      <div id="c-heat" class="chart tall"></div>
+    </div>
+  </div>
+
+  <!-- Row 7: 备注关键词 + 大额交易 -->
+  <div class="grid r2">
+    <div class="c">
+      <h3>备注关键词 TOP 20</h3>
+      <p class="ctip">从 3000+ 条备注里提取的高频词</p>
+      <div id="c-kw" class="chart tall"></div>
+    </div>
+    <div class="c">
+      <h3>单笔最大 TOP 10</h3>
+      <p class="ctip">最烧钱的 10 笔交易</p>
+      <div id="c-big" class="chart tall"></div>
+    </div>
+  </div>
+
+  <!-- Footer -->
+  <div class="ftr">
+    <span>轻账 QingZhang · 个人财务看板 · 数据来源:轻账-全部数据-2026-08-28.xlsx</span>
+    <span>按 ← → 键浏览 · 鼠标悬浮查看数值</span>
+  </div>
+
+</div>
+
+<script>
+/* ===== Data loading ===== */
+fetch('./chart_data.json')
+  .then(r => r.json())
+  .then(D => {
+    initKPIs(D);
+    drawTrend(D);
+    drawInc(D);
+    drawStack(D);
+    drawCatExp(D);
+    drawAccExp(D);
+    drawAccCnt(D);
+    drawYear(D);
+    drawYearCnt(D);
+    drawWeekday(D);
+    drawDom(D);
+    drawHeat(D);
+    drawKw(D);
+    drawBig(D);
+  })
+  .catch(err => {
+    document.body.innerHTML = '<div style="color:#E63946;padding:60px;text-align:center">数据加载失败:'
+      + err + '<br><br>请确认 chart_data.json 与本 HTML 在同一目录,并通过 HTTP 服务访问 (不能 file://)</div>';
+  });
+
+/* ===== Theme tokens ===== */
+const C = {
+  bg:'transparent', txt:'#FFFFFF', txt2:'#A8B0C8', txt3:'#707898',
+  gold:'#F0B500', gold2:'#FFD56B', red:'#E63946', green:'#4CD97C',
+  blue:'#58A6FF', purple:'#BC8CFF',
+  line:'rgba(255,255,255,.06)', gridLine:'rgba(255,255,255,.06)',
+  palette:['#F0B500','#E63946','#4CD97C','#58A6FF','#BC8CFF','#FF9F4D','#36C5F0','#FF6B9D'],
+};
+
+function fmtMoney(n){ return '¥' + Number(n).toLocaleString('zh-CN',{minimumFractionDigits:0,maximumFractionDigits:0}); }
+function baseOpt(){
+  return {
+    textStyle:{ color:C.txt, fontFamily:'PingFang SC,Microsoft YaHei,sans-serif' },
+    backgroundColor:C.bg,
+  };
+}
+function gridOpt(left=60,right=30,bottom=40,top=20){
+  return { left, right, bottom, top, containLabel:true };
+}
+function tooltipOpt(){
+  return {
+    backgroundColor:'rgba(20,22,40,.95)', borderColor:'rgba(255,255,255,.1)', borderWidth:1,
+    textStyle:{ color:C.txt, fontSize:12 }, padding:10, extraCssText:'box-shadow:0 8px 24px rgba(0,0,0,.4);backdrop-filter:blur(8px);'
+  };
+}
+
+/* ===== Init KPIs ===== */
+function initKPIs(D){
+  document.getElementById('sub-range').textContent = `${D.kpi.date_min} ~ ${D.kpi.date_max}`;
+  document.getElementById('sub-count').textContent = D.kpi.total_records.toLocaleString();
+  document.getElementById('kpi-cnt').textContent = D.kpi.total_records.toLocaleString();
+  document.getElementById('kpi-span').textContent = `跨 ${D.kpi.months_span} 个月`;
+  document.getElementById('kpi-exp').textContent = fmtMoney(D.kpi.total_expense);
+  document.getElementById('kpi-exp-avg').textContent = `月均 ${fmtMoney(D.kpi.avg_month_exp)}`;
+  document.getElementById('kpi-inc').textContent = fmtMoney(D.kpi.total_income);
+  document.getElementById('kpi-inc-avg').textContent = `月均 ${fmtMoney(D.kpi.avg_month_inc)}`;
+  document.getElementById('kpi-net').textContent = fmtMoney(D.kpi.net_savings);
+  const rate = D.kpi.total_income > 0 ? (D.kpi.net_savings / D.kpi.total_income * 100).toFixed(1) : 0;
+  document.getElementById('kpi-rate').textContent = rate + '%';
+}
+
+/* ===== 1. 月度趋势 ===== */
+function drawTrend(D){
+  const chart = echarts.init(document.getElementById('c-trend'), null, {renderer:'canvas'});
+  const months = D.trend.months;
+  const net = D.trend.income.map((v,i)=> +(v - D.trend.expense[i]).toFixed(2));
+  chart.setOption({
+    ...baseOpt(),
+    tooltip: { ...tooltipOpt(), trigger:'axis', axisPointer:{ type:'shadow' } },
+    legend:{ textStyle:{color:C.txt2}, top:0, right:0, data:['月支出','月收入','月净储蓄','笔数'] },
+    grid: gridOpt(60,30,60,40),
+    xAxis: {
+      type:'category', data: months,
+      axisLine:{ lineStyle:{color:C.gridLine} },
+      axisLabel:{ color:C.txt2, fontSize:10, rotate: months.length>30?45:0, interval: months.length>30?2:5 },
+    },
+    yAxis: [
+      { type:'value', name:'金额 (¥)', position:'left',
+        axisLine:{ lineStyle:{color:C.gridLine} }, splitLine:{ lineStyle:{color:C.gridLine} },
+        axisLabel:{ color:C.txt2, fontSize:10, formatter:v=>v>=1000?(v/1000)+'k':v } },
+      { type:'value', name:'笔数', position:'right',
+        axisLine:{ lineStyle:{color:C.gridLine} }, splitLine:{ show:false },
+        axisLabel:{ color:C.txt2, fontSize:10 } },
+    ],
+    dataZoom: [
+      { type:'inside', start: 70, end: 100 },
+      { type:'slider', height:18, bottom:10, start:70, end:100, fillerColor:'rgba(240,181,0,.15)', borderColor:'rgba(240,181,0,.3)',
+        textStyle:{color:C.txt2,fontSize:10}, handleStyle:{color:C.gold} },
+    ],
+    series: [
+      { name:'月支出', type:'bar', data: D.trend.expense, itemStyle:{ color: 'rgba(88,166,255,.65)' }, barWidth:'50%' },
+      { name:'月收入', type:'bar', data: D.trend.income,  itemStyle:{ color: 'rgba(76,217,124,.65)' }, barWidth:'50%' },
+      { name:'月净储蓄', type:'line', data: net, smooth:true, symbol:'circle', symbolSize:5,
+        itemStyle:{ color:C.red }, lineStyle:{ width:2 } },
+      { name:'笔数', type:'line', yAxisIndex:1, data: D.trend.count, smooth:true,
+        symbol:'none', itemStyle:{ color:C.txt3 }, lineStyle:{ width:1, type:'dashed' } },
+    ],
+  });
+  window.addEventListener('resize', ()=>chart.resize());
+}
+
+/* ===== 2. 收入构成 ===== */
+function drawInc(D){
+  const chart = echarts.init(document.getElementById('c-inc'));
+  chart.setOption({
+    ...baseOpt(),
+    tooltip: { ...tooltipOpt(), trigger:'item', formatter: p => `${p.name}<br>¥${p.value.toLocaleString()} (${p.percent}%)` },
+    legend:{ textStyle:{color:C.txt2}, bottom:0, icon:'circle' },
+    series: [{
+      type:'pie', radius:['45%','72%'], center:['50%','45%'],
+      itemStyle:{ borderColor:C.navy2||'#181F3F', borderWidth:3 },
+      label:{ color:C.txt, fontSize:11, formatter:'{b}\n{d}%' },
+      labelLine:{ lineStyle:{ color:C.txt3 } },
+      data: D.cat_inc.map((d,i)=>({ ...d, itemStyle:{ color:C.palette[i%C.palette.length] } })),
+    }],
+  });
+  window.addEventListener('resize', ()=>chart.resize());
+}
+
+/* ===== 3. 支出堆叠 ===== */
+function drawStack(D){
+  const chart = echarts.init(document.getElementById('c-stack'));
+  const months = D.stacked.months;
+  const cats = Object.keys(D.stacked).filter(k=>k!=='months');
+  chart.setOption({
+    ...baseOpt(),
+    tooltip: { ...tooltipOpt(), trigger:'axis', axisPointer:{ type:'shadow' } },
+    legend:{ textStyle:{color:C.txt2}, top:0, right:0 },
+    grid: gridOpt(60,30,60,40),
+    xAxis: {
+      type:'category', data: months,
+      axisLine:{ lineStyle:{color:C.gridLine} },
+      axisLabel:{ color:C.txt2, fontSize:10, rotate:45, interval:2 },
+    },
+    yAxis: {
+      type:'value',
+      axisLine:{ lineStyle:{color:C.gridLine} }, splitLine:{ lineStyle:{color:C.gridLine} },
+      axisLabel:{ color:C.txt2, fontSize:10, formatter:v=>v>=1000?(v/1000)+'k':v },
+    },
+    dataZoom: [
+      { type:'inside', start:70, end:100 },
+      { type:'slider', height:18, bottom:10, start:70, end:100, fillerColor:'rgba(240,181,0,.15)', borderColor:'rgba(240,181,0,.3)',
+        textStyle:{color:C.txt2,fontSize:10}, handleStyle:{color:C.gold} },
+    ],
+    series: cats.map((c,i)=>({
+      name:c, type:'bar', stack:'exp', barWidth:'60%',
+      itemStyle:{ color: C.palette[i%C.palette.length] },
+      emphasis:{ focus:'series' },
+      data: D.stacked[c],
+    })),
+  });
+  window.addEventListener('resize', ()=>chart.resize());
+}
+
+/* ===== 4. 支出分类饼 ===== */
+function drawCatExp(D){
+  const chart = echarts.init(document.getElementById('c-cat-exp'));
+  chart.setOption({
+    ...baseOpt(),
+    tooltip: { ...tooltipOpt(), trigger:'item', formatter: p => `${p.name}<br>¥${p.value.toLocaleString()} (${p.percent}%)` },
+    legend:{ textStyle:{color:C.txt2}, bottom:0, type:'scroll', icon:'circle' },
+    series: [{
+      type:'pie', radius:['40%','72%'], center:['50%','45%'],
+      itemStyle:{ borderColor:'#181F3F', borderWidth:3 },
+      label:{ color:C.txt, fontSize:11, formatter:'{b}\n¥{c}' },
+      labelLine:{ lineStyle:{ color:C.txt3 } },
+      data: D.cat_exp.map((d,i)=>({ ...d, itemStyle:{ color:C.palette[i%C.palette.length] } })),
+    }],
+  });
+  window.addEventListener('resize', ()=>chart.resize());
+}
+
+/* ===== 5. 账户支出 ===== */
+function drawAccExp(D){
+  const chart = echarts.init(document.getElementById('c-acc-exp'));
+  chart.setOption({
+    ...baseOpt(),
+    tooltip: { ...tooltipOpt(), trigger:'item', formatter: '{b}<br>¥{c} ({d}%)' },
+    legend:{ textStyle:{color:C.txt2}, bottom:0, icon:'circle' },
+    series: [{
+      type:'pie', radius:['45%','72%'],
+      itemStyle:{ borderColor:'#181F3F', borderWidth:3 },
+      label:{ color:C.txt, fontSize:12, formatter:'{b}\n{d}%' },
+      labelLine:{ lineStyle:{ color:C.txt3 } },
+      data: D.acc_exp.map((d,i)=>({ ...d, itemStyle:{ color:C.palette[i%C.palette.length] } })),
+    }],
+  });
+  window.addEventListener('resize', ()=>chart.resize());
+}
+
+/* ===== 6. 账户笔数 ===== */
+function drawAccCnt(D){
+  const chart = echarts.init(document.getElementById('c-acc-cnt'));
+  const names = D.acc_cnt.map(d=>d.name), vals = D.acc_cnt.map(d=>d.value);
+  chart.setOption({
+    ...baseOpt(),
+    tooltip: { ...tooltipOpt(), trigger:'axis', axisPointer:{type:'shadow'},
+      formatter: p => `${p[0].name}<br>${p[0].value} 笔` },
+    grid: gridOpt(80,30,30,20),
+    xAxis: { type:'value', axisLine:{lineStyle:{color:C.gridLine}}, splitLine:{lineStyle:{color:C.gridLine}},
+      axisLabel:{color:C.txt2, fontSize:10} },
+    yAxis: { type:'category', data: names, axisLine:{lineStyle:{color:C.gridLine}},
+      axisLabel:{color:C.txt2, fontSize:11} },
+    series: [{
+      type:'bar', data: vals, barWidth:'50%',
+      itemStyle:{
+        color: (p)=> new echarts.graphic.LinearGradient(0,0,1,0,[
+          {offset:0,color:'rgba(240,181,0,.3)'},{offset:1,color:C.gold}
+        ]),
+        borderRadius:[0,4,4,0],
+      },
+      label:{ show:true, position:'right', color:C.txt, fontSize:11, formatter:'{c} 笔' },
+    }],
+  });
+  window.addEventListener('resize', ()=>chart.resize());
+}
+
+/* ===== 7. 年度对比 ===== */
+function drawYear(D){
+  const chart = echarts.init(document.getElementById('c-year'));
+  chart.setOption({
+    ...baseOpt(),
+    tooltip: { ...tooltipOpt(), trigger:'axis', axisPointer:{type:'shadow'} },
+    legend:{ textStyle:{color:C.txt2}, top:0, right:0, data:['支出','收入','净储蓄'] },
+    grid: gridOpt(60,30,40,40),
+    xAxis: { type:'category', data: D.yearly.years,
+      axisLine:{lineStyle:{color:C.gridLine}}, axisLabel:{color:C.txt2,fontSize:11} },
+    yAxis: { type:'value',
+      axisLine:{lineStyle:{color:C.gridLine}}, splitLine:{lineStyle:{color:C.gridLine}},
+      axisLabel:{color:C.txt2,fontSize:10, formatter:v=>v>=1000?(v/1000)+'k':v} },
+    series: [
+      { name:'支出', type:'bar', data: D.yearly.expense, itemStyle:{color:'rgba(88,166,255,.7)'}, barGap:0 },
+      { name:'收入', type:'bar', data: D.yearly.income,  itemStyle:{color:'rgba(76,217,124,.7)'} },
+      { name:'净储蓄', type:'line', data: D.yearly.net, smooth:true,
+        itemStyle:{color:C.red}, lineStyle:{width:2.5}, symbol:'circle', symbolSize:8 },
+    ],
+  });
+  window.addEventListener('resize', ()=>chart.resize());
+}
+
+/* ===== 8. 年度笔数 ===== */
+function drawYearCnt(D){
+  const chart = echarts.init(document.getElementById('c-year-cnt'));
+  chart.setOption({
+    ...baseOpt(),
+    tooltip: { ...tooltipOpt(), trigger:'axis', axisPointer:{type:'shadow'} },
+    grid: gridOpt(50,30,30,30),
+    xAxis: { type:'category', data: D.yearly.years,
+      axisLine:{lineStyle:{color:C.gridLine}}, axisLabel:{color:C.txt2,fontSize:11} },
+    yAxis: { type:'value', name:'笔', axisLine:{lineStyle:{color:C.gridLine}},
+      splitLine:{lineStyle:{color:C.gridLine}}, axisLabel:{color:C.txt2,fontSize:10} },
+    series: [{
+      type:'bar', data: D.yearly.count, barWidth:'55%',
+      itemStyle:{
+        color: (p)=>{
+          const colors = ['#F0B500','#E63946','#4CD97C','#58A6FF','#BC8CFF','#FF9F4D'];
+          return colors[p.dataIndex % colors.length];
+        },
+        borderRadius:[4,4,0,0],
+      },
+      label:{ show:true, position:'top', color:C.txt, fontSize:11, formatter:'{c}' },
+    }],
+  });
+  window.addEventListener('resize', ()=>chart.resize());
+}
+
+/* ===== 9. 周内分布 ===== */
+function drawWeekday(D){
+  const chart = echarts.init(document.getElementById('c-weekday'));
+  chart.setOption({
+    ...baseOpt(),
+    tooltip: { ...tooltipOpt(), trigger:'axis' },
+    legend:{ textStyle:{color:C.txt2}, top:0, right:0, data:['笔数','金额'] },
+    grid: gridOpt(50,30,30,40),
+    xAxis: { type:'category', data: D.weekday.labels,
+      axisLine:{lineStyle:{color:C.gridLine}}, axisLabel:{color:C.txt2,fontSize:11} },
+    yAxis: [
+      { type:'value', name:'笔', axisLine:{lineStyle:{color:C.gridLine}}, splitLine:{lineStyle:{color:C.gridLine}},
+        axisLabel:{color:C.txt2,fontSize:10} },
+      { type:'value', name:'¥', position:'right',
+        axisLine:{lineStyle:{color:C.gridLine}}, splitLine:{show:false},
+        axisLabel:{color:C.txt2,fontSize:10, formatter:v=>v>=1000?(v/1000)+'k':v} },
+    ],
+    series: [
+      { name:'笔数', type:'bar', data: D.weekday.count, barWidth:'50%',
+        itemStyle:{color:'rgba(88,166,255,.7)',borderRadius:[4,4,0,0]} },
+      { name:'金额', type:'line', yAxisIndex:1, data: D.weekday.amount, smooth:true,
+        itemStyle:{color:C.red}, lineStyle:{width:2.5}, symbol:'circle', symbolSize:8 },
+    ],
+  });
+  window.addEventListener('resize', ()=>chart.resize());
+}
+
+/* ===== 10. 月内日期分布 ===== */
+function drawDom(D){
+  const chart = echarts.init(document.getElementById('c-dom'));
+  chart.setOption({
+    ...baseOpt(),
+    tooltip: { ...tooltipOpt(), trigger:'axis', axisPointer:{type:'shadow'} },
+    grid: gridOpt(50,20,30,30),
+    xAxis: { type:'category', data: D.dom.days,
+      axisLine:{lineStyle:{color:C.gridLine}}, axisLabel:{color:C.txt2,fontSize:10} },
+    yAxis: { type:'value', axisLine:{lineStyle:{color:C.gridLine}},
+      splitLine:{lineStyle:{color:C.gridLine}}, axisLabel:{color:C.txt2,fontSize:10} },
+    series: [{
+      type:'bar', data: D.dom.count, barWidth:'80%',
+      itemStyle:{
+        color: (p)=> {
+          // 月初月末用金色,中间用蓝色
+          const d = p.dataIndex + 1;
+          if (d<=5 || d>=27) return C.gold;
+          return 'rgba(88,166,255,.7)';
+        },
+        borderRadius:[3,3,0,0],
+      },
+    }],
+  });
+  window.addEventListener('resize', ()=>chart.resize());
+}
+
+/* ===== 11. 热力图 ===== */
+function drawHeat(D){
+  const chart = echarts.init(document.getElementById('c-heat'));
+  const months = D.trend.months;
+  const days = Array.from({length:31},(_,i)=>i+1);
+  // data: [dayIdx, monthIdx, count]
+  const data = D.heatmap.map(([d,m])=>{
+    const mi = months.indexOf(m);
+    return [d-1, mi, 1];
+  });
+  const maxV = data.reduce((m,[,,v])=>Math.max(m,v),1);
+  chart.setOption({
+    ...baseOpt(),
+    tooltip: {
+      ...tooltipOpt(),
+      position:'top',
+      formatter: p => `${months[p.value[1]]} - ${p.value[0]+1} 日<br>${p.value[2]} 笔交易`,
+    },
+    grid: gridOpt(80,10,80,10),
+    xAxis: {
+      type:'category', data: months,
+      splitArea:{show:true, areaStyle:{color:['transparent']}},
+      axisLine:{lineStyle:{color:C.gridLine}},
+      axisLabel:{color:C.txt2, fontSize:9, rotate:60, interval:0},
+    },
+    yAxis: {
+      type:'category', data: days,
+      splitArea:{show:true, areaStyle:{color:['transparent']}},
+      axisLine:{lineStyle:{color:C.gridLine}},
+      axisLabel:{color:C.txt2, fontSize:10, formatter:v=>v+'日'},
+    },
+    visualMap: {
+      min:0, max:maxV, calculable:true, orient:'horizontal',
+      left:'center', bottom:0,
+      textStyle:{color:C.txt2, fontSize:10},
+      inRange:{ color:['#181F3F','#3B5BDB','#58A6FF','#FFD56B','#F0B500','#E63946'] },
+    },
+    series: [{
+      name:'交易笔数', type:'heatmap', data,
+      label:{ show:false },
+      emphasis:{ itemStyle:{ shadowBlur:8, shadowColor:'rgba(0,0,0,.5)' } },
+    }],
+  });
+  window.addEventListener('resize', ()=>chart.resize());
+}
+
+/* ===== 12. 备注关键词 ===== */
+function drawKw(D){
+  const chart = echarts.init(document.getElementById('c-kw'));
+  const sorted = [...D.top_kw].reverse();  // 让最大的在最上面
+  chart.setOption({
+    ...baseOpt(),
+    tooltip: { ...tooltipOpt(), trigger:'axis', axisPointer:{type:'shadow'},
+      formatter: p => `${p[0].name}<br>出现 ${p[0].value} 次` },
+    grid: gridOpt(60,50,20,20),
+    xAxis: { type:'value', axisLine:{lineStyle:{color:C.gridLine}},
+      splitLine:{lineStyle:{color:C.gridLine}}, axisLabel:{color:C.txt2,fontSize:10} },
+    yAxis: { type:'category', data: sorted.map(d=>d.name),
+      axisLine:{lineStyle:{color:C.gridLine}}, axisLabel:{color:C.txt2,fontSize:11} },
+    series: [{
+      type:'bar', data: sorted.map(d=>d.value), barWidth:'60%',
+      itemStyle:{
+        color: (p)=>{
+          // 渐变金色
+          return new echarts.graphic.LinearGradient(0,0,1,0,[
+            {offset:0,color:'rgba(240,181,0,.3)'},{offset:1,color:C.gold}
+          ]);
+        },
+        borderRadius:[0,4,4,0],
+      },
+      label:{ show:true, position:'right', color:C.txt, fontSize:10, formatter:'{c}' },
+    }],
+  });
+  window.addEventListener('resize', ()=>chart.resize());
+}
+
+/* ===== 13. 大额 TOP 10 ===== */
+function drawBig(D){
+  const chart = echarts.init(document.getElementById('c-big'));
+  const sorted = [...D.big10].sort((a,b)=>a.amt-b.amt);  // bar 横向从大到小
+  chart.setOption({
+    ...baseOpt(),
+    tooltip: { ...tooltipOpt(), trigger:'axis', axisPointer:{type:'shadow'},
+      formatter: p => {
+        const d = sorted[p[0].dataIndex];
+        return `<b>${d.note || '(无备注)'}</b><br>${d.date} · ${d.cat}<br>¥${d.amt.toLocaleString()} · ${d.acc}`;
+      } },
+    grid: gridOpt(160,60,20,20),
+    xAxis: { type:'value', axisLine:{lineStyle:{color:C.gridLine}},
+      splitLine:{lineStyle:{color:C.gridLine}}, axisLabel:{color:C.txt2,fontSize:10, formatter:v=>v>=1000?(v/1000)+'k':v} },
+    yAxis: { type:'category', data: sorted.map(d=>d.note || d.cat),
+      axisLine:{lineStyle:{color:C.gridLine}},
+      axisLabel:{color:C.txt,fontSize:10, width:150, overflow:'truncate'} },
+    series: [{
+      type:'bar', data: sorted.map(d=>d.amt), barWidth:'60%',
+      itemStyle:{
+        color: (p)=> new echarts.graphic.LinearGradient(0,0,1,0,[
+          {offset:0,color:'rgba(230,57,70,.4)'},{offset:1,color:C.red}
+        ]),
+        borderRadius:[0,4,4,0],
+      },
+      label:{ show:true, position:'right', color:C.gold, fontSize:11, bold:true, formatter:'¥{c}' },
+    }],
+  });
+  window.addEventListener('resize', ()=>chart.resize());
+}
+</script>
+</body>
+</html>

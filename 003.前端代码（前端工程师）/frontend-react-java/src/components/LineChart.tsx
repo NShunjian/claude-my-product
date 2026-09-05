@@ -1,4 +1,4 @@
-import { useMemo, useRef, useState } from 'react'
+import { useLayoutEffect, useMemo, useRef, useState } from 'react'
 import { useLanguage } from '../i18n/LanguageContext'
 
 interface LineChartProps {
@@ -35,6 +35,8 @@ export function LineChart({
   const innerH = H - PADDING.top - PADDING.bottom
   const svgRef = useRef<SVGSVGElement>(null)
   const [hover, setHover] = useState<HoverInfo | null>(null)
+  // 记录 SVG 的实际渲染尺寸(viewport 像素),用来精确放置 tooltip
+  const [svgBox, setSvgBox] = useState<{ left: number; top: number; w: number; h: number } | null>(null)
 
   // 移动平均平滑（默认 5 天窗口），让稀疏数据呈现连续曲线
   const smoothed = useMemo(() => {
@@ -121,6 +123,22 @@ export function LineChart({
 
   const hoverData = hover ? smoothed[hover.idx] : null
   const hoverVbX = hover ? xFor(hover.idx + 1) : 0
+
+  // 每次 hover / resize 触发时,刷新 SVG 的 viewport 包围盒
+  useLayoutEffect(() => {
+    if (!svgRef.current) return
+    const update = () => {
+      const r = svgRef.current!.getBoundingClientRect()
+      setSvgBox({ left: r.left, top: r.top, w: r.width, h: r.height })
+    }
+    update()
+    window.addEventListener('resize', update)
+    window.addEventListener('scroll', update, true)
+    return () => {
+      window.removeEventListener('resize', update)
+      window.removeEventListener('scroll', update, true)
+    }
+  }, [hover])
 
   return (
     <div className="relative">
@@ -229,46 +247,54 @@ export function LineChart({
         )}
       </svg>
 
-      {/* Tooltip（HTML 覆盖层，跟随鼠标/触摸位置） */}
-      {hoverData && hover && (
-        <div
-          className="absolute pointer-events-none bg-bg-card border border-divider rounded-lg shadow-lg px-3 py-2 z-10 min-w-[120px]"
-          style={{
-            left:
-              hover.clientX && svgRef.current
-                ? `${hover.clientX - svgRef.current.getBoundingClientRect().left}px`
-                : 0,
-            top: `${(yFor(Math.max(hoverData.income, hoverData.expense)) / H) * 100}%`,
-            transform: 'translate(-50%, -110%)',
-          }}
-        >
-          <div className="font-bold text-text-primary text-xs mb-1">{hoverData.day}</div>
-          <div className="flex items-center gap-2 text-xs">
-            <span
-              className="inline-block w-2.5 h-2.5"
-              style={{
-                background: 'transparent',
-                border: `1.5px solid ${incomeColor}`,
-              }}
-            />
-            <span className="text-text-primary">
-              {t('chart.line.income')}: {Math.round(hoverData.income).toLocaleString('en-US')}
-            </span>
+      {/* Tooltip(HTML 覆盖层,使用 viewport 像素 + position:fixed,避开任何容器裁剪) */}
+      {hoverData && hover && svgBox && (() => {
+        const maxVal = Math.max(hoverData.income, hoverData.expense, 1)
+        // 数据点靠近顶部时,把 tooltip 翻到点的下方,避免被推到屏幕外
+        const isNearTop = maxVal / yMax > 0.7
+        // viewBox 坐标 → viewport 像素(viewBox 0..W/H → svgBox 包围盒)
+        const dataVbY = yFor(Math.min(maxVal, yMax))
+        const dataPxX = svgBox.left + (hoverVbX / W) * svgBox.w
+        const dataPxY = svgBox.top + (dataVbY / H) * svgBox.h
+        return (
+          <div
+            className="pointer-events-none bg-bg-card border border-divider rounded-lg shadow-lg px-3 py-2 z-50"
+            style={{
+              position: 'fixed',
+              left: `${dataPxX}px`,
+              top: isNearTop ? `${dataPxY + 18}px` : `${dataPxY - 14}px`,
+              transform: 'translateX(-50%)',
+              minWidth: '120px',
+            }}
+          >
+            <div className="font-bold text-text-primary text-xs mb-1">{hoverData.day}</div>
+            <div className="flex items-center gap-2 text-xs">
+              <span
+                className="inline-block w-2.5 h-2.5"
+                style={{
+                  background: 'transparent',
+                  border: `1.5px solid ${incomeColor}`,
+                }}
+              />
+              <span className="text-text-primary">
+                {t('chart.line.income')}: {Math.round(hoverData.income).toLocaleString('en-US')}
+              </span>
+            </div>
+            <div className="flex items-center gap-2 text-xs">
+              <span
+                className="inline-block w-2.5 h-2.5"
+                style={{
+                  background: 'transparent',
+                  border: `1.5px solid ${expenseColor}`,
+                }}
+              />
+              <span className="text-text-primary">
+                {t('chart.line.expense')}: {Math.round(hoverData.expense).toLocaleString('en-US')}
+              </span>
+            </div>
           </div>
-          <div className="flex items-center gap-2 text-xs">
-            <span
-              className="inline-block w-2.5 h-2.5"
-              style={{
-                background: 'transparent',
-                border: `1.5px solid ${expenseColor}`,
-              }}
-            />
-            <span className="text-text-primary">
-              {t('chart.line.expense')}: {Math.round(hoverData.expense).toLocaleString('en-US')}
-            </span>
-          </div>
-        </div>
-      )}
+        )
+      })()}
     </div>
   )
 }

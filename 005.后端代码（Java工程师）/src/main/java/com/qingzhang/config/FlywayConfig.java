@@ -2,6 +2,8 @@ package com.qingzhang.config;
 
 import com.baomidou.dynamic.datasource.DynamicRoutingDataSource;
 import org.flywaydb.core.Flyway;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Qualifier;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
@@ -22,6 +24,8 @@ import javax.sql.DataSource;
 @Configuration
 public class FlywayConfig {
 
+    private static final Logger log = LoggerFactory.getLogger(FlywayConfig.class);
+
     @Bean
     public Flyway masterFlyway(@Qualifier("dataSource") DataSource routingDs) {
         DataSource masterDs = ((DynamicRoutingDataSource) routingDs).getDataSource("master");
@@ -31,6 +35,12 @@ public class FlywayConfig {
                 .baselineOnMigrate(true)
                 .table("flyway_schema_history")
                 .load();
+        if (Boolean.getBoolean("qz.flyway.repair")) {
+            // 一次性:修本地 SQL 与 flyway_schema_history 里的 checksum 不一致。
+            // 启动时用 -Dqz.flyway.repair=true 触发,跑通后此 flag 可移除,这段代码保留作为兜底。
+            log.warn("qz.flyway.repair=true: 强制 repair,会静默接受 checksum mismatch,慎用");
+            fw.repair();
+        }
         fw.migrate();
         return fw;
     }
@@ -44,6 +54,10 @@ public class FlywayConfig {
                 .baselineOnMigrate(true)
                 .table("flyway_schema_history")
                 .load();
+        if (Boolean.getBoolean("qz.flyway.repair")) {
+            log.warn("qz.flyway.repair=true: 强制 repair,会静默接受 checksum mismatch,慎用");
+            fw.repair();
+        }
         fw.migrate();
         return fw;
     }

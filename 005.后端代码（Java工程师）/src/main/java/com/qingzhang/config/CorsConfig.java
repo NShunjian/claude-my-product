@@ -25,6 +25,9 @@ public class CorsConfig implements WebMvcConfigurer {
                         "http://127.0.0.1:5180",
                         "http://localhost:5181",
                         "http://127.0.0.1:5181",
+                        // VS Code Flutter 调试默认端口(flutter run -d chrome 不带 --web-port 时)
+                        "http://localhost:8080",
+                        "http://127.0.0.1:8080",
                         // 局域网访问(本机 IP:192.168.31.46;手机/平板通过此 URL 访问 dev)
                         "http://192.168.31.46:5173",
                         "http://192.168.31.46:5174",

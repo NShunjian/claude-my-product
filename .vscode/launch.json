@@ -1,0 +1,19 @@
+{
+    "version": "0.2.0",
+    "configurations": [
+        {
+            "name": "Flutter Web (Chrome) - 轻账",
+            "request": "launch",
+            "type": "dart",
+            "cwd": "${workspaceFolder}/007.跨端APP应用（移动端开发工程师）/flutter-project",
+            "program": "lib/main.dart"
+        },
+        {
+            "name": "Attach Chrome to :8080",
+            "request": "launch",
+            "type": "chrome",
+            "url": "http://localhost:8080",
+            "webRoot": "${workspaceFolder}"
+        }
+    ]
+}

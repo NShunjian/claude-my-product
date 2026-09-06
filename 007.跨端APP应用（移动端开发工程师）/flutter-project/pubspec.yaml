@@ -1,0 +1,54 @@
+name: qingzhang_app
+description: "轻账 — 个人 / 共享 / 生意 记账 (Flutter port of uniapp-project)"
+publish_to: 'none'
+version: 0.1.0+1
+
+environment:
+  sdk: ">=3.4.0 <4.0.0"
+  flutter: ">=3.22.0"
+
+dependencies:
+  flutter:
+    sdk: flutter
+  flutter_localizations:
+    sdk: flutter
+
+  # 状态管理 + 路由(对齐 Pinia + uni.navigateTo/switchTab)
+  flutter_riverpod: ^2.5.1
+  go_router: ^14.2.7
+
+  # HTTP(对齐 uni.request + 拦截器实现 1401 / runSilent / navGrace)
+  dio: ^5.7.0
+
+  # 持久化(对齐 uni.getStorageSync / setStorageSync)
+  shared_preferences: ^2.3.2
+
+  # 图表(对齐 DonutChart / LineChart)
+  fl_chart: ^0.69.0
+
+  # xlsx 导出(对齐 utils/export.ts + xlsx npm 包)
+  excel: ^4.0.2
+
+  # 文件系统 + 分享(导出落盘 + 触发下载)
+  path_provider: ^2.1.4
+  share_plus: ^10.0.2
+
+  # 头像选择(对齐 uni.chooseImage)
+  image_picker: ^1.1.2
+
+  # 工具
+  intl: ^0.20.3
+  collection: ^1.18.0
+  uuid: ^4.5.1
+
+dev_dependencies:
+  flutter_test:
+    sdk: flutter
+  flutter_lints: ^4.0.0
+
+flutter:
+  uses-material-design: true
+
+  assets:
+    - assets/images/
+    - assets/icons/tabbar/

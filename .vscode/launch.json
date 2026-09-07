@@ -6,7 +6,20 @@
             "request": "launch",
             "type": "dart",
             "cwd": "${workspaceFolder}/007.跨端APP应用（移动端开发工程师）/flutter-project",
-            "program": "lib/main.dart"
+            "program": "lib/main.dart",
+            "args": ["--web-port=5180"]
+        },
+        {
+            "name": "Flutter Web (Phone LAN) - 轻账",
+            "request": "launch",
+            "type": "dart",
+            "cwd": "${workspaceFolder}/007.跨端APP应用（移动端开发工程师）/flutter-project",
+            "program": "lib/main.dart",
+            "deviceId": "chrome",
+            "args": [
+                "--web-port=5180",
+                "--web-hostname=192.168.31.46"
+            ]
         },
         {
             "name": "Attach Chrome to :8080",

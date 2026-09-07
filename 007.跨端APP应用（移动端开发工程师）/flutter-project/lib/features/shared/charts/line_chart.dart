@@ -81,7 +81,7 @@ class AppLineChart extends StatelessWidget {
             spots: [for (final p in income) FlSpot(p.x.toDouble(), p.y)],
             isCurved: true,
             curveSmoothness: 0.3,
-            color: const Color(0xFF2E7DE6),
+            color: const Color(0xFF005394),
             barWidth: 2,
             dotData: const FlDotData(show: false),
             belowBarData: BarAreaData(show: false),

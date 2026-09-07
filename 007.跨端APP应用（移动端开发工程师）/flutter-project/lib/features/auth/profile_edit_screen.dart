@@ -1,15 +1,20 @@
+import 'dart:convert';
+import 'dart:io';
+
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
+import 'package:image_picker/image_picker.dart';
 
 import '../../core/api/models.dart';
 import '../../core/i18n/locale_provider.dart';
+import '../../core/router/app_router.dart';
 import '../../core/theme/tokens.dart';
 import '../shared/auth_controller.dart';
 import '../shared/providers.dart';
 import '../shared/toast_controller.dart';
 
-/// 对齐 pages/profile/edit.vue — 昵称 / 性别 / 年龄 / 修改密码。
+/// 对齐 pages/profile/edit.vue — 头像 / 昵称 / 性别 / 年龄 / 修改密码。
 class ProfileEditScreen extends ConsumerStatefulWidget {
   const ProfileEditScreen({super.key});
 
@@ -26,6 +31,11 @@ class _ProfileEditScreenState extends ConsumerState<ProfileEditScreen> {
   Gender? _gender;
   bool _saving = false;
   bool _changingPw = false;
+  // 头像预览:本地文件路径(用于 Image.file 渲染);保存后清空。
+  String? _avatarLocalPath;
+  String? _avatarBase64;
+  bool _savingAvatar = false;
+  final _picker = ImagePicker();
 
   @override
   void initState() {
@@ -119,11 +129,11 @@ class _ProfileEditScreenState extends ConsumerState<ProfileEditScreen> {
           .read(usersApiProvider)
           .changePassword(oldPassword: old, newPassword: newPw);
       if (!mounted) return;
-      ref.read(toastControllerProvider.notifier).show(lang.t('profileEdit.passwordChanged'));
-      _oldPwCtrl.clear();
-      _newPwCtrl.clear();
-      _confirmPwCtrl.clear();
-      setState(() => _changingPw = false);
+      // 对齐 uniapp handleChangePassword:改密后旧 token 视为失效 → 清掉并跳登录页。
+      await ref.read(authControllerProvider.notifier).logout();
+      if (!mounted) return;
+      if (context.canPop()) context.pop();
+      context.go(AppRoutes.login);
     } catch (e) {
       if (!mounted) return;
       setState(() => _changingPw = false);
@@ -133,9 +143,73 @@ class _ProfileEditScreenState extends ConsumerState<ProfileEditScreen> {
     }
   }
 
+  // ===== 头像(对齐 uniapp triggerAvatarInput / readAvatarBase64 / handleSaveAvatar) =====
+
+  Future<void> _pickAvatar() async {
+    final lang = I18n.of(context);
+    final XFile? picked = await _picker.pickImage(
+      source: ImageSource.gallery,
+      imageQuality: 70,
+    );
+    if (picked == null) return; // user cancelled
+    try {
+      final bytes = await File(picked.path).readAsBytes();
+      final b64 = 'data:image/jpeg;base64,${base64Encode(bytes)}';
+      if (!mounted) return;
+      setState(() {
+        _avatarLocalPath = picked.path;
+        _avatarBase64 = b64;
+      });
+      ref.read(toastControllerProvider.notifier).show(
+            lang.t('profileEdit.avatarPreviewReady'),
+          );
+    } catch (e) {
+      if (!mounted) return;
+      ref.read(toastControllerProvider.notifier).show(
+            '${lang.t('profileEdit.avatarReadFail')} ($e)',
+          );
+    }
+  }
+
+  Future<void> _saveAvatar() async {
+    final lang = I18n.of(context);
+    final b64 = _avatarBase64;
+    if (b64 == null) {
+      ref.read(toastControllerProvider.notifier).show(
+            lang.t('profileEdit.avatarSelectFile'),
+          );
+      return;
+    }
+    setState(() => _savingAvatar = true);
+    try {
+      await ref
+          .read(usersApiProvider)
+          .updateProfile(UpdateProfileInput(avatar: b64));
+      await ref.read(authControllerProvider.notifier).me();
+      if (!mounted) return;
+      setState(() {
+        _avatarLocalPath = null;
+        _avatarBase64 = null;
+        _savingAvatar = false;
+      });
+      ref.read(toastControllerProvider.notifier).show(
+            lang.t('profileEdit.avatarUpdated'),
+          );
+      if (context.canPop()) context.pop();
+    } catch (e) {
+      if (!mounted) return;
+      setState(() => _savingAvatar = false);
+      ref.read(toastControllerProvider.notifier).show(
+            '${lang.t('profileEdit.saveFailDefault')} ($e)',
+          );
+    }
+  }
+
   @override
   Widget build(BuildContext context) {
     final lang = I18n.of(context);
+    final auth = ref.watch(authControllerProvider);
+    final c = context.appColors;
     return Scaffold(
       appBar: AppBar(
         title: Text(lang.t('profileEdit.title')),
@@ -144,6 +218,81 @@ class _ProfileEditScreenState extends ConsumerState<ProfileEditScreen> {
       body: ListView(
         padding: const EdgeInsets.all(AppSpacing.lg),
         children: [
+          // 头像(uniapp avatar section:大圆 + 上传按钮 + 保存按钮)
+          _SectionCard(
+            title: lang.t('profileEdit.avatarSection'),
+            children: [
+              Padding(
+                padding: const EdgeInsets.all(AppSpacing.lg),
+                child: Column(
+                  children: [
+                    Text(
+                      lang.t('profileEdit.avatarDesc'),
+                      style: TextStyle(color: c.textVariant, fontSize: 12),
+                    ),
+                    const SizedBox(height: AppSpacing.lg),
+                    Container(
+                      width: 120,
+                      height: 120,
+                      decoration: BoxDecoration(
+                        color: c.primaryLight,
+                        shape: BoxShape.circle,
+                      ),
+                      clipBehavior: Clip.antiAlias,
+                      alignment: Alignment.center,
+                      child: _avatarLocalPath != null
+                          ? Image.file(
+                              File(_avatarLocalPath!),
+                              fit: BoxFit.cover,
+                              width: 120,
+                              height: 120,
+                            )
+                          : (auth.user?.avatar != null &&
+                                  auth.user!.avatar!.isNotEmpty)
+                              ? Image.network(
+                                  auth.user!.avatar!,
+                                  fit: BoxFit.cover,
+                                  width: 120,
+                                  height: 120,
+                                  errorBuilder: (_, __, ___) => Text(
+                                    '👤',
+                                    style: TextStyle(fontSize: 60, color: c.primary),
+                                  ),
+                                )
+                              : Text(
+                                  '👤',
+                                  style: TextStyle(fontSize: 60, color: c.primary),
+                                ),
+                    ),
+                    const SizedBox(height: AppSpacing.lg),
+                    OutlinedButton.icon(
+                      onPressed: _pickAvatar,
+                      icon: const Text('⬆️'),
+                      label: Text(lang.t('profileEdit.uploadAvatar')),
+                      style: OutlinedButton.styleFrom(
+                        minimumSize: const Size.fromHeight(44),
+                        side: BorderSide(color: c.divider),
+                      ),
+                    ),
+                    const SizedBox(height: AppSpacing.lg),
+                    FilledButton(
+                      onPressed:
+                          (_savingAvatar || _avatarBase64 == null) ? null : _saveAvatar,
+                      style: FilledButton.styleFrom(
+                        minimumSize: const Size.fromHeight(48),
+                      ),
+                      child: Text(
+                        _savingAvatar
+                            ? lang.t('profileEdit.saving')
+                            : lang.t('profileEdit.saveAvatar'),
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+            ],
+          ),
+          const SizedBox(height: AppSpacing.lg),
           _SectionCard(
             title: lang.t('profileEdit.profileSection'),
             children: [

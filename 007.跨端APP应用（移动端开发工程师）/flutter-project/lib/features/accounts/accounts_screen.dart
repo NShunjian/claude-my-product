@@ -111,60 +111,123 @@ class _AccountsScreenState extends ConsumerState<AccountsScreen> {
             }
             final total =
                 list.fold<double>(0, (sum, a) => sum + a.balance);
-            return ListView.separated(
+            return ListView(
               padding: const EdgeInsets.all(AppSpacing.lg),
-              itemCount: list.length + 1,
-              separatorBuilder: (_, __) => SizedBox(height: AppSpacing.sm),
-              itemBuilder: (context, i) {
-                if (i == 0) {
-                  return _TotalCard(total: total, label: lang.t('accounts.netAssets'));
-                }
-                final a = list[i - 1];
-                return _AccountTile(
-                  account: a,
-                  onTap: () {},
-                  onLongPress: () => _confirmDelete(a),
-                );
-              },
+              children: [
+                _NetCard(
+                  total: total,
+                  label: lang.t('accounts.netAssets'),
+                  addCta: lang.t('accounts.addCta'),
+                  onAdd: () => context.push(AppRoutes.accountNew),
+                ),
+                const SizedBox(height: AppSpacing.md),
+                GridView.count(
+                  crossAxisCount: 2,
+                  shrinkWrap: true,
+                  physics: const NeverScrollableScrollPhysics(),
+                  mainAxisSpacing: AppSpacing.sm,
+                  crossAxisSpacing: AppSpacing.sm,
+                  childAspectRatio: 1.4,
+                  children: [
+                    for (final a in list)
+                      _AccountCard(
+                        account: a,
+                        onTap: () {},
+                        onLongPress: () => _confirmDelete(a),
+                        onMore: () => _confirmDelete(a),
+                      ),
+                  ],
+                ),
+              ],
             );
           },
         ),
-      ),
-      floatingActionButton: FloatingActionButton.extended(
-        onPressed: () => context.push(AppRoutes.accountNew),
-        icon: const Icon(Icons.add),
-        label: Text(lang.t('accounts.addCta')),
       ),
     );
   }
 }
 
-class _TotalCard extends StatelessWidget {
-  const _TotalCard({required this.total, required this.label});
+class _NetCard extends StatelessWidget {
+  const _NetCard({
+    required this.total,
+    required this.label,
+    required this.addCta,
+    required this.onAdd,
+  });
   final double total;
   final String label;
+  final String addCta;
+  final VoidCallback onAdd;
 
   @override
   Widget build(BuildContext context) {
     final c = context.appColors;
     return Container(
-      padding: const EdgeInsets.all(AppSpacing.lg),
+      padding: const EdgeInsets.all(AppSpacing.md),
       decoration: BoxDecoration(
         color: c.bgCard,
-        borderRadius: BorderRadius.circular(AppRadius.md),
+        borderRadius: BorderRadius.circular(AppRadius.lg),
         border: Border.all(color: c.divider),
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Text(label, style: TextStyle(color: c.textVariant, fontSize: 12)),
-          const SizedBox(height: AppSpacing.sm),
+          // 对齐 uniapp .net-label:uppercase + letter-spacing(Flutter 没有 text-transform,
+          // 用 fontFeatures uppercase + letterSpacing 模拟视觉)。
+          Text(
+            label.toUpperCase(),
+            style: TextStyle(
+              color: c.textVariant,
+              fontSize: 12,
+              letterSpacing: 1.0,
+              fontFeatures: const [FontFeature.enable('case')],
+            ),
+          ),
+          const SizedBox(height: AppSpacing.xs),
           Text(
             formatAmount(total, withSymbol: true),
             style: TextStyle(
-              color: c.text,
+              color: total < 0 ? c.error : c.text,
               fontSize: 24,
               fontWeight: FontWeight.w700,
+            ),
+          ),
+          const SizedBox(height: AppSpacing.sm),
+          // 内联 "+ 添加账户" 按钮(uniapp .add-btn:primary 实色 + 白字 + 圆角)。
+          InkWell(
+            onTap: onAdd,
+            borderRadius: BorderRadius.circular(AppRadius.sm),
+            child: Container(
+              padding: const EdgeInsets.symmetric(
+                horizontal: AppSpacing.md,
+                vertical: AppSpacing.sm,
+              ),
+              decoration: BoxDecoration(
+                color: c.primary,
+                borderRadius: BorderRadius.circular(AppRadius.sm),
+              ),
+              child: Row(
+                mainAxisAlignment: MainAxisAlignment.center,
+                children: [
+                  const Text(
+                    '+',
+                    style: TextStyle(
+                      color: Colors.white,
+                      fontSize: 16,
+                      height: 1,
+                    ),
+                  ),
+                  const SizedBox(width: AppSpacing.sm),
+                  Text(
+                    addCta,
+                    style: const TextStyle(
+                      color: Colors.white,
+                      fontSize: 14,
+                      fontWeight: FontWeight.w600,
+                    ),
+                  ),
+                ],
+              ),
             ),
           ),
         ],
@@ -173,98 +236,94 @@ class _TotalCard extends StatelessWidget {
   }
 }
 
-class _AccountTile extends StatelessWidget {
-  const _AccountTile({
+/// 对齐 uniapp .acc-card:icon + ⋮ 顶行、name + subtitle 中行、balance 底行。
+class _AccountCard extends StatelessWidget {
+  const _AccountCard({
     required this.account,
     required this.onTap,
     required this.onLongPress,
+    required this.onMore,
   });
   final Account account;
   final VoidCallback onTap;
   final VoidCallback onLongPress;
+  final VoidCallback onMore;
 
   @override
   Widget build(BuildContext context) {
-    final lang = I18n.of(context);
     final c = context.appColors;
     final pres = presentAccount(account);
     return Material(
       color: c.bgCard,
-      borderRadius: BorderRadius.circular(AppRadius.md),
+      borderRadius: BorderRadius.circular(AppRadius.lg),
       child: InkWell(
         onTap: onTap,
         onLongPress: onLongPress,
-        borderRadius: BorderRadius.circular(AppRadius.md),
+        borderRadius: BorderRadius.circular(AppRadius.lg),
         child: Container(
-          padding: const EdgeInsets.all(AppSpacing.lg),
+          padding: const EdgeInsets.all(AppSpacing.md),
           decoration: BoxDecoration(
             border: Border.all(color: c.divider),
-            borderRadius: BorderRadius.circular(AppRadius.md),
+            borderRadius: BorderRadius.circular(AppRadius.lg),
           ),
-          child: Row(
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            mainAxisAlignment: MainAxisAlignment.spaceBetween,
             children: [
-              Container(
-                width: 44,
-                height: 44,
-                decoration: BoxDecoration(
-                  color: pres.background,
-                  shape: BoxShape.circle,
-                ),
-                child: Icon(pres.icon, color: pres.foreground),
-              ),
-              const SizedBox(width: AppSpacing.md),
-              Expanded(
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Row(
-                      children: [
-                        Flexible(
-                          child: Text(
-                            account.name,
-                            style: TextStyle(
-                              color: c.text,
-                              fontSize: 15,
-                              fontWeight: FontWeight.w600,
-                            ),
-                            overflow: TextOverflow.ellipsis,
-                          ),
+              Row(
+                mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                children: [
+                  Container(
+                    width: 40,
+                    height: 40,
+                    decoration: BoxDecoration(
+                      color: pres.background,
+                      shape: BoxShape.circle,
+                    ),
+                    child: Icon(pres.icon, color: pres.foreground, size: 20),
+                  ),
+                  InkWell(
+                    onTap: onMore,
+                    child: Padding(
+                      padding: const EdgeInsets.all(AppSpacing.xs),
+                      child: Text(
+                        '⋮',
+                        style: TextStyle(
+                          color: c.textVariant,
+                          fontSize: 16,
+                          height: 1,
                         ),
-                        if (account.isDefault) ...[
-                          const SizedBox(width: 6),
-                          Container(
-                            padding: const EdgeInsets.symmetric(
-                              horizontal: 6,
-                              vertical: 2,
-                            ),
-                            decoration: BoxDecoration(
-                              color: c.primaryLight,
-                              borderRadius: BorderRadius.circular(4),
-                            ),
-                            child: Text(
-                              lang.t('accounts.default'),
-                              style: TextStyle(
-                                color: c.primary,
-                                fontSize: 11,
-                              ),
-                            ),
-                          ),
-                        ],
-                      ],
+                      ),
                     ),
-                    Text(
-                      typeOfAccount(account.type),
-                      style: TextStyle(color: c.textVariant, fontSize: 12),
+                  ),
+                ],
+              ),
+              Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    account.name,
+                    style: TextStyle(
+                      color: c.text,
+                      fontSize: 14,
+                      fontWeight: FontWeight.w600,
                     ),
-                  ],
-                ),
+                    overflow: TextOverflow.ellipsis,
+                  ),
+                  const SizedBox(height: 2),
+                  Text(
+                    typeOfAccount(account.type),
+                    style: TextStyle(color: c.textVariant, fontSize: 11),
+                    overflow: TextOverflow.ellipsis,
+                  ),
+                ],
               ),
               Text(
                 formatAmount(account.balance, withSymbol: true),
                 style: TextStyle(
                   color: account.balance < 0 ? c.error : c.text,
-                  fontSize: 16,
-                  fontWeight: FontWeight.w600,
+                  fontSize: 14,
+                  fontWeight: FontWeight.w700,
                 ),
               ),
             ],

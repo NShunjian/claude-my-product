@@ -28,7 +28,7 @@ class AppColors {
     primary: Color(0xFF2E7DE6),
     primaryLight: Color(0xFFD9E8FA),
     bg: Color(0xFFFFFFFF),
-    bgCard: Color(0xFFFAFAFA),
+    bgCard: Color(0xFFFFFFFF),
     text: Color(0xFF1A1A1A),
     textVariant: Color(0xFF5F6368),
     error: Color(0xFFBA1A1A),

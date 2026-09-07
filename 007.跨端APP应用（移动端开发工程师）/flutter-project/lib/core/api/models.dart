@@ -305,7 +305,8 @@ class Category {
         color: json['color'] as String? ?? '#727782',
         sortOrder: json['sortOrder'] as int? ?? 0,
         isPreset: json['isPreset'] as bool? ?? false,
-        createdAt: json['createdAt'] as String?,
+        // 后端 Long(Unix 秒);预设分类可能没有 → null。统一 toString 兼容 ISO 字符串。
+        createdAt: json['createdAt']?.toString(),
       );
 }
 

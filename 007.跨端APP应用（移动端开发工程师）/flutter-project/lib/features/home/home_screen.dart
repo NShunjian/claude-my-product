@@ -11,7 +11,6 @@ import '../../core/utils/category_presentation.dart';
 import '../../core/utils/date_util.dart';
 import '../../core/utils/finance.dart';
 import '../shared/auth_controller.dart';
-import '../shared/charts/donut_chart.dart';
 import '../shared/providers.dart';
 import '../shared/quick_add_controller.dart';
 import '../shared/transaction_row.dart';
@@ -123,7 +122,16 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
               );
             }
             final data = snap.data!;
-            final segments = _buildSegments(data);
+            final expenseRows = _buildBreakdownRows(
+              data,
+              RecordType.expense,
+              data.report.totalExpense,
+            );
+            final incomeRows = _buildBreakdownRows(
+              data,
+              RecordType.income,
+              data.report.totalIncome,
+            );
             return ListView(
               padding: const EdgeInsets.all(AppSpacing.lg),
               children: [
@@ -136,21 +144,26 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
                 const SizedBox(height: AppSpacing.lg),
                 _MonthOverview(report: data.report),
                 const SizedBox(height: AppSpacing.lg),
-                if (segments.isNotEmpty) ...[
-                  Text(
-                    lang.t('home.expenseByCategory'),
-                    style: TextStyle(color: c.text, fontSize: 14),
-                  ),
-                  const SizedBox(height: AppSpacing.sm),
-                  SizedBox(
-                    height: 220,
-                    child: DonutChart(
-                      segments: segments,
-                      totalValue: formatAmount(data.report.totalExpense),
-                      totalLabel: lang.t('home.expense'),
+                Row(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Expanded(
+                      child: _BreakdownCard(
+                        title: lang.t('home.expenseByCategory'),
+                        rows: expenseRows,
+                        total: data.report.totalExpense,
+                      ),
                     ),
-                  ),
-                ],
+                    const SizedBox(width: AppSpacing.sm),
+                    Expanded(
+                      child: _BreakdownCard(
+                        title: lang.t('home.incomeByCategory'),
+                        rows: incomeRows,
+                        total: data.report.totalIncome,
+                      ),
+                    ),
+                  ],
+                ),
                 const SizedBox(height: AppSpacing.lg),
                 Row(
                   mainAxisAlignment: MainAxisAlignment.spaceBetween,
@@ -209,15 +222,22 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
     );
   }
 
-  List<DonutSegment> _buildSegments(_HomeData data) {
-    if (data.report.expenseByCategory.isEmpty) return const [];
-    final result = <DonutSegment>[];
-    for (final agg in data.report.expenseByCategory) {
+  List<_CatRow> _buildBreakdownRows(
+    _HomeData data,
+    RecordType type,
+    double total,
+  ) {
+    final aggs = type == RecordType.expense
+        ? data.report.expenseByCategory
+        : data.report.incomeByCategory;
+    if (aggs.isEmpty) return const [];
+    final result = <_CatRow>[];
+    for (final agg in aggs) {
       final cat = data.categories.firstWhere(
         (c) => c.id == agg.categoryId,
         orElse: () => Category(
           id: agg.categoryId ?? '',
-          type: CategoryType.expense,
+          type: type == RecordType.expense ? CategoryType.expense : CategoryType.income,
           name: agg.categoryId ?? '',
           icon: '',
           color: '#727782',
@@ -225,20 +245,9 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
           isPreset: false,
         ),
       );
-      final pres = presentCategory(cat);
-      final color = _parseHex(pres.color);
-      result.add(DonutSegment(
-        label: pres.icon.isEmpty ? cat.name : '${pres.icon} ${cat.name}',
-        value: agg.amount,
-        color: color,
-      ));
+      result.add(_CatRow(cat: cat, total: agg.amount, grandTotal: total));
     }
     return result;
-  }
-
-  static Color _parseHex(String hex) {
-    final h = hex.replaceFirst('#', '');
-    return Color(int.parse('FF$h', radix: 16));
   }
 }
 
@@ -410,5 +419,134 @@ class _Metric extends StatelessWidget {
         ),
       ],
     );
+  }
+}
+
+/// 单条分类汇总行(对齐 uniapp .cat-row + .cat-bar-track)。
+class _CatRow {
+  _CatRow({required this.cat, required this.total, required this.grandTotal});
+  final Category cat;
+  final double total;
+  final double grandTotal;
+
+  /// 占总盘比例 0.0~1.0。grandTotal==0 时为 0(uniapp 也是 0)。
+  double get pct => grandTotal > 0 ? (total / grandTotal).clamp(0.0, 1.0) : 0.0;
+}
+
+/// 支出/收入分类横条卡(对齐 uniapp .breakdown-card)。
+class _BreakdownCard extends StatelessWidget {
+  const _BreakdownCard({
+    required this.title,
+    required this.rows,
+    required this.total,
+  });
+  final String title;
+  final List<_CatRow> rows;
+  final double total;
+
+  @override
+  Widget build(BuildContext context) {
+    final lang = I18n.of(context);
+    final c = context.appColors;
+    return Container(
+      padding: const EdgeInsets.all(AppSpacing.md),
+      decoration: BoxDecoration(
+        color: c.bgCard,
+        borderRadius: BorderRadius.circular(AppRadius.lg),
+        border: Border.all(color: c.divider),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Text(
+            title,
+            style: TextStyle(color: c.text, fontSize: 13, fontWeight: FontWeight.w600),
+          ),
+          const SizedBox(height: AppSpacing.sm),
+          if (rows.isEmpty)
+            Padding(
+              padding: const EdgeInsets.symmetric(vertical: AppSpacing.md),
+              child: Center(
+                child: Text(
+                  lang.t('home.empty'),
+                  style: TextStyle(color: c.textVariant, fontSize: 12),
+                ),
+              ),
+            )
+          else
+            Column(
+              children: [
+                for (final r in rows) _CatBarRow(row: r),
+              ],
+            ),
+        ],
+      ),
+    );
+  }
+}
+
+/// 单行 emoji + 名称 + 金额 + 横条(对齐 uniapp .cat-row)。
+class _CatBarRow extends StatelessWidget {
+  const _CatBarRow({required this.row});
+  final _CatRow row;
+
+  @override
+  Widget build(BuildContext context) {
+    final c = context.appColors;
+    final pres = presentCategory(row.cat);
+    final color = _parseHex(pres.color);
+    return Padding(
+      padding: const EdgeInsets.only(bottom: AppSpacing.md),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            children: [
+              Text(pres.icon, style: TextStyle(color: color, fontSize: 18)),
+              const SizedBox(width: AppSpacing.sm),
+              Expanded(
+                child: Text(
+                  row.cat.name,
+                  style: TextStyle(color: c.text, fontSize: 13),
+                  overflow: TextOverflow.ellipsis,
+                ),
+              ),
+              Text(
+                '¥${formatAmount(row.total)}',
+                style: TextStyle(
+                  color: c.textVariant,
+                  fontSize: 12,
+                  fontFeatures: const [FontFeature.tabularFigures()],
+                ),
+              ),
+            ],
+          ),
+          const SizedBox(height: AppSpacing.xs),
+          // 横条:uniapp 高度 10rpx(5dp),底色 #E8EEF7,圆角 6rpx(3dp)。
+          Container(
+            height: 5,
+            decoration: BoxDecoration(
+              color: const Color(0xFFE8EEF7),
+              borderRadius: BorderRadius.circular(3),
+            ),
+            child: FractionallySizedBox(
+              alignment: Alignment.centerLeft,
+              widthFactor: row.pct,
+              child: Container(
+                decoration: BoxDecoration(
+                  color: color,
+                  borderRadius: BorderRadius.circular(3),
+                ),
+              ),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  static Color _parseHex(String hex) {
+    final h = hex.replaceFirst('#', '');
+    return Color(int.parse('FF$h', radix: 16));
   }
 }

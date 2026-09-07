@@ -31,7 +31,7 @@ class TransactionRow extends ConsumerWidget {
 
     final isExpense = record.type == RecordType.expense;
     final sign = isExpense ? '-' : '+';
-    final amountColor = isExpense ? c.error : const Color(0xFF2E7DE6);
+    final amountColor = isExpense ? c.error : const Color(0xFF006D40);
 
     final note = record.note?.trim();
     final title = (note != null && note.isNotEmpty)
@@ -71,13 +71,17 @@ class TransactionRow extends ConsumerWidget {
                 children: [
                   Text(
                     title,
-                    style: TextStyle(color: c.text, fontSize: 15),
+                    style: TextStyle(
+                      color: c.text,
+                      fontSize: 15,
+                      fontWeight: FontWeight.w600,
+                    ),
                     overflow: TextOverflow.ellipsis,
                   ),
                   if (subtitle.isNotEmpty)
                     Text(
                       subtitle,
-                      style: TextStyle(color: c.textVariant, fontSize: 12),
+                      style: TextStyle(color: c.textVariant, fontSize: 11),
                     ),
                 ],
               ),
@@ -89,8 +93,9 @@ class TransactionRow extends ConsumerWidget {
                   '$sign${formatAmount(record.amount)}',
                   style: TextStyle(
                     color: amountColor,
-                    fontSize: 15,
-                    fontWeight: FontWeight.w600,
+                    fontSize: 16,
+                    fontWeight: FontWeight.w700,
+                    fontFeatures: const [FontFeature.tabularFigures()],
                   ),
                 ),
                 Text(

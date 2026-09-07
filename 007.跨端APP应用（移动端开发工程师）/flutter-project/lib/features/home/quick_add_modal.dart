@@ -27,6 +27,9 @@ class _QuickAddModalState extends ConsumerState<QuickAddModal> {
   final _amountCtrl = TextEditingController();
   final _noteCtrl = TextEditingController();
   bool _submitting = false;
+  // 数字键盘表达式(对齐 uniapp .qa-keypad:digits/. + back/+/−/✓)。
+  // 最多 12 字符;_computeAmount() 解析 '+' 分段求和。
+  String _expression = '';
 
   @override
   void initState() {
@@ -67,8 +70,8 @@ class _QuickAddModalState extends ConsumerState<QuickAddModal> {
 
   Future<void> _submit() async {
     final lang = I18n.of(context);
-    final amount = double.tryParse(_amountCtrl.text.trim());
-    if (amount == null || amount <= 0) {
+    final amount = _computeAmount();
+    if (amount <= 0) {
       ref.read(toastControllerProvider.notifier).show(lang.t('recordExpense.amountPrompt'));
       return;
     }
@@ -94,16 +97,19 @@ class _QuickAddModalState extends ConsumerState<QuickAddModal> {
           categoryId: catId,
           recordDate: date,
           note: note.isEmpty ? null : note,
-        ));
-      } else {
-        await api.createRecord(CreateExpenseInput(
+        ),
+      );
+    } else {
+      await api.createRecord(
+        CreateExpenseInput(
           amount: amount,
           accountId: accId,
           categoryId: catId,
           recordDate: date,
           note: note.isEmpty ? null : note,
-        ));
-      }
+        ),
+      );
+    }
       ref.read(quickAddControllerProvider.notifier).close();
       ref.read(quickAddControllerProvider.notifier).notifySaved();
       ref.read(toastControllerProvider.notifier).show(lang.t('recordExpense.success'));
@@ -123,6 +129,58 @@ class _QuickAddModalState extends ConsumerState<QuickAddModal> {
     _noteCtrl.clear();
     setState(() {
       _category = null;
+      _expression = '';
+    });
+  }
+
+  // ===== 数字键盘表达式(对齐 uniapp pressKey + computeAmount) =====
+
+  double _computeAmount() {
+    if (_expression.isEmpty) return 0;
+    if (!_expression.contains('+')) {
+      final n = double.tryParse(_expression) ?? 0;
+      return n.isFinite ? n : 0;
+    }
+    return _expression
+        .split('+')
+        .fold<double>(0, (s, x) => s + (double.tryParse(x) ?? 0));
+  }
+
+  void _pressKey(String key) {
+    setState(() {
+      if (key == 'back') {
+        if (_expression.isNotEmpty) {
+          _expression = _expression.substring(0, _expression.length - 1);
+        }
+        return;
+      }
+      if (key == '+' || key == '−') {
+        if (_expression.isEmpty) {
+          _expression = '0+';
+        } else {
+          final last = _expression[_expression.length - 1];
+          if (last == '+' || last == '-') {
+            _expression = '${_expression.substring(0, _expression.length - 1)}+';
+          } else {
+            _expression = '$_expression+';
+          }
+        }
+        return;
+      }
+      if (key == '.') {
+        final seg = _expression.split(RegExp(r'[+\-]')).last;
+        if (!seg.contains('.')) _expression = '$_expression.';
+        return;
+      }
+      if (key == '✓') {
+        // 提交按键 — 复用 _submit 流程。
+        _amountCtrl.text = _computeAmount().toStringAsFixed(2);
+        _submit();
+        return;
+      }
+      // 数字
+      if (_expression.length >= 12) return;
+      _expression = '$_expression$key';
     });
   }
 
@@ -213,9 +271,12 @@ class _QuickAddModalState extends ConsumerState<QuickAddModal> {
                             onSelectionChanged: (s) => _setKind(s.first),
                           ),
                           const SizedBox(height: AppSpacing.md),
+                          // 金额显示:readOnly,值由 _expression 计算并写到 controller
+                          // (对齐 uniapp .qa-amount:¥ prefix + 大字号数字 + 自带 keypad)。
                           TextField(
                             controller: _amountCtrl,
-                            keyboardType: const TextInputType.numberWithOptions(decimal: true),
+                            readOnly: true,
+                            showCursor: false,
                             decoration: InputDecoration(
                               prefixText: '¥ ',
                               hintText: lang.t('recordExpense.amountPrompt'),
@@ -284,6 +345,9 @@ class _QuickAddModalState extends ConsumerState<QuickAddModal> {
                                   : lang.t('recordExpense.submit'),
                             ),
                           ),
+                          const SizedBox(height: AppSpacing.md),
+                          // 数字键盘(对齐 uniapp .qa-keypad 4 列 × 4 行)
+                          _NumPad(onKey: _pressKey, submitting: _submitting),
                         ],
                       ),
                     ),
@@ -344,6 +408,145 @@ class _CategoryChip extends StatelessWidget {
               style: TextStyle(color: fg, fontSize: 13),
             ),
           ],
+        ),
+      ),
+    );
+  }
+}
+
+// ===== 数字键盘(对齐 uniapp components/QuickAddModal.vue .qa-keypad) =====
+//
+// 4 列 × 4 行;键值语义:
+//   digits → 追加到 _expression(最多 12 字符)
+//   '.'    → 当前数字段已含 . 时忽略
+//   'back' → 删最后一字符
+//   '+'/'−'→ 在表达式后追加 '+'(已 + / - 则替换)
+//   '✓'    → 触发 _submit
+class _NumPad extends StatelessWidget {
+  const _NumPad({required this.onKey, required this.submitting});
+  final ValueChanged<String> onKey;
+  final bool submitting;
+
+  @override
+  Widget build(BuildContext context) {
+    final rows = <List<_KeyDef>>[
+      [
+        const _KeyDef('1'),
+        const _KeyDef('2'),
+        const _KeyDef('3'),
+        const _KeyDef('⌫', kind: _KeyKind.back),
+      ],
+      [
+        const _KeyDef('4'),
+        const _KeyDef('5'),
+        const _KeyDef('6'),
+        const _KeyDef('+', kind: _KeyKind.op),
+      ],
+      [
+        const _KeyDef('7'),
+        const _KeyDef('8'),
+        const _KeyDef('9'),
+        const _KeyDef('−', kind: _KeyKind.op),
+      ],
+      [
+        const _KeyDef('0', span: 2),
+        const _KeyDef('.'),
+        const _KeyDef('✓', kind: _KeyKind.confirm),
+      ],
+    ];
+    return Column(
+      children: [
+        for (final row in rows)
+          Padding(
+            padding: const EdgeInsets.only(bottom: AppSpacing.sm),
+            child: Row(
+              children: [
+                for (var i = 0; i < row.length; i++) ...[
+                  Expanded(
+                    flex: row[i].span,
+                    child: _NumKey(
+                      def: row[i],
+                      submitting: submitting,
+                      onTap: () => onKey(row[i].value),
+                    ),
+                  ),
+                  if (i < row.length - 1)
+                    const SizedBox(width: AppSpacing.sm),
+                ],
+              ],
+            ),
+          ),
+      ],
+    );
+  }
+}
+
+enum _KeyKind { digit, back, op, confirm }
+
+class _KeyDef {
+  const _KeyDef(this.value, {this.kind = _KeyKind.digit, this.span = 1});
+  final String value;
+  final _KeyKind kind;
+  final int span;
+}
+
+class _NumKey extends StatelessWidget {
+  const _NumKey({
+    required this.def,
+    required this.onTap,
+    required this.submitting,
+  });
+  final _KeyDef def;
+  final VoidCallback onTap;
+  final bool submitting;
+
+  @override
+  Widget build(BuildContext context) {
+    final c = context.appColors;
+    Color bg;
+    Color fg;
+    switch (def.kind) {
+      case _KeyKind.confirm:
+        bg = c.primary;
+        fg = Colors.white;
+        break;
+      case _KeyKind.back:
+      case _KeyKind.op:
+        bg = c.surface;
+        fg = c.textVariant;
+        break;
+      case _KeyKind.digit:
+        bg = c.surface;
+        fg = c.text;
+    }
+    return Material(
+      color: bg,
+      borderRadius: BorderRadius.circular(AppRadius.sm),
+      child: InkWell(
+        borderRadius: BorderRadius.circular(AppRadius.sm),
+        onTap: onTap,
+        child: Container(
+          height: 48,
+          alignment: Alignment.center,
+          child: def.kind == _KeyKind.confirm && submitting
+              ? const SizedBox(
+                  width: 16,
+                  height: 16,
+                  child: CircularProgressIndicator(
+                    strokeWidth: 2,
+                    color: Colors.white,
+                  ),
+                )
+              : Text(
+                  def.value,
+                  style: TextStyle(
+                    color: fg,
+                    fontSize: 20,
+                    fontWeight: def.kind == _KeyKind.confirm
+                        ? FontWeight.w700
+                        : FontWeight.w500,
+                  ),
+                ),
         ),
       ),
     );

@@ -47,6 +47,12 @@ class AuthController extends Notifier<AuthState> {
     state = state.copyWith(user: u);
   }
 
+  /// 上次登录用户名(用于登录页预填),从 Prefs 读取。
+  Future<String?> getLastUsername() async {
+    final p = await Prefs.getInstance();
+    return p.lastUsername;
+  }
+
   Future<void> logout() async {
     final api = ref.read(authApiProvider);
     try {

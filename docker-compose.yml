@@ -4,10 +4,7 @@ services:
     container_name: qingzhang-mysql
     restart: unless-stopped
     environment:
-      MYSQL_ROOT_PASSWORD: root123456
-      MYSQL_DATABASE: qingzhang
-      MYSQL_USER: qingzhang
-      MYSQL_PASSWORD: qingzhang123
+      MYSQL_ROOT_PASSWORD: java123
       TZ: Asia/Shanghai
     # MySQL 9.x 不再支持 mysql_native_password,默认 caching_sha2_password 即可
     command:
@@ -20,7 +17,7 @@ services:
       - mysql-data:/var/lib/mysql
       - ./004.数据库脚本（数据库管理员DBA）/00_mysql_config.cnf:/etc/mysql/conf.d/qingzhang.cnf:ro
     healthcheck:
-      test: ["CMD", "mysqladmin", "ping", "-h", "localhost", "-uroot", "-proot123456"]
+      test: ["CMD", "mysqladmin", "ping", "-h", "localhost", "-uroot", "-pjava123"]
       interval: 5s
       timeout: 5s
       retries: 20

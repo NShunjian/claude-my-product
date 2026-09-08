@@ -58,31 +58,39 @@ class MonthPicker extends ConsumerWidget {
       );
     }
 
+    // 对齐 uniapp .mp: padding 8/24rpx、radius 32rpx、bg-card + 1px divider border、
+    // .btn 56×56rpx + 40rpx 字符 / .label 30rpx fontWeight 600。
     return Container(
       padding: const EdgeInsets.symmetric(
         horizontal: AppSpacing.md,
         vertical: AppSpacing.xs,
       ),
       decoration: BoxDecoration(
-        color: c.surface,
-        borderRadius: BorderRadius.circular(AppRadius.md),
+        color: c.bgCard,
+        borderRadius: BorderRadius.circular(AppRadius.lg),
+        border: Border.all(color: c.divider, width: 1),
       ),
       child: Row(
         mainAxisSize: MainAxisSize.min,
         children: [
-          IconButton(
-            icon: const Icon(Icons.chevron_left),
-            onPressed: () => _step(context, -1),
-            visualDensity: VisualDensity.compact,
+          _StepBtn(
+            icon: Icons.chevron_left,
+            onTap: () => _step(context, -1),
           ),
-          Text(
-            formatMonthCN(value, langCode: lang.code),
-            style: TextStyle(color: c.text, fontSize: 15),
+          Padding(
+            padding: const EdgeInsets.symmetric(horizontal: 6),
+            child: Text(
+              formatMonthCN(value, langCode: lang.code),
+              style: TextStyle(
+                color: c.text,
+                fontSize: 15,
+                fontWeight: FontWeight.w600,
+              ),
+            ),
           ),
-          IconButton(
-            icon: const Icon(Icons.chevron_right),
-            onPressed: () => _step(context, 1),
-            visualDensity: VisualDensity.compact,
+          _StepBtn(
+            icon: Icons.chevron_right,
+            onTap: () => _step(context, 1),
           ),
         ],
       ),
@@ -116,17 +124,25 @@ class MonthPicker extends ConsumerWidget {
                       style: TextStyle(color: c.textVariant, fontSize: 13),
                     ),
                     const Spacer(),
-                    IconButton(
-                      icon: const Icon(Icons.chevron_left),
-                      onPressed: () => setState(() => year--),
+                    _StepBtn(
+                      icon: Icons.chevron_left,
+                      onTap: () => setState(() => year--),
                     ),
-                    Text(
-                      '$year',
-                      style: TextStyle(color: c.text, fontSize: 16),
+                    SizedBox(
+                      width: 36,
+                      child: Text(
+                        '$year',
+                        textAlign: TextAlign.center,
+                        style: TextStyle(
+                          color: c.text,
+                          fontSize: 16,
+                          fontWeight: FontWeight.w600,
+                        ),
+                      ),
                     ),
-                    IconButton(
-                      icon: const Icon(Icons.chevron_right),
-                      onPressed: () => setState(() => year++),
+                    _StepBtn(
+                      icon: Icons.chevron_right,
+                      onTap: () => setState(() => year++),
                     ),
                   ],
                 ),
@@ -182,6 +198,29 @@ class MonthPicker extends ConsumerWidget {
           ),
         );
       },
+    );
+  }
+}
+
+/// 对齐 uniapp .btn:56×56rpx hit area + 40rpx 字符 chevron。
+/// 比 IconButton 紧一圈(月历模式挤在一行里也能放得下)。
+class _StepBtn extends StatelessWidget {
+  const _StepBtn({required this.icon, required this.onTap});
+
+  final IconData icon;
+  final VoidCallback onTap;
+
+  @override
+  Widget build(BuildContext context) {
+    final c = context.appColors;
+    return InkWell(
+      onTap: onTap,
+      borderRadius: BorderRadius.circular(8),
+      child: SizedBox(
+        width: 28,
+        height: 28,
+        child: Icon(icon, size: 20, color: c.textVariant),
+      ),
     );
   }
 }

@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import 'app.dart';
+import 'core/api/api_base_url.dart';
 import 'core/api/api_client.dart';
 import 'core/i18n/lang.dart';
 import 'core/i18n/locale_provider.dart';
@@ -15,7 +16,9 @@ void main() async {
   WidgetsFlutterBinding.ensureInitialized();
 
   final prefs = await Prefs.getInstance();
-  final apiClient = ApiClient(baseUrl: 'http://localhost:4001', prefs: prefs);
+  // Web 上从 window.location.hostname 推 baseUrl,保证手机走 LAN IP 时也能命中后端。
+  final apiBaseUrl = resolveApiBaseUrl('http://localhost:4001');
+  final apiClient = ApiClient(baseUrl: apiBaseUrl, prefs: prefs);
 
   // 从 prefs 初始化 Lang 起始值(避免 build() 里的固定初值被冲掉)。
   final initialLang = langFromCode(prefs.lang);

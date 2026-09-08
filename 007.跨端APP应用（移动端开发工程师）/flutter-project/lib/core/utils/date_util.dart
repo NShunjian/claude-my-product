@@ -43,6 +43,10 @@ String formatMonthCN(String month, {required String langCode}) {
   }
 }
 
+/// 对齐 uniapp `日组标题:M月D日,星期X`(pages/transactions/index.vue)。
+/// - 今天:`今天 9月4日`
+/// - 昨天:`昨天 9月4日`
+/// - 其他:`9月4日`
 String formatRelativeDayLabel(
   String iso,
   DateTime today, {
@@ -53,10 +57,10 @@ String formatRelativeDayLabel(
   final dDate = DateTime(d.year, d.month, d.day);
   final tDate = DateTime(today.year, today.month, today.day);
   final diff = tDate.difference(dDate).inDays;
-  final pad = (int n) => n.toString().padLeft(2, '0');
-  if (diff == 0) return '$todayLabel ${pad(d.month)}-${pad(d.day)}';
-  if (diff == 1) return '$yesterdayLabel ${pad(d.month)}-${pad(d.day)}';
-  return '${pad(d.month)}-${pad(d.day)}';
+  final dateStr = '${d.month}月${d.day}日';
+  if (diff == 0) return '$todayLabel $dateStr';
+  if (diff == 1) return '$yesterdayLabel $dateStr';
+  return dateStr;
 }
 
 int compareRecordDesc<T>(T a, T b, String Function(T) recordDate, String Function(T) createdAt) {

@@ -542,7 +542,9 @@ class DailyDataPoint {
   final double income;
   final double expense;
   factory DailyDataPoint.fromJson(Map<String, dynamic> json) => DailyDataPoint(
-        date: json['date'] as String,
+        // 后端字段是 `day`(当月第几天,int);旧字段名 `date` 保留兼容。优先 `date`,
+        // 缺失时用 day.toString() 兜底,避免 'type Null is not subtype of String' 崩溃。
+        date: (json['date'] as String?) ?? json['day']?.toString() ?? '',
         income: (json['income'] as num? ?? 0).toDouble(),
         expense: (json['expense'] as num? ?? 0).toDouble(),
       );

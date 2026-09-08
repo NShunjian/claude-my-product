@@ -90,7 +90,8 @@ class TransactionRow extends ConsumerWidget {
               crossAxisAlignment: CrossAxisAlignment.end,
               children: [
                 Text(
-                  '$sign${formatAmount(record.amount)}',
+                  '$sign¥${formatAmount(record.amount)}',
+                  // uniapp .amt { font-size: 32rpx; font-weight: 700 } → 16dp
                   style: TextStyle(
                     color: amountColor,
                     fontSize: 16,
@@ -98,8 +99,10 @@ class TransactionRow extends ConsumerWidget {
                     fontFeatures: const [FontFeature.tabularFigures()],
                   ),
                 ),
+                // uniapp 右侧 .meta:`记账时间: ${date}${time ? ' ' + time : ''}`
                 Text(
-                  '${record.recordDate} ${formatLocalHHMM(record.createdAt)}',
+                  '${lang.t('transactions.recordTime')}: ${formatLocalYMD(record.createdAt)} ${formatLocalHHMM(record.createdAt)}',
+                  // .meta { font-size: 22rpx } → 11dp
                   style: TextStyle(color: c.textVariant, fontSize: 11),
                 ),
               ],

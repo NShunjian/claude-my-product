@@ -78,10 +78,15 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
       if (byDate != 0) return byDate;
       return b.createdAt.compareTo(a.createdAt);
     });
+    // 切换月份时整个页面都要刷新到当月数据:后端 records API 不带 month 参数,
+    // 拉到的是全量流水,这里按当前 _month 过滤后再交给 UI
+    // (最近交易按月取前 5;分类占比也按月算 — 见 _buildBreakdownRows)。
+    final monthRecs =
+        recs.where((r) => r.recordDate.startsWith(_month)).toList();
     return _HomeData(
       report: report,
       accounts: accList,
-      records: recs,
+      records: monthRecs,
       categories: cats,
     );
   }
@@ -102,33 +107,39 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
         child: FutureBuilder<_HomeData>(
           future: _future,
           builder: (context, snap) {
-            if (snap.connectionState != ConnectionState.done) {
-              return ListView(
-                children: [
-                  Padding(
-                    padding: const EdgeInsets.all(AppSpacing.xl),
-                    child: Text(
-                      lang.t('home.loading'),
-                      style: TextStyle(color: c.textVariant),
+            // 首次加载还没数据 → 显示整页 loading 占位
+            if (!snap.hasData) {
+              if (snap.connectionState != ConnectionState.done) {
+                return ListView(
+                  children: [
+                    Padding(
+                      padding: const EdgeInsets.all(AppSpacing.xl),
+                      child: Text(
+                        lang.t('home.loading'),
+                        style: TextStyle(color: c.textVariant),
+                      ),
                     ),
-                  ),
-                ],
-              );
-            }
-            if (snap.hasError) {
-              return ListView(
-                children: [
-                  Padding(
-                    padding: const EdgeInsets.all(AppSpacing.xl),
-                    child: Text(
-                      '${lang.t('home.loadErrorPrefix')}${snap.error}',
-                      style: TextStyle(color: c.error),
+                  ],
+                );
+              }
+              if (snap.hasError) {
+                return ListView(
+                  children: [
+                    Padding(
+                      padding: const EdgeInsets.all(AppSpacing.xl),
+                      child: Text(
+                        '${lang.t('home.loadErrorPrefix')}${snap.error}',
+                        style: TextStyle(color: c.error),
+                      ),
                     ),
-                  ),
-                ],
-              );
+                  ],
+                );
+              }
             }
+            // 已有数据(包括刷新中的 stale snapshot)→ 渲染数据,顶部加进度条表示在重新拉取
             final data = snap.data!;
+            final isReloading =
+                snap.connectionState != ConnectionState.done;
             final expenseRows = _buildBreakdownRows(
               data,
               RecordType.expense,
@@ -137,57 +148,68 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
               data,
               RecordType.income,
             );
-            return ListView(
-              // uniapp .scroll-area { padding: 0 24rpx 24rpx } → 12dp
-              padding: const EdgeInsets.fromLTRB(12, 12, 12, 12),
+            return Column(
               children: [
-                _GreetingRow(
-                  month: _month,
-                  onMonthChanged: _onMonthChanged,
-                ),
-                // uniapp .scroll-area { gap: 20rpx } → 10dp
-                const SizedBox(height: 10),
-                _AssetsCard(
-                  totalAssets: data.totalAssets,
-                  accounts: data.accounts.length,
-                  onQuickAdd: () =>
-                      ref.read(quickAddControllerProvider.notifier).open(),
-                ),
-                const SizedBox(height: 10),
-                _ExpenseCard(amount: data.report.totalExpense),
-                const SizedBox(height: 10),
-                _IncomeCard(amount: data.report.totalIncome),
-                const SizedBox(height: 10),
-                _BalanceCard(net: data.report.netSavings),
-                const SizedBox(height: 10),
-                // uniapp 顺序: 当月结余 → 最近交易 → 分类汇总
-                _RecentTransactionsCard(
-                  records: data.records.take(5).toList(),
-                  categories: data.categories,
-                  accounts: data.accounts,
-                  onViewAll: () => context.go(AppRoutes.transactions),
-                ),
-                const SizedBox(height: 10),
-                Row(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Expanded(
-                      child: _BreakdownCard(
-                        title: lang.t('home.expenseByCategory'),
-                        rows: expenseRows,
-                        total: data.report.totalExpense,
+                if (isReloading)
+                  const LinearProgressIndicator(
+                    minHeight: 2,
+                    backgroundColor: Color(0x00000000),
+                  ),
+                Expanded(
+                  child: ListView(
+                    // uniapp .scroll-area { padding: 0 24rpx 24rpx } → 12dp
+                    padding: const EdgeInsets.fromLTRB(12, 12, 12, 12),
+                    children: [
+                      _GreetingRow(
+                        month: _month,
+                        onMonthChanged: _onMonthChanged,
                       ),
-                    ),
-                    // uniapp .breakdown-row { gap: 16rpx } → 8dp
-                    const SizedBox(width: 8),
-                    Expanded(
-                      child: _BreakdownCard(
-                        title: lang.t('home.incomeByCategory'),
-                        rows: incomeRows,
-                        total: data.report.totalIncome,
+                      // uniapp .scroll-area { gap: 20rpx } → 10dp
+                      const SizedBox(height: 10),
+                      _AssetsCard(
+                        totalAssets: data.totalAssets,
+                        accounts: data.accounts.length,
+                        onQuickAdd: () =>
+                            ref.read(quickAddControllerProvider.notifier).open(),
                       ),
-                    ),
-                  ],
+                      const SizedBox(height: 10),
+                      _ExpenseCard(amount: data.report.totalExpense),
+                      const SizedBox(height: 10),
+                      _IncomeCard(amount: data.report.totalIncome),
+                      const SizedBox(height: 10),
+                      _BalanceCard(net: data.report.netSavings),
+                      const SizedBox(height: 10),
+                      // uniapp 顺序: 当月结余 → 最近交易 → 分类汇总
+                      _RecentTransactionsCard(
+                        records: data.records.take(5).toList(),
+                        categories: data.categories,
+                        accounts: data.accounts,
+                        onViewAll: () => context.go(AppRoutes.transactions),
+                      ),
+                      const SizedBox(height: 10),
+                      Row(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Expanded(
+                            child: _BreakdownCard(
+                              title: lang.t('home.expenseByCategory'),
+                              rows: expenseRows,
+                              total: data.report.totalExpense,
+                            ),
+                          ),
+                          // uniapp .breakdown-row { gap: 16rpx } → 8dp
+                          const SizedBox(width: 8),
+                          Expanded(
+                            child: _BreakdownCard(
+                              title: lang.t('home.incomeByCategory'),
+                              rows: incomeRows,
+                              total: data.report.totalIncome,
+                            ),
+                          ),
+                        ],
+                      ),
+                    ],
+                  ),
                 ),
               ],
             );

@@ -79,64 +79,86 @@ class _AccountsScreenState extends ConsumerState<AccountsScreen> {
         child: FutureBuilder<List<Account>>(
           future: _future,
           builder: (context, snap) {
-            if (snap.connectionState != ConnectionState.done) {
-              return Center(
-                child: Text(
-                  lang.t('accounts.loading'),
-                  style: TextStyle(color: c.textVariant),
-                ),
-              );
-            }
-            if (snap.hasError) {
-              return ListView(
-                children: [
-                  Padding(
-                    padding: const EdgeInsets.all(AppSpacing.xl),
-                    child: Text(
-                      '${lang.t('accounts.loadErrorPrefix')}${snap.error}',
-                      style: TextStyle(color: c.error),
-                    ),
+            // 首次加载还没数据 → 整页占位
+            if (!snap.hasData) {
+              if (snap.connectionState != ConnectionState.done) {
+                return Center(
+                  child: Text(
+                    lang.t('accounts.loading'),
+                    style: TextStyle(color: c.textVariant),
                   ),
-                ],
-              );
+                );
+              }
+              if (snap.hasError) {
+                return ListView(
+                  children: [
+                    Padding(
+                      padding: const EdgeInsets.all(AppSpacing.xl),
+                      child: Text(
+                        '${lang.t('accounts.loadErrorPrefix')}${snap.error}',
+                        style: TextStyle(color: c.error),
+                      ),
+                    ),
+                  ],
+                );
+              }
             }
-            final list = snap.data ?? [];
-            if (list.isEmpty) {
-              return Center(
-                child: Text(
-                  lang.t('accounts.empty'),
-                  style: TextStyle(color: c.textVariant),
-                ),
-              );
-            }
+            // 已有数据(包括刷新中的 stale snapshot)→ 渲染数据,顶部加进度条
+            final list = snap.data!;
+            final isReloading =
+                snap.connectionState != ConnectionState.done;
             final total =
                 list.fold<double>(0, (sum, a) => sum + a.balance);
-            return ListView(
-              padding: const EdgeInsets.all(AppSpacing.lg),
+            return Column(
               children: [
-                _NetCard(
-                  total: total,
-                  label: lang.t('accounts.netAssets'),
-                  addCta: lang.t('accounts.addCta'),
-                  onAdd: () => context.push(AppRoutes.accountNew),
-                ),
-                const SizedBox(height: AppSpacing.md),
-                GridView.count(
-                  crossAxisCount: 2,
-                  shrinkWrap: true,
-                  physics: const NeverScrollableScrollPhysics(),
-                  mainAxisSpacing: AppSpacing.sm,
-                  crossAxisSpacing: AppSpacing.sm,
-                  childAspectRatio: 1.4,
-                  children: [
-                    for (final a in list)
-                      _AccountCard(
-                        account: a,
-                        onTap: () {},
-                        onLongPress: () => _confirmDelete(a),
-                        onMore: () => _confirmDelete(a),
+                if (isReloading)
+                  const LinearProgressIndicator(
+                    minHeight: 2,
+                    backgroundColor: Color(0x00000000),
+                  ),
+                Expanded(
+                  child: ListView(
+                    padding: const EdgeInsets.all(AppSpacing.lg),
+                    children: [
+                      _NetCard(
+                        total: total,
+                        label: lang.t('accounts.netAssets'),
+                        addCta: lang.t('accounts.addCta'),
+                        onAdd: () => context.push(AppRoutes.accountNew),
                       ),
-                  ],
+                      const SizedBox(height: AppSpacing.md),
+                      if (list.isEmpty)
+                        Padding(
+                          padding: const EdgeInsets.symmetric(
+                            vertical: AppSpacing.xl,
+                          ),
+                          child: Center(
+                            child: Text(
+                              lang.t('accounts.empty'),
+                              style: TextStyle(color: c.textVariant),
+                            ),
+                          ),
+                        )
+                      else
+                        GridView.count(
+                          crossAxisCount: 2,
+                          shrinkWrap: true,
+                          physics: const NeverScrollableScrollPhysics(),
+                          mainAxisSpacing: AppSpacing.sm,
+                          crossAxisSpacing: AppSpacing.sm,
+                          childAspectRatio: 1.4,
+                          children: [
+                            for (final a in list)
+                              _AccountCard(
+                                account: a,
+                                onTap: () {},
+                                onLongPress: () => _confirmDelete(a),
+                                onMore: () => _confirmDelete(a),
+                              ),
+                          ],
+                        ),
+                    ],
+                  ),
                 ),
               ],
             );

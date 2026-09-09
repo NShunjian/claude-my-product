@@ -9,6 +9,7 @@ import '../../features/auth/profile_edit_screen.dart';
 import '../../features/books/book_members_screen.dart';
 import '../../features/books/books_screen.dart';
 import '../../features/home/home_screen.dart';
+import '../../features/home/quick_add_modal.dart';
 import '../../features/records/record_expense_screen.dart';
 import '../../features/records/record_income_screen.dart';
 import '../../features/reports/reports_screen.dart';
@@ -151,7 +152,16 @@ class _TabScaffold extends ConsumerWidget {
     final genericModalOpen = ref.watch(modalOpenProvider);
 
     return Scaffold(
-      body: navigationShell,
+      // QuickAddModal 必须放进路由 Navigator 之内 — 它放在这里(_TabScaffold 是
+      // StatefulShellRoute 的 builder,被 GoRouter 包裹),Navigator 是它的祖先,
+      // showDatePicker / showDialog 弹出来的 overlay 会叠在 Modal 之上。
+      body: Stack(
+        fit: StackFit.expand,
+        children: [
+          navigationShell,
+          const Positioned.fill(child: QuickAddModal()),
+        ],
+      ),
       bottomNavigationBar: (quickAddOpen || genericModalOpen)
           ? const SizedBox.shrink()
           : NavigationBar(

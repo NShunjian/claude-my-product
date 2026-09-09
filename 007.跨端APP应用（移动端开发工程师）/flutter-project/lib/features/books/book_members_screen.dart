@@ -117,12 +117,31 @@ class _BookMembersScreenState extends ConsumerState<BookMembersScreen> {
       body: FutureBuilder<List<BookMember>>(
         future: _future,
         builder: (context, snap) {
+          // 首次加载还没数据 → 整页占位
           if (!snap.hasData) {
-            return Center(child: Text(lang.t('common.loading')));
+            if (snap.connectionState != ConnectionState.done) {
+              return Center(child: Text(lang.t('common.loading')));
+            }
+            if (snap.hasError) {
+              return Center(
+                child: Text(
+                  '加载失败:${snap.error}',
+                  style: TextStyle(color: c.error),
+                ),
+              );
+            }
           }
+          // 已有数据(包括刷新中的 stale snapshot)→ 渲染数据,顶部加进度条
           final list = snap.data!;
+          final isReloading =
+              snap.connectionState != ConnectionState.done;
           return Column(
             children: [
+              if (isReloading)
+                const LinearProgressIndicator(
+                  minHeight: 2,
+                  backgroundColor: Color(0x00000000),
+                ),
               Container(
                 padding: const EdgeInsets.symmetric(
                   horizontal: AppSpacing.lg,

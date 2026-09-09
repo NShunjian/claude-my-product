@@ -136,103 +136,126 @@ class _TransactionsScreenState extends ConsumerState<TransactionsScreen> {
               child: FutureBuilder<_TxData>(
                 future: _future,
                 builder: (context, snap) {
-                  if (snap.connectionState != ConnectionState.done) {
-                    return Center(
-                      child: Text(
-                        lang.t('transactions.loading'),
-                        style: TextStyle(color: c.textVariant),
-                      ),
-                    );
-                  }
-                  if (snap.hasError) {
-                    return ListView(
-                      children: [
-                        Padding(
-                          padding: const EdgeInsets.all(AppSpacing.xl),
-                          child: Text(
-                            '${lang.t('transactions.loadErrorPrefix')}${snap.error}',
-                            style: TextStyle(color: c.error),
-                          ),
+                  // 首次加载还没数据 → 整页占位
+                  if (!snap.hasData) {
+                    if (snap.connectionState != ConnectionState.done) {
+                      return Center(
+                        child: Text(
+                          lang.t('transactions.loading'),
+                          style: TextStyle(color: c.textVariant),
                         ),
-                      ],
-                    );
+                      );
+                    }
+                    if (snap.hasError) {
+                      return ListView(
+                        children: [
+                          Padding(
+                            padding: const EdgeInsets.all(AppSpacing.xl),
+                            child: Text(
+                              '${lang.t('transactions.loadErrorPrefix')}${snap.error}',
+                              style: TextStyle(color: c.error),
+                            ),
+                          ),
+                        ],
+                      );
+                    }
                   }
+                  // 已有数据(包括刷新中的 stale snapshot)→ 渲染数据,顶部加进度条
                   final data = snap.data!;
-                  if (data.records.isEmpty) {
-                    return Center(
-                      child: Text(
-                        lang.t('transactions.empty'),
-                        style: TextStyle(color: c.textVariant),
-                      ),
-                    );
-                  }
+                  final isReloading =
+                      snap.connectionState != ConnectionState.done;
                   final groups = _groupByDate(data.records);
-                  return ListView.builder(
-                    itemCount: groups.fold<int>(0, (s, g) => s + 1 + g.records.length),
-                    itemBuilder: (context, i) {
-                      // 每组 1 个 day-header + N 行 row,平铺为线性索引。
-                      for (final g in groups) {
-                        if (i == 0) {
-                          return _DayHeader(
-                            label: _formatDayHeader(g.date, lang),
-                            net: g.net,
-                          );
-                        }
-                        i -= 1;
-                        if (i < g.records.length) {
-                          final r = g.records[i];
-                          final cat = data.categories.firstWhere(
-                            (x) => x.id == r.categoryId,
-                            orElse: () => Category(
-                              id: '',
-                              type: CategoryType.expense,
-                              name: '',
-                              icon: '',
-                              color: '#727782',
-                              sortOrder: 0,
-                              isPreset: false,
-                            ),
-                          );
-                          final acc = data.accounts.firstWhere(
-                            (a) => a.id == r.accountId,
-                            orElse: () => Account(
-                              id: '',
-                              name: '',
-                              type: AccountType.other,
-                              icon: '',
-                              initialBalance: 0,
-                              balance: 0,
-                              currency: 'CNY',
-                              isDefault: false,
-                              sortOrder: 0,
-                              createdAt: '',
-                            ),
-                          );
-                          return Dismissible(
-                            key: ValueKey(r.id),
-                            direction: DismissDirection.endToStart,
-                            background: Container(
-                              color: c.error,
-                              alignment: Alignment.centerRight,
-                              padding: const EdgeInsets.symmetric(horizontal: AppSpacing.lg),
-                              child: Icon(Icons.delete, color: Colors.white),
-                            ),
-                            onDismissed: (_) => _confirmDelete(r),
-                            child: TransactionRow(
-                              record: r,
-                              category: cat.id.isEmpty ? null : cat,
-                              account: acc.id.isEmpty ? null : acc,
-                              onTap: () => context.push(
-                                AppRoutes.recordExpense,
-                                extra: r,
+                  return Column(
+                    children: [
+                      if (isReloading)
+                        const LinearProgressIndicator(
+                          minHeight: 2,
+                          backgroundColor: Color(0x00000000),
+                        ),
+                      Expanded(
+                        child: data.records.isEmpty
+                            ? Center(
+                                child: Text(
+                                  lang.t('transactions.empty'),
+                                  style: TextStyle(color: c.textVariant),
+                                ),
+                              )
+                            : ListView.builder(
+                                itemCount: groups.fold<int>(
+                                    0, (s, g) => s + 1 + g.records.length,
+                                ),
+                                itemBuilder: (context, i) {
+                                  // 每组 1 个 day-header + N 行 row,平铺为线性索引。
+                                  for (final g in groups) {
+                                    if (i == 0) {
+                                      return _DayHeader(
+                                        label: _formatDayHeader(g.date, lang),
+                                        net: g.net,
+                                      );
+                                    }
+                                    i -= 1;
+                                    if (i < g.records.length) {
+                                      final r = g.records[i];
+                                      final cat = data.categories.firstWhere(
+                                        (x) => x.id == r.categoryId,
+                                        orElse: () => Category(
+                                          id: '',
+                                          type: CategoryType.expense,
+                                          name: '',
+                                          icon: '',
+                                          color: '#727782',
+                                          sortOrder: 0,
+                                          isPreset: false,
+                                        ),
+                                      );
+                                      final acc = data.accounts.firstWhere(
+                                        (a) => a.id == r.accountId,
+                                        orElse: () => Account(
+                                          id: '',
+                                          name: '',
+                                          type: AccountType.other,
+                                          icon: '',
+                                          initialBalance: 0,
+                                          balance: 0,
+                                          currency: 'CNY',
+                                          isDefault: false,
+                                          sortOrder: 0,
+                                          createdAt: '',
+                                        ),
+                                      );
+                                      return Dismissible(
+                                        key: ValueKey(r.id),
+                                        direction: DismissDirection.endToStart,
+                                        background: Container(
+                                          color: c.error,
+                                          alignment: Alignment.centerRight,
+                                          padding: const EdgeInsets.symmetric(
+                                            horizontal: AppSpacing.lg,
+                                          ),
+                                          child: const Icon(
+                                            Icons.delete,
+                                            color: Colors.white,
+                                          ),
+                                        ),
+                                        onDismissed: (_) => _confirmDelete(r),
+                                        child: TransactionRow(
+                                          record: r,
+                                          category: cat.id.isEmpty ? null : cat,
+                                          account: acc.id.isEmpty ? null : acc,
+                                          onTap: () => context.push(
+                                            AppRoutes.recordExpense,
+                                            extra: r,
+                                          ),
+                                        ),
+                                      );
+                                    }
+                                    i -= g.records.length;
+                                  }
+                                  return const SizedBox.shrink();
+                                },
                               ),
-                            ),
-                          );
-                        }
-                        i -= g.records.length;
-                      }
-                      return const SizedBox.shrink();
-                    },
+                      ),
+                    ],
                   );
                 },
               ),
@@ -266,14 +289,16 @@ List<_DayGroup> _groupByDate(List<Record> records) {
     map.putIfAbsent(r.recordDate, () => []).add(r);
   }
   return map.entries
-      .map((e) => _DayGroup(
-            date: e.key,
-            records: e.value,
-            net: e.value.fold<double>(
-              0,
-              (s, r) => s + (r.type == RecordType.income ? r.amount : -r.amount),
-            ),
-          ))
+      .map(
+        (e) => _DayGroup(
+          date: e.key,
+          records: e.value,
+          net: e.value.fold<double>(
+            0,
+            (s, r) => s + (r.type == RecordType.income ? r.amount : -r.amount),
+          ),
+        ),
+      )
       .toList();
 }
 
@@ -288,26 +313,29 @@ class _DayGroup {
 String _formatDayHeader(String ymd, Lang lang) {
   try {
     final d = DateTime.parse(ymd);
-    final wd = weekdayLabel(d, labelOf: (i) {
-      switch (i) {
-        case 0:
-          return lang.t('transactions.weekdaySun');
-        case 1:
-          return lang.t('transactions.weekdayMon');
-        case 2:
-          return lang.t('transactions.weekdayTue');
-        case 3:
-          return lang.t('transactions.weekdayWed');
-        case 4:
-          return lang.t('transactions.weekdayThu');
-        case 5:
-          return lang.t('transactions.weekdayFri');
-        case 6:
-          return lang.t('transactions.weekdaySat');
-        default:
-          return '';
-      }
-    });
+    final wd = weekdayLabel(
+      d,
+      labelOf: (i) {
+        switch (i) {
+          case 0:
+            return lang.t('transactions.weekdaySun');
+          case 1:
+            return lang.t('transactions.weekdayMon');
+          case 2:
+            return lang.t('transactions.weekdayTue');
+          case 3:
+            return lang.t('transactions.weekdayWed');
+          case 4:
+            return lang.t('transactions.weekdayThu');
+          case 5:
+            return lang.t('transactions.weekdayFri');
+          case 6:
+            return lang.t('transactions.weekdaySat');
+          default:
+            return '';
+        }
+      },
+    );
     return '${d.month}月${d.day}日, $wd';
   } catch (_) {
     return ymd;

@@ -20,7 +20,13 @@
     <properties>
         <java.version>21</java.version>
         <maven.compiler.release>21</maven.compiler.release>
-        <mybatis-plus.version>3.5.9</mybatis-plus.version>
+        <!-- 升级 3.5.9 -> 3.5.12:Spring Boot 3.5 把 factoryBeanObjectType
+             从 String 改成 Class<?>,3.5.10 修了这个兼容性,3.5.12 累积更稳。
+             长期证据:4011 超时根因。
+             dynamic-datasource 暂留 4.5.0(阿里云镜像只有这个版本;
+             它的 DataSource 路由与 factoryBeanObjectType 无关,
+             不参与 mapper 注册失败链。)。 -->
+        <mybatis-plus.version>3.5.12</mybatis-plus.version>
         <dynamic-datasource.version>4.5.0</dynamic-datasource.version>
         <flyway.version>10.20.1</flyway.version>
         <lombok.version>1.18.46</lombok.version>

@@ -1,6 +1,12 @@
 server:
   port: 4001
 
+# 局域网 IP — CorsConfig 用它拼 http://${lan.ip}:5173/5174/5180/5181。
+# 由 root .env 的 LAN_IP 经由 lib-qz.sh → JVM 环境变量注入;
+# LAN_IP 未设置时退回 localhost(桌面 dev 仍可,只是没有 LAN 访问 — 换网兜底安全)。
+lan:
+  ip: "${LAN_IP:localhost}"
+
 spring:
   application:
     name: qingzhang-java-backend

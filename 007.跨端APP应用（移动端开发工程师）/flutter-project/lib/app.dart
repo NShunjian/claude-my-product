@@ -5,7 +5,6 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'core/i18n/locale_provider.dart';
 import 'core/router/app_router.dart';
 import 'core/theme/app_theme.dart';
-import 'features/home/quick_add_modal.dart';
 import 'features/shared/theme_controller.dart';
 import 'features/shared/toast.dart';
 
@@ -37,7 +36,9 @@ class QingZhangApp extends ConsumerWidget {
           fit: StackFit.expand,
           children: [
             if (child != null) child,
-            const Positioned.fill(child: QuickAddModal()),
+            // QuickAddModal 必须放进路由 Navigator 之内(_TabScaffold.body Stack),
+            // 否则它和 child 平级、Navigator 在 child 里,showDatePicker
+            // 弹的对话框会被 Modal 盖住看不见 — 见 app_router.dart 里 _TabScaffold。
             const Positioned.fill(child: IgnorePointer(child: ToastHost())),
           ],
         );

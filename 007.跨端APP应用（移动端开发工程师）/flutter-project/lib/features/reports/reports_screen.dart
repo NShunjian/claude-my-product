@@ -344,58 +344,85 @@ class _MonthlyTab extends ConsumerWidget {
       child: FutureBuilder<MonthlyReport>(
         future: future,
         builder: (context, snap) {
-          if (snap.connectionState != ConnectionState.done) {
-            return Center(child: Text(lang.t('common.loading')));
-          }
-          if (snap.hasError) {
-            return Center(
-              child: Text(
-                '${lang.t('reportMonthly.loadErrorPrefix')}${snap.error}',
-                style: TextStyle(color: c.error),
-              ),
-            );
-          }
-          final r = snap.data!;
-          final cats = ref.read(categoriesApiProvider);
-          return FutureBuilder<List<Category>>(
-            future: cats.listCategories(),
-            builder: (context, catsSnap) {
-              final catList = catsSnap.data ?? const [];
-              final expSegs = _buildSegments(r.expenseByCategory, catList);
-              final incSegs = _buildSegments(r.incomeByCategory, catList);
-              return ListView(
-                padding: const EdgeInsets.all(AppSpacing.md),
-                children: [
-                  header,
-                  const SizedBox(height: AppSpacing.lg),
-                  _KpiColumn(report: r, lang: lang, isYearly: false),
-                  const SizedBox(height: AppSpacing.lg),
-                  _ChartCard(
-                    title: lang.t('reportMonthly.dailyTrend'),
-                    child: SizedBox(
-                      height: 160,
-                      child: _DailyChart(dailyData: r.dailyData),
-                    ),
-                  ),
-                  const SizedBox(height: AppSpacing.md),
-                  _CategoryCard(
-                    title: lang.t('reportMonthly.incomeShare'),
-                    emptyKey: 'reportMonthly.noIncomeRecords',
-                    segments: incSegs,
-                    total: r.totalIncome,
-                    totalLabel: lang.t('reportMonthly.totalIncome'),
-                  ),
-                  const SizedBox(height: AppSpacing.md),
-                  _CategoryCard(
-                    title: lang.t('reportMonthly.expenseShare'),
-                    emptyKey: 'reportMonthly.noExpenseRecords',
-                    segments: expSegs,
-                    total: r.totalExpense,
-                    totalLabel: lang.t('reportMonthly.totalExpense'),
-                  ),
-                ],
+          // 首次加载还没数据 → 整页占位
+          if (!snap.hasData) {
+            if (snap.connectionState != ConnectionState.done) {
+              return Center(child: Text(lang.t('common.loading')));
+            }
+            if (snap.hasError) {
+              return Center(
+                child: Text(
+                  '${lang.t('reportMonthly.loadErrorPrefix')}${snap.error}',
+                  style: TextStyle(color: c.error),
+                ),
               );
-            },
+            }
+          }
+          // 已有数据(包括刷新中的 stale snapshot)→ 渲染数据,顶部加进度条
+          final r = snap.data!;
+          final isReloading =
+              snap.connectionState != ConnectionState.done;
+          final cats = ref.read(categoriesApiProvider);
+          return Column(
+            children: [
+              if (isReloading)
+                const LinearProgressIndicator(
+                  minHeight: 2,
+                  backgroundColor: Color(0x00000000),
+                ),
+              Expanded(
+                child: FutureBuilder<List<Category>>(
+                  future: cats.listCategories(),
+                  builder: (context, catsSnap) {
+                    final catList = catsSnap.data ?? const [];
+                    final expSegs = _buildSegments(
+                      r.expenseByCategory,
+                      catList,
+                    );
+                    final incSegs = _buildSegments(
+                      r.incomeByCategory,
+                      catList,
+                    );
+                    return ListView(
+                      padding: const EdgeInsets.all(AppSpacing.md),
+                      children: [
+                        header,
+                        const SizedBox(height: AppSpacing.lg),
+                        _KpiColumn(
+                          report: r,
+                          lang: lang,
+                          isYearly: false,
+                        ),
+                        const SizedBox(height: AppSpacing.lg),
+                        _ChartCard(
+                          title: lang.t('reportMonthly.dailyTrend'),
+                          child: SizedBox(
+                            height: 160,
+                            child: _DailyChart(dailyData: r.dailyData),
+                          ),
+                        ),
+                        const SizedBox(height: AppSpacing.md),
+                        _CategoryCard(
+                          title: lang.t('reportMonthly.incomeShare'),
+                          emptyKey: 'reportMonthly.noIncomeRecords',
+                          segments: incSegs,
+                          total: r.totalIncome,
+                          totalLabel: lang.t('reportMonthly.totalIncome'),
+                        ),
+                        const SizedBox(height: AppSpacing.md),
+                        _CategoryCard(
+                          title: lang.t('reportMonthly.expenseShare'),
+                          emptyKey: 'reportMonthly.noExpenseRecords',
+                          segments: expSegs,
+                          total: r.totalExpense,
+                          totalLabel: lang.t('reportMonthly.totalExpense'),
+                        ),
+                      ],
+                    );
+                  },
+                ),
+              ),
+            ],
           );
         },
       ),
@@ -458,49 +485,73 @@ class _YearlyTab extends ConsumerWidget {
       child: FutureBuilder<YearlyReport>(
         future: future,
         builder: (context, snap) {
-          if (snap.connectionState != ConnectionState.done) {
-            return Center(child: Text(lang.t('common.loading')));
-          }
-          if (snap.hasError) {
-            return Center(
-              child: Text(
-                '${lang.t('reportYearly.loadErrorPrefix')}${snap.error}',
-                style: TextStyle(color: c.error),
-              ),
-            );
-          }
-          final r = snap.data!;
-          final cats = ref.read(categoriesApiProvider);
-          return FutureBuilder<List<Category>>(
-            future: cats.listCategories(),
-            builder: (context, catsSnap) {
-              final catList = catsSnap.data ?? const [];
-              final expSegs = _buildSegments(r.expenseByCategory, catList);
-              return ListView(
-                padding: const EdgeInsets.all(AppSpacing.md),
-                children: [
-                  header,
-                  const SizedBox(height: AppSpacing.lg),
-                  _KpiColumn(report: r, lang: lang, isYearly: true),
-                  const SizedBox(height: AppSpacing.lg),
-                  _ChartCard(
-                    title: lang.t('reportYearly.monthlyTrend'),
-                    child: SizedBox(
-                      height: 160,
-                      child: _MonthlyChart(data: r.monthlyData),
-                    ),
-                  ),
-                  const SizedBox(height: AppSpacing.md),
-                  _CategoryCard(
-                    title: lang.t('reportYearly.expenseBreakdown'),
-                    emptyKey: 'reportYearly.noExpenseRecords',
-                    segments: expSegs,
-                    total: r.totalExpense,
-                    totalLabel: lang.t('reportYearly.totalExpense'),
-                  ),
-                ],
+          // 首次加载还没数据 → 整页占位
+          if (!snap.hasData) {
+            if (snap.connectionState != ConnectionState.done) {
+              return Center(child: Text(lang.t('common.loading')));
+            }
+            if (snap.hasError) {
+              return Center(
+                child: Text(
+                  '${lang.t('reportYearly.loadErrorPrefix')}${snap.error}',
+                  style: TextStyle(color: c.error),
+                ),
               );
-            },
+            }
+          }
+          // 已有数据(包括刷新中的 stale snapshot)→ 渲染数据,顶部加进度条
+          final r = snap.data!;
+          final isReloading =
+              snap.connectionState != ConnectionState.done;
+          final cats = ref.read(categoriesApiProvider);
+          return Column(
+            children: [
+              if (isReloading)
+                const LinearProgressIndicator(
+                  minHeight: 2,
+                  backgroundColor: Color(0x00000000),
+                ),
+              Expanded(
+                child: FutureBuilder<List<Category>>(
+                  future: cats.listCategories(),
+                  builder: (context, catsSnap) {
+                    final catList = catsSnap.data ?? const [];
+                    final expSegs = _buildSegments(
+                      r.expenseByCategory,
+                      catList,
+                    );
+                    return ListView(
+                      padding: const EdgeInsets.all(AppSpacing.md),
+                      children: [
+                        header,
+                        const SizedBox(height: AppSpacing.lg),
+                        _KpiColumn(
+                          report: r,
+                          lang: lang,
+                          isYearly: true,
+                        ),
+                        const SizedBox(height: AppSpacing.lg),
+                        _ChartCard(
+                          title: lang.t('reportYearly.monthlyTrend'),
+                          child: SizedBox(
+                            height: 160,
+                            child: _MonthlyChart(data: r.monthlyData),
+                          ),
+                        ),
+                        const SizedBox(height: AppSpacing.md),
+                        _CategoryCard(
+                          title: lang.t('reportYearly.expenseBreakdown'),
+                          emptyKey: 'reportYearly.noExpenseRecords',
+                          segments: expSegs,
+                          total: r.totalExpense,
+                          totalLabel: lang.t('reportYearly.totalExpense'),
+                        ),
+                      ],
+                    );
+                  },
+                ),
+              ),
+            ],
           );
         },
       ),

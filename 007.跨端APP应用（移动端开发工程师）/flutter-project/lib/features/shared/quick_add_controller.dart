@@ -32,6 +32,20 @@ class QuickAddController extends Notifier<QuickAddState> {
   void notifySaved() {
     state = state.copyWith(savedAt: state.savedAt + 1);
   }
+
+  /// 关弹窗 + 通知已保存,合成**一次** state 变更。
+  /// 比 `close(); notifySaved();` 可靠 — 监听器只会收到一次 fire:
+  ///   prev = (show:true,  savedAt:N)
+  ///   next = (show:false, savedAt:N+1)
+  /// 一次性看到 savedAt 变化,避免连续两次 state= 之间 listener 被吞掉、
+  /// 或只看到其中一次而漏触发刷新。
+  void closeAndNotify() {
+    state = QuickAddState(
+      show: false,
+      kind: state.kind,
+      savedAt: state.savedAt + 1,
+    );
+  }
 }
 
 final quickAddControllerProvider =

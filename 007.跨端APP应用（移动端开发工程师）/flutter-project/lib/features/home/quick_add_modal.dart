@@ -171,8 +171,9 @@ class _QuickAddModalState extends ConsumerState<QuickAddModal>
       setState(() => _showSuccess = true);
       Future.delayed(const Duration(milliseconds: 1200), () {
         if (!mounted) return;
-        ref.read(quickAddControllerProvider.notifier).close();
-        ref.read(quickAddControllerProvider.notifier).notifySaved();
+        // 一次性关闭 + 通知 — 见 QuickAddController.closeAndNotify 的注释,
+        // 避免 close()/notifySaved() 分两次 state= 漏 fire 监听器。
+        ref.read(quickAddControllerProvider.notifier).closeAndNotify();
         _reset();
       });
     } catch (e) {

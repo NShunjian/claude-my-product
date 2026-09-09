@@ -40,9 +40,19 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
     _future = ref.read(authControllerProvider).isLoggedIn
         ? _load()
         : Future.value(_HomeData.empty());
+    // 监听 quickAdd 保存 + 弹窗关闭,任一发生都触发首页重拉。
+    // - savedAt 变化 = closeAndNotify() 的原子通知(主路径)
+    // - show 从 true → false = 兜底:即便 closeAndNotify 因 Riverpod 边角 case
+    //   漏发 savedAt,弹窗关闭这一事件也会触发刷新
     ref.listenManual<QuickAddState>(quickAddControllerProvider, (prev, next) {
-      if (prev != null && next.savedAt != prev.savedAt) {
-        setState(() => _future = _load());
+      if (prev != null &&
+          (next.savedAt != prev.savedAt || (prev.show && !next.show))) {
+        // Future 必须先算出再传进 setState — 用箭头 () => _future = _load()
+        // 会让 setState 收到 Future 返回值而抛错(_load() 是 async)。
+        final f = _load();
+        setState(() {
+          _future = f;
+        });
       }
     });
   }

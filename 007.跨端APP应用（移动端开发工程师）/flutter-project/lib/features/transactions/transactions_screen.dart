@@ -31,9 +31,17 @@ class _TransactionsScreenState extends ConsumerState<TransactionsScreen> {
   void initState() {
     super.initState();
     _future = _load();
+    // 监听 quickAdd 保存 + 弹窗关闭,任一发生都触发流水页重拉。
+    // 跟 home_screen 一致 — 详见那边注释。
     ref.listenManual<QuickAddState>(quickAddControllerProvider, (prev, next) {
-      if (prev != null && next.savedAt != prev.savedAt) {
-        setState(() => _future = _load());
+      if (prev != null &&
+          (next.savedAt != prev.savedAt || (prev.show && !next.show))) {
+        // Future 必须先算出再传进 setState — 用箭头 () => _future = _load()
+        // 会让 setState 收到 Future 返回值而抛错。
+        final f = _load();
+        setState(() {
+          _future = f;
+        });
       }
     });
   }

@@ -37,22 +37,37 @@ class MonthPicker extends ConsumerWidget {
     final c = context.appColors;
 
     if (compact) {
-      return InkWell(
+      // 流水页 filter-row 跟 _SelectBox 完全一致:Container 边框 + 背景 + GestureDetector
+      // 点击。月份文本左对齐(非居中),文字 + ▼ 与其他两个 picker 视觉一致。
+      // ponytail: 之前 InkWell + Padding 没有 Container,在浅色背景下看不到边界,
+      //          跟 _SelectBox 视觉重量不匹配 — 改成同款 Container 后边框 + 背景一致。
+      return GestureDetector(
+        behavior: HitTestBehavior.opaque,
         onTap: () => _openModal(context, ref),
-        child: Padding(
+        child: Container(
           padding: const EdgeInsets.symmetric(
-            horizontal: AppSpacing.md,
-            vertical: AppSpacing.sm,
+            horizontal: 10,
+            vertical: 8,
+          ),
+          decoration: BoxDecoration(
+            color: c.bgCard,
+            borderRadius: BorderRadius.circular(6),
+            border: Border.all(color: c.divider),
           ),
           child: Row(
-            mainAxisSize: MainAxisSize.min,
             children: [
-              Text(
-                formatMonthCN(value, langCode: lang.code),
-                style: TextStyle(color: c.text, fontSize: 14),
+              Expanded(
+                child: Text(
+                  formatMonthCN(value, langCode: lang.code),
+                  style: TextStyle(color: c.text, fontSize: 13),
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                ),
               ),
-              const SizedBox(width: AppSpacing.xs),
-              Icon(Icons.arrow_drop_down, color: c.textVariant),
+              Text(
+                '▼',
+                style: TextStyle(color: c.textVariant, fontSize: 14),
+              ),
             ],
           ),
         ),

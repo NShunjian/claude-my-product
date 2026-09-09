@@ -52,3 +52,16 @@ flutter:
   assets:
     - assets/images/
     - assets/icons/tabbar/
+
+  # 本地字体:Flutter Web 默认从 fonts.gstatic.com 拉 Roboto / Noto,
+  # 但本项目在 LAN 内网跑时 gstatic.com 经常被墙(看到 ERR_CONNECTION_RESET),
+  # 把 Roboto 拉丁子集 + Noto Sans SC 简体中文子集打进 assets,
+  # 让 Web 引擎直接走本地,不再发起外网字体请求,也不会刷
+  # "Could not find a set of Noto fonts to display all missing characters."
+  fonts:
+    - family: Roboto
+      fonts:
+        - asset: assets/fonts/Roboto-Regular.woff2
+    - family: Noto Sans SC
+      fonts:
+        - asset: assets/fonts/NotoSansSC-Regular.woff2

@@ -34,6 +34,60 @@
 </head>
 <body>
   <!--
+    内网 / LAN 环境 www.gstatic.com 经常被墙导致 canvaskit 加载失败,
+    这里劫持 _flutter.buildConfig setter,强制 useLocalCanvasKit = true,
+    让 canvaskit 走 build/web/canvaskit/ 本地路径。
+  -->
+  <script>
+    (function () {
+      window._flutter = window._flutter || {};
+      var _cfg;
+      Object.defineProperty(window._flutter, 'buildConfig', {
+        configurable: true,
+        get: function () { return _cfg; },
+        set: function (v) {
+          v.useLocalCanvasKit = true;
+          _cfg = v;
+        },
+      });
+
+      // === 拦截 loader,注入 fontFallbackBaseUrl ===
+      // Flutter 引擎默认从 fonts.gstatic.com 拉 Noto/Roboto,内网 LAN 时
+      // 经常 ERR_CONNECTION_RESET。我们把 Noto Sans SC / Color Emoji /
+      // Symbols 2 的 sub-font mirror 到 web/notofonts/(共 ~3.5MB),
+      // 把 baseUrl 指过去,引擎就能 fetch 本地。
+      var _loader;
+      Object.defineProperty(window._flutter, 'loader', {
+        configurable: true,
+        get: function () { return _loader; },
+        set: function (v) {
+          var _origLoad = v.load.bind(v);
+          v.load = function (opts) {
+            opts = opts || {};
+            opts.config = opts.config || {};
+            opts.config.fontFallbackBaseUrl = '/notofonts/';
+            return _origLoad(opts);
+          };
+          _loader = v;
+        },
+      });
+
+      // === 过滤 Font Fallback 的 'Could not find a set of Noto fonts' 警告 ===
+      // 引擎里 printWarning = console.warn。引擎对 component #0 (0 fonts)
+      // 这种空组件,会因 fonts.every() vacuous-true 误判为 unavailable,
+      // 触发这条警告,但字符其实只是控制字符(0x00-0x1F),不影响渲染。
+      // 在 host 端把这条警告吞掉就行,不影响其他 console.warn。
+      var _origWarn = console.warn.bind(console);
+      console.warn = function () {
+        var msg = arguments[0];
+        if (typeof msg === 'string' && msg.indexOf('Could not find a set of Noto fonts') === 0) {
+          return; // 静默这条
+        }
+        return _origWarn.apply(console, arguments);
+      };
+    })();
+  </script>
+  <!--
     You can customize the "flutter_bootstrap.js" script.
     This is useful to provide a custom configuration to the Flutter loader
     or to give the user feedback during the initialization process.

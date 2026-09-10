@@ -527,12 +527,29 @@ class UpdateRecordInput {
 
 // ===== Reports =====
 class CategoryAggregate {
-  CategoryAggregate({required this.categoryId, required this.amount});
+  CategoryAggregate({
+    required this.categoryId,
+    required this.amount,
+    this.name,
+    this.icon,
+    this.color,
+  });
   final String? categoryId;
   final double amount;
+  // 后端 /monthly 与 /yearly 在每条分类聚合里直接带 name/icon/color,
+  // 不需要再去 /categories 按 id 反查(categoryId 经常是 'income-兼职' 这种 slug,
+  // 不是 UUID,根本对不上 categories 列表)。
+  final String? name;
+  final String? icon;
+  final String? color;
   factory CategoryAggregate.fromJson(Map<String, dynamic> json) => CategoryAggregate(
         categoryId: json['categoryId']?.toString(),
-        amount: (json['amount'] as num? ?? 0).toDouble(),
+        // 后端字段是 total,老 Flutter 代码读 amount(uniapp MonthlyPoint 也是 total);
+        // 兼容老字段名。
+        amount: ((json['total'] ?? json['amount']) as num?)?.toDouble() ?? 0,
+        name: json['name'] as String?,
+        icon: json['icon'] as String?,
+        color: json['color'] as String?,
       );
 }
 
@@ -591,12 +608,25 @@ class MonthlyReport {
 }
 
 class MonthlyComparison {
-  MonthlyComparison({required this.income, required this.expense});
+  MonthlyComparison({
+    required this.income,
+    required this.expense,
+    this.netSavings,
+  });
   final double income;
   final double expense;
-  factory MonthlyComparison.fromJson(Map<String, dynamic> json) => MonthlyComparison(
-        income: (json['income'] as num? ?? 0).toDouble(),
-        expense: (json['expense'] as num? ?? 0).toDouble(),
+  // 后端直接给 netSavings,uniapp monthlyNetChangePct 用这个值,不要用
+  // income-expense 推算(后端字段比 Flutter 自己算更准)。
+  final double? netSavings;
+  factory MonthlyComparison.fromJson(Map<String, dynamic> json) =>
+      MonthlyComparison(
+        // 后端字段是 totalIncome/totalExpense/netSavings,老代码读 income/expense;
+        // 兼容老字段名。
+        income:
+            ((json['totalIncome'] ?? json['income']) as num?)?.toDouble() ?? 0,
+        expense:
+            ((json['totalExpense'] ?? json['expense']) as num?)?.toDouble() ?? 0,
+        netSavings: (json['netSavings'] as num?)?.toDouble(),
       );
 }
 
@@ -606,11 +636,11 @@ class MonthlyDataPoint {
     required this.income,
     required this.expense,
   });
-  final String month;
+  final int month;
   final double income;
   final double expense;
   factory MonthlyDataPoint.fromJson(Map<String, dynamic> json) => MonthlyDataPoint(
-        month: json['month'] as String,
+        month: json['month'] as int,
         income: (json['income'] as num? ?? 0).toDouble(),
         expense: (json['expense'] as num? ?? 0).toDouble(),
       );

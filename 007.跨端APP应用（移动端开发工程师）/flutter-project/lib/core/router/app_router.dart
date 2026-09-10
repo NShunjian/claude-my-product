@@ -160,7 +160,17 @@ class _TabScaffold extends ConsumerWidget {
     return Stack(
       fit: StackFit.expand,
       children: [
-        navigationShell,
+        // ponytail: navigationShell 用 Padding 留出 nav bar 区(80 M3 NavigationBar
+        //          + safeArea.bottom)。Stack 模式 nav bar 是 Positioned 覆盖
+        //          不参与 layout,不加 padding 的话 page 内容最底部会被遮挡。
+        //          QuickAddModal 用 Positioned.fill 在最顶层覆盖整个 Stack
+        //          (含 nav bar 区),所以 modal 弹起时不受 padding 影响。
+        Padding(
+          padding: EdgeInsets.only(
+            bottom: 80 + MediaQuery.of(context).padding.bottom,
+          ),
+          child: navigationShell,
+        ),
         Positioned(
           left: 0,
           right: 0,

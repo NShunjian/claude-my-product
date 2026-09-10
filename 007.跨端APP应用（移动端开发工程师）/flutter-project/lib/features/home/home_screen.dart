@@ -213,7 +213,17 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
                         records: data.records.take(5).toList(),
                         categories: data.categories,
                         accounts: data.accounts,
-                        onViewAll: () => context.go(AppRoutes.transactions),
+                        // ponytail: 用 Riverpod provider 把首页 _month 推到流水页
+                        //          (配合 transactions 端 ref.listenManual 消费)。
+                        //          之前用 URL ?month= 的方案在 transactions 已挂载时
+                        //          不会重消费,didChangeDependencies 不再 fire;
+                        //          provider 是全局状态,每次点击都能让 listener 收到,
+                        //          保证"每次点击都同步",跟 uniapp monthly.vue
+                        //          → liushui.vue 用 Pinia 传 month 同思路。
+                        onViewAll: () {
+                          ref.read(pendingTxMonthProvider.notifier).state = _month;
+                          context.go(AppRoutes.transactions);
+                        },
                       ),
                       const SizedBox(height: 10),
                       Row(

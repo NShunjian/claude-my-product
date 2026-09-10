@@ -10,6 +10,7 @@ import '../../core/theme/tokens.dart';
 import '../../core/utils/date_util.dart';
 import '../../core/utils/finance.dart';
 import '../../core/utils/modal_state.dart';
+import '../../core/utils/tab_refresh_signal.dart';
 import '../shared/app_header.dart';
 import '../shared/month_picker.dart';
 import '../shared/providers.dart';
@@ -35,6 +36,24 @@ class _TransactionsScreenState extends ConsumerState<TransactionsScreen> {
   @override
   void initState() {
     super.initState();
+    // ponytail: 首页"查看全部"在 navigation 之前已经把月份写进 pendingTxMonthProvider,
+    //          但 StatefulShellRoute.indexedStack 是按需构建分支 — transactions
+    //          widget 直到导航到该 tab 才挂载,此时 provider 已经是目标值。
+    //          ref.listenManual 不会为初始值 fire(只 fire state change),所以
+    //          必须显式 ref.read 读一次,确保"首次进入"也同步。listenManual
+    //          留着负责"已挂载后用户再点 View All"的同步。
+    final pendingMonth = ref.read(pendingTxMonthProvider);
+    if (pendingMonth != null && pendingMonth.isNotEmpty) {
+      _month = pendingMonth;
+      // ponytail: 清 provider 不能在 initState 里直接做 — Riverpod 禁止在
+      //          build/initState/dispose 等生命周期里修改 provider,会抛
+      //          "Tried to modify a provider while the widget tree was building"。
+      //          丢到 Future 里等当前 build 完成后异步清。
+      Future(() {
+        if (!mounted) return;
+        ref.read(pendingTxMonthProvider.notifier).state = null;
+      });
+    }
     _future = _load();
     // 监听 quickAdd 保存 + 弹窗关闭,任一发生都触发流水页重拉。
     // 跟 home_screen 一致 — 详见那边注释。
@@ -47,6 +66,20 @@ class _TransactionsScreenState extends ConsumerState<TransactionsScreen> {
         setState(() {
           _future = f;
         });
+      }
+    });
+    // ponytail: 监听后续 state change — 已挂载的 transactions 在用户从流水页切
+    //          回首页换月再点"查看全部"时也能收到(URL ?month= 做不到)。
+    //          与 initState 上方的 ref.read 配合,完整覆盖"首次进入 + 后续点击"。
+    //          这里的 state = null 在 listener 回调里执行,不在 build 生命周期,
+    //          Riverpod 允许(回调是异步触发的,不在 build 阶段)。
+    ref.listenManual<String?>(pendingTxMonthProvider, (prev, next) {
+      if (next != null && next.isNotEmpty && next != _month) {
+        setState(() {
+          _month = next;
+          _future = _load();
+        });
+        ref.read(pendingTxMonthProvider.notifier).state = null;
       }
     });
   }

@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
+import '../../core/api/api_exception.dart';
 import '../../core/api/models.dart';
 import '../../core/i18n/locale_provider.dart';
 import '../../core/theme/tokens.dart';
@@ -117,7 +118,7 @@ class _RecordFormState extends ConsumerState<RecordForm> {
       if (!mounted) return;
       setState(() => _submitting = false);
       ref.read(toastControllerProvider.notifier).show(
-            '${lang.t('common.submitFailed')} ($e)',
+            '${lang.t('common.submitFailed')} ${e is ApiException ? e.message : '$e'}',
           );
     }
   }

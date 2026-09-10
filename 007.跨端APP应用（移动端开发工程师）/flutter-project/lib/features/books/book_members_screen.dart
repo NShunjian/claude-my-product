@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 
+import '../../core/api/api_exception.dart';
 import '../../core/api/models.dart';
 import '../../core/i18n/locale_provider.dart';
 import '../../core/theme/tokens.dart';
@@ -39,7 +40,12 @@ class _BookMembersScreenState extends ConsumerState<BookMembersScreen> {
       builder: (ctx) => _InviteSheet(bookUuid: widget.bookUuid),
     );
     if (ok == true && mounted) {
-      setState(() => _future = _load());
+      // ponytail: 两步走 — 先拿 Future 再 setState 赋值,否则闭包返回
+      //          Future 触发 setState assert。
+      final f = _load();
+      setState(() {
+        _future = f;
+      });
       ref.read(toastControllerProvider.notifier).show(lang.t('bookMembers.invite.success'));
     }
   }
@@ -54,11 +60,14 @@ class _BookMembersScreenState extends ConsumerState<BookMembersScreen> {
           );
       if (!mounted) return;
       ref.read(toastControllerProvider.notifier).show(lang.t('bookMembers.role.success'));
-      setState(() => _future = _load());
+      final f = _load();
+      setState(() {
+        _future = f;
+      });
     } catch (e) {
       if (!mounted) return;
       ref.read(toastControllerProvider.notifier).show(
-            '${lang.t('bookMembers.role.failPrefix')} $e',
+            '${lang.t('bookMembers.role.failPrefix')} ${e is ApiException ? e.message : '$e'}',
           );
     }
   }
@@ -88,11 +97,14 @@ class _BookMembersScreenState extends ConsumerState<BookMembersScreen> {
       await ref.read(booksApiProvider).removeMember(widget.bookUuid, m.userUuid);
       if (!mounted) return;
       ref.read(toastControllerProvider.notifier).show(lang.t('bookMembers.remove.success'));
-      setState(() => _future = _load());
+      final f = _load();
+      setState(() {
+        _future = f;
+      });
     } catch (e) {
       if (!mounted) return;
       ref.read(toastControllerProvider.notifier).show(
-            '${lang.t('bookMembers.remove.failPrefix')} $e',
+            '${lang.t('bookMembers.remove.failPrefix')} ${e is ApiException ? e.message : '$e'}',
           );
     }
   }
@@ -250,7 +262,7 @@ class _InviteSheetState extends ConsumerState<_InviteSheet> {
       if (!mounted) return;
       setState(() => _busy = false);
       ref.read(toastControllerProvider.notifier).show(
-            '${lang.t('bookMembers.invite.failPrefix')} $e',
+            '${lang.t('bookMembers.invite.failPrefix')} ${e is ApiException ? e.message : '$e'}',
           );
     }
   }

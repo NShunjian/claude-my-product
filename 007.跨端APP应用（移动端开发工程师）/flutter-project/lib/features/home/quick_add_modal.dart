@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
+import '../../core/api/api_exception.dart';
 import '../../core/api/models.dart';
 import '../../core/i18n/lang.dart';
 import '../../core/i18n/locale_provider.dart';
@@ -178,9 +179,12 @@ class _QuickAddModalState extends ConsumerState<QuickAddModal>
       });
     } catch (e) {
       if (!mounted) return;
+      // ponytail: 识别 ApiException 取 .message,避免 Dio 原始 toString()
+      //          把 RequestOptions / validateStatus 噪音弹给用户。
+      final msg = e is ApiException ? e.message : '$e';
       ref
           .read(toastControllerProvider.notifier)
-          .show('${lang.t('common.submitFailed')} ($e)');
+          .show('${lang.t('common.submitFailed')} $msg');
     } finally {
       if (mounted) setState(() => _submitting = false);
     }

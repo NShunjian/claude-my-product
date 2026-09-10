@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 
+import '../../core/api/api_exception.dart';
 import '../../core/api/models.dart';
 import '../../core/i18n/locale_provider.dart';
 import '../../core/router/app_router.dart';
@@ -9,6 +10,7 @@ import '../../core/theme/tokens.dart';
 import '../../core/utils/account_presentation.dart';
 import '../../core/utils/finance.dart';
 import '../../core/utils/tab_refresh_signal.dart';
+import '../shared/app_header.dart';
 import '../shared/providers.dart';
 import '../shared/toast_controller.dart';
 
@@ -73,10 +75,22 @@ class _AccountsScreenState extends ConsumerState<AccountsScreen> {
     try {
       await ref.read(accountsApiProvider).deleteAccount(a.id);
       if (!mounted) return;
-      setState(() => _future = _load());
+      // ponytail: setState 必须是同步闭包,之前 `setState(() => _future =
+      //          _load())` 把 Future 当作闭包返回值,Flutter 拒绝执行,导致
+      //          卡片不消失。改成显式两步:先拿 Future,再 setState 赋值。
+      final f = _load();
+      setState(() {
+        _future = f;
+      });
     } catch (e) {
       if (!mounted) return;
-      ref.read(toastControllerProvider.notifier).show('$e');
+      // ponytail: 之前 catch 直接 toast '$e',把 ApiException 的 toString()
+      //          全弹出来(包含 RequestOptions / validateStatus 等一堆
+      //          Dio 内部细节,用户看到一堆英文)。改成识别 ApiException
+      //          取 .message,后端 4002 "默认账户不可删除..." 这种友好文案
+      //          才能正确展示。其他异常 fallback 原字符串。
+      final msg = e is ApiException ? e.message : '$e';
+      ref.read(toastControllerProvider.notifier).show(msg);
     }
   }
 
@@ -85,7 +99,9 @@ class _AccountsScreenState extends ConsumerState<AccountsScreen> {
     final lang = I18n.of(context);
     final c = context.appColors;
     return Scaffold(
-      appBar: AppBar(title: Text(lang.t('accounts.title'))),
+      // ponytail: 账户页是 tab 内页不是 push 进来的,uniapp 截图顶部没返
+      //          回箭头,Flutter 之前 back: true 多余,改成 false。
+      appBar: AppHeader(title: lang.t('accounts.title'), back: false),
       body: RefreshIndicator(
         onRefresh: () async {
           final f = _load();
@@ -165,9 +181,11 @@ class _AccountsScreenState extends ConsumerState<AccountsScreen> {
                           crossAxisCount: 2,
                           shrinkWrap: true,
                           physics: const NeverScrollableScrollPhysics(),
-                          mainAxisSpacing: AppSpacing.sm,
-                          crossAxisSpacing: AppSpacing.sm,
-                          childAspectRatio: 1.4,
+                          // ponytail: 间距 sm→md(8→12),uniapp 截图卡片之间
+                          //          视觉留白比 Flutter 之前稍宽。
+                          mainAxisSpacing: AppSpacing.md,
+                          crossAxisSpacing: AppSpacing.md,
+                          childAspectRatio: 1.35,
                           children: [
                             for (final a in list)
                               _AccountCard(
@@ -215,15 +233,12 @@ class _NetCard extends StatelessWidget {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          // 对齐 uniapp .net-label:uppercase + letter-spacing(Flutter 没有 text-transform,
-          // 用 fontFeatures uppercase + letterSpacing 模拟视觉)。
+          // 对齐 uniapp 截图:"资产净值" 普通灰字 13px(没有 uppercase/letter-spacing)。
           Text(
-            label.toUpperCase(),
+            label,
             style: TextStyle(
               color: c.textVariant,
-              fontSize: 12,
-              letterSpacing: 1.0,
-              fontFeatures: const [FontFeature.enable('case')],
+              fontSize: 13,
             ),
           ),
           const SizedBox(height: AppSpacing.xs),
@@ -231,19 +246,23 @@ class _NetCard extends StatelessWidget {
             formatAmount(total, withSymbol: true),
             style: TextStyle(
               color: total < 0 ? c.error : c.text,
-              fontSize: 24,
+              fontSize: 26,
               fontWeight: FontWeight.w700,
+              fontFeatures: const [FontFeature.tabularFigures()],
             ),
           ),
-          const SizedBox(height: AppSpacing.sm),
-          // 内联 "+ 添加账户" 按钮(uniapp .add-btn:primary 实色 + 白字 + 圆角)。
+          const SizedBox(height: AppSpacing.md),
+          // ponytail: uniapp 截图"+ 添加账户"是 ~48px 高的全宽蓝色大按钮,
+          //          Flutter 之前是 sm 垂直 padding + 14px 字,显著小一截,改成
+          //          垂直 md(12) + 字 16 + w600,跟截图对齐。
           InkWell(
             onTap: onAdd,
             borderRadius: BorderRadius.circular(AppRadius.sm),
             child: Container(
+              width: double.infinity,
               padding: const EdgeInsets.symmetric(
                 horizontal: AppSpacing.md,
-                vertical: AppSpacing.sm,
+                vertical: AppSpacing.md,
               ),
               decoration: BoxDecoration(
                 color: c.primary,
@@ -256,8 +275,9 @@ class _NetCard extends StatelessWidget {
                     '+',
                     style: TextStyle(
                       color: Colors.white,
-                      fontSize: 16,
+                      fontSize: 18,
                       height: 1,
+                      fontWeight: FontWeight.w400,
                     ),
                   ),
                   const SizedBox(width: AppSpacing.sm),
@@ -265,7 +285,7 @@ class _NetCard extends StatelessWidget {
                     addCta,
                     style: const TextStyle(
                       color: Colors.white,
-                      fontSize: 14,
+                      fontSize: 16,
                       fontWeight: FontWeight.w600,
                     ),
                   ),
@@ -304,7 +324,9 @@ class _AccountCard extends StatelessWidget {
         onLongPress: onLongPress,
         borderRadius: BorderRadius.circular(AppRadius.lg),
         child: Container(
-          padding: const EdgeInsets.all(AppSpacing.md),
+          // ponytail: 卡片内边距 md→lg(12→16),uniapp 截图里图标圆圈距卡边
+          //          有明显留白,Flutter 之前 12 略紧。
+          padding: const EdgeInsets.all(AppSpacing.lg),
           decoration: BoxDecoration(
             border: Border.all(color: c.divider),
             borderRadius: BorderRadius.circular(AppRadius.lg),
@@ -323,19 +345,33 @@ class _AccountCard extends StatelessWidget {
                       color: pres.background,
                       shape: BoxShape.circle,
                     ),
-                    child: Icon(pres.icon, color: pres.foreground, size: 20),
+                    // ponytail: 之前用 Icon(pres.icon) 渲染 MaterialIcons,
+                    //          跟 uniapp themeMap 用 emoji 字符直接渲染的方
+                    //          案不同步,uniapp 截图里 🎂/💵/🏦 都是 emoji,
+                    //          改成 Text 渲染 emoji 字符串 + colored fg。
+                    child: Center(
+                      child: Text(
+                        pres.iconText,
+                        style: TextStyle(
+                          color: pres.foreground,
+                          fontSize: 20,
+                          height: 1.0,
+                        ),
+                      ),
+                    ),
                   ),
+                  // ponytail: 卡片右上角更多菜单图标 — uniapp 截图是个小图标,
+                  //          之前用 text '⋮' 在某些字体下渲染不一致,改用 Material
+                  //          Icons.more_vert(三竖点),更清晰且跨平台一致。
                   InkWell(
                     onTap: onMore,
+                    borderRadius: BorderRadius.circular(20),
                     child: Padding(
                       padding: const EdgeInsets.all(AppSpacing.xs),
-                      child: Text(
-                        '⋮',
-                        style: TextStyle(
-                          color: c.textVariant,
-                          fontSize: 16,
-                          height: 1,
-                        ),
+                      child: Icon(
+                        Icons.more_vert,
+                        color: c.textVariant,
+                        size: 18,
                       ),
                     ),
                   ),

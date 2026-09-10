@@ -48,11 +48,20 @@ async function load() {
 }
 
 function getTheme(acc: Account) {
-  if (acc.type === 'credit') return themeMap.credit
-  if (acc.type === 'cash') return themeMap.cash
-  if (acc.type === 'wallet') return themeMap.wallet
-  if (acc.type === 'debit') return themeMap.bank
-  return themeMap.bank
+  // ponytail: 背景色/前景色按 type 走 themeMap(视觉一致),emoji 优先用后端
+  //          acc.icon(用户在 Flutter 端选的,跨端共享),fallback 到 type 默认。
+  //          这样 Flutter / uniapp / H5 / 小程序 都从后端读同一字段,
+  //          不会出现"同一账号两边图标不一样"的歧义。
+  const t =
+    acc.type === 'credit' ? themeMap.credit :
+    acc.type === 'cash' ? themeMap.cash :
+    acc.type === 'wallet' ? themeMap.wallet :
+    themeMap.bank
+  return {
+    iconBg: t.iconBg,
+    iconColor: t.iconColor,
+    iconName: (acc.icon && acc.icon.trim()) || t.iconName,
+  }
 }
 
 function subtitleOf(acc: Account): string {
@@ -83,7 +92,8 @@ onShow(load)
 
 <template>
   <view class="page-root tabbar-page">
-    <AppHeader :title="t('pageTitle.accounts')" back @back="goBack" />
+    <!-- ponytail: 账户页是 tab 内页不是 push 进来的,用户截图无返回箭头,back 去掉 -->
+    <AppHeader :title="t('pageTitle.accounts')" />
     <scroll-view scroll-y class="scroll-area" :bounces="false">
       <view class="page">
         <!-- Net assets + add -->

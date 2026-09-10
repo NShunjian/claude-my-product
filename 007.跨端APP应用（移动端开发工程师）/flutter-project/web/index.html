@@ -40,6 +40,26 @@
   -->
   <script>
     (function () {
+      // === 预判登录态,提前把 URL 改成 /login(无 token + 落在根路径时)===
+      // Flutter 启动后 go_router 默认 initialLocation = '/'。redirect 检查到
+      // 未登录会 return '/login' 触发一次 replaceState — Chrome 检测到
+      // "programmatic history op without user gesture" 会在 DevTools Issues
+      // 报 "Session History Item Has Been Marked Skippable"。我们在 Flutter
+      // 启动前直接 history.replaceState 把 URL 设到 '/login',go_router 看到
+      // matchedLocation 已经是 /login,redirect 命中 goingToLogin 分支返回
+      // null,不会产生 history op — Chrome Issues 干净。
+      // 只处理落在根 '/' 的情况(大多数用户场景),深链 /reports /settings 等
+      // 仍走正常 redirect(用户体验上保留深链目的地优先级)。
+      // shared_preferences web 端默认 key 前缀 "flutter.",token key 是
+      // lib/core/storage/prefs.dart 里的 'qz_token',所以 localStorage 里
+      // 是 'flutter.qz_token'。
+      try {
+        var hasToken = !!window.localStorage.getItem('flutter.qz_token');
+        if (!hasToken && (window.location.pathname === '/' || window.location.pathname === '/index.html')) {
+          window.history.replaceState(null, '', '/login');
+        }
+      } catch (e) { /* localStorage 可能被禁用,跳过 */ }
+
       window._flutter = window._flutter || {};
       var _cfg;
       Object.defineProperty(window._flutter, 'buildConfig', {
@@ -72,16 +92,26 @@
         },
       });
 
-      // === 过滤 Font Fallback 的 'Could not find a set of Noto fonts' 警告 ===
-      // 引擎里 printWarning = console.warn。引擎对 component #0 (0 fonts)
-      // 这种空组件,会因 fonts.every() vacuous-true 误判为 unavailable,
-      // 触发这条警告,但字符其实只是控制字符(0x00-0x1F),不影响渲染。
-      // 在 host 端把这条警告吞掉就行,不影响其他 console.warn。
+      // === 过滤 Noto / Intl 噪音警告 ===
+      // 这些 warning 来自 Flutter 引擎/Dart intl 包,在我们的部署场景下都是
+      // 已知可接受的,过滤掉保持 DevTools Console 干净。
+      //   - "Could not find a set of Noto fonts" — 引擎 fallback service 对
+      //      0-font component 误判(原 index.html 已有)。
+      //   - "Failed to parse font data for ..." — 引擎去 /notofonts/ 拉字体,
+      //      我们 mirror 只放了 NotoSansSC/ColorEmoji/Symbols2 三个,Ethiopic
+      //      和 Math 等其他字体 404 → parse 失败。控制字符用不到,不影响渲染。
+      //   - "... is permanently unavailable" — 上面 404 的后续提示。
+      //   - "Intl.v8BreakIterator is deprecated. Please use Intl.Segmenter" —
+      //      Dart intl 包底层用了 V8 已废弃的 API;我们代码改不动 intl 包内部,
+      //      静默即可。
       var _origWarn = console.warn.bind(console);
       console.warn = function () {
         var msg = arguments[0];
-        if (typeof msg === 'string' && msg.indexOf('Could not find a set of Noto fonts') === 0) {
-          return; // 静默这条
+        if (typeof msg === 'string') {
+          if (msg.indexOf('Could not find a set of Noto fonts') === 0) return;
+          if (msg.indexOf('Failed to parse font data for') === 0) return;
+          if (msg.indexOf('is permanently unavailable') !== -1) return;
+          if (msg.indexOf('Intl.v8BreakIterator') !== -1) return;
         }
         return _origWarn.apply(console, arguments);
       };

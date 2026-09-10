@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 
+import '../../core/api/api_exception.dart';
 import '../../core/api/models.dart';
 import '../../core/i18n/lang.dart';
 import '../../core/i18n/locale_provider.dart';
@@ -297,7 +298,7 @@ class _DataExportTileState extends ConsumerState<_DataExportTile> {
     } catch (e) {
       if (!mounted) return;
       ref.read(toastControllerProvider.notifier).show(
-            '${lang.t('settings.data.exportFailPrefix')} $e',
+            '${lang.t('settings.data.exportFailPrefix')} ${e is ApiException ? e.message : '$e'}',
           );
     } finally {
       if (mounted) setState(() => _busy = false);
@@ -378,7 +379,15 @@ class _CategoriesCardState extends ConsumerState<_CategoriesCard> {
     return ref.read(categoriesApiProvider).listCategories(type: _tab);
   }
 
-  void _refresh() => setState(() => _future = _load());
+  // ponytail: setState 必须是同步闭包,`setState(() => _future = _load())`
+  //          把 Future 当返回值,Flutter 拒绝执行,_future 不更新 → 列表不刷。
+  //          改成两步:先 _load() 拿 Future,再 setState 赋值。
+  void _refresh() {
+    final f = _load();
+    setState(() {
+      _future = f;
+    });
+  }
 
   void _switchTab(CategoryType t) {
     if (t == _tab) return;
@@ -413,7 +422,7 @@ class _CategoriesCardState extends ConsumerState<_CategoriesCard> {
       toast.show(lang.t('settings.categories.create.success'));
       _refresh();
     } catch (e) {
-      toast.show('${lang.t('settings.categories.create.failPrefix')} $e');
+      toast.show('${lang.t('settings.categories.create.failPrefix')} ${e is ApiException ? e.message : '$e'}');
     }
   }
 
@@ -439,7 +448,7 @@ class _CategoriesCardState extends ConsumerState<_CategoriesCard> {
         toast.show(lang.t('settings.categories.delete.success'));
         _refresh();
       } catch (e) {
-        toast.show('${lang.t('settings.categories.delete.failPrefix')} $e');
+        toast.show('${lang.t('settings.categories.delete.failPrefix')} ${e is ApiException ? e.message : '$e'}');
       }
       return;
     }
@@ -455,7 +464,7 @@ class _CategoriesCardState extends ConsumerState<_CategoriesCard> {
       toast.show(lang.t('settings.categories.edit.success'));
       _refresh();
     } catch (e) {
-      toast.show('${lang.t('settings.categories.edit.failPrefix')} $e');
+      toast.show('${lang.t('settings.categories.edit.failPrefix')} ${e is ApiException ? e.message : '$e'}');
     }
   }
 

@@ -52,6 +52,9 @@ flutter:
   assets:
     - assets/images/
     - assets/icons/tabbar/
+    # ponytail: tabbar 5 个图标用 uniapp 那套 PNG(对齐 1:1),Material Icons 风格
+    #          跟 uniapp 自定义 PNG 视觉差太多。
+    - assets/tabbar/
 
   # 本地字体:Flutter Web 默认从 fonts.gstatic.com 拉 Roboto / Noto,
   # 但本项目在 LAN 内网跑时 gstatic.com 经常被墙(看到 ERR_CONNECTION_RESET),

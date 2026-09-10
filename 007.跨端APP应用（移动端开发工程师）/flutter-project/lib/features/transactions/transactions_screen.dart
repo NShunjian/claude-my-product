@@ -555,7 +555,11 @@ class _OptionSheetState extends State<_OptionSheet> {
     //          (tab bar 已通过 modalOpenProvider 隐藏,所以这里只是高度比例的
     //          视觉调整,不影响覆盖效果。)
     return Container(
-      height: widget.screenHeight * 0.35,
+      // ponytail: 高度 35% 屏高再 -34(header 自然高 46 + 滚轮区 5×40=200,
+      //          总 246 ≈ screenHeight*0.35 - 34)。滚轮区精确 = 200px,
+      //          = CupertinoPicker 的 5 个 itemExtent,内容填满无 buffer
+      //          无裁切,首 item 紧贴 header 下沿(对齐"选择内容顶到红线")。
+      height: widget.screenHeight * 0.35 - 34,
       decoration: BoxDecoration(
         // ponytail: 用户反馈"背景设为白色" — picker 强制白底,跟 uniapp 参考一致。
         color: Colors.white,
@@ -616,39 +620,66 @@ class _OptionSheetState extends State<_OptionSheet> {
             child: LayoutBuilder(
               builder: (context, constraints) {
                 final h = constraints.maxHeight;
+                // ponytail: StackFit.expand 强制 CupertinoPicker 撑满滚轮区
+                //          — 之前 Stack 默认 loose fit,CupertinoPicker 按
+                //          自身 intrinsic 渲染,在 196~200 区间内会有 4px
+                //          不一致(顶部空隙或底部裁切)。expand 强制对齐
+                //          Stack 边界,CupertinoPicker 占满整个滚轮区,首
+                //          item 顶到 picker 上沿 = 顶到红线位置。
                 return Stack(
+                  fit: StackFit.expand,
                   children: [
-                    CupertinoPicker(
-                      itemExtent: 40,
-                      scrollController: _ctrl,
-                      backgroundColor: Colors.white,
-                      // ponytail: CupertinoPicker 自带 selectionOverlay 默认是圆角
-                      //          浅灰矩形,强制 SizedBox.shrink() 去掉,只保留我们
-                      //          自己画的上下两条横线作选中标记。
-                      selectionOverlay: const SizedBox.shrink(),
-                      onSelectedItemChanged: (i) =>
-                          setState(() => _currentIndex = i),
-                      children: [
-                        for (int i = 0; i < widget.options.length; i++)
-                          Center(
-                            child: Text(
-                              widget.options[i].name,
-                              style: TextStyle(
-                                fontSize: 16,
-                                color: i == _currentIndex
-                                    ? c.text
-                                    : c.textVariant,
-                                fontWeight: i == _currentIndex
-                                    ? FontWeight.w600
-                                    : FontWeight.w400,
+                    // ponytail: 整个 CupertinoPicker 整体上移 40px(一个
+                    //          itemExtent)— 这样选中 item(加粗黑字)从
+                    //          CupertinoPicker 几何中心 跟着上移到滚轮
+                    //          区 y=40-80,正好和下面 Positioned 的横线
+                    //          indicator 对齐,实现"红框选中位置整体往上
+                    //          移一格"。bottom 留 40 给上方让位,顶部
+                    //          -40 超出滚轮区的部分被 Stack clipbehavior
+                    //          默认 hardEdge 裁掉,不可见。
+                    Positioned(
+                      top: -40,
+                      bottom: 40,
+                      left: 0,
+                      right: 0,
+                      child: CupertinoPicker(
+                        itemExtent: 40,
+                        scrollController: _ctrl,
+                        backgroundColor: Colors.white,
+                        // ponytail: CupertinoPicker 自带 selectionOverlay 默认是圆角
+                        //          浅灰矩形,强制 SizedBox.shrink() 去掉,只保留我们
+                        //          自己画的上下两条横线作选中标记。
+                        selectionOverlay: const SizedBox.shrink(),
+                        onSelectedItemChanged: (i) =>
+                            setState(() => _currentIndex = i),
+                        children: [
+                          for (int i = 0; i < widget.options.length; i++)
+                            Center(
+                              child: Text(
+                                widget.options[i].name,
+                                style: TextStyle(
+                                  fontSize: 16,
+                                  color: i == _currentIndex
+                                      ? c.text
+                                      : c.textVariant,
+                                  fontWeight: i == _currentIndex
+                                      ? FontWeight.w600
+                                      : FontWeight.w400,
+                                ),
                               ),
                             ),
-                          ),
-                      ],
+                        ],
+                      ),
                     ),
-                    // 选中行上下两条横线 — 动态居中在轮区中心 (h-40)/2。
+                    // ponytail: 横线位置 (h-40)/2 - 40 = (h-120)/2 —
+                    //          原 (h-40)/2 是滚轮垂直中心(对齐 CupertinoPicker
+                    //          居中的选中 item)。用户反馈"红框往上移一个"→
+                    //          上移一个 itemExtent(40px)。CupertinoPicker 已
+                    //          整体上移 40(见上面 Positioned 包裹),所以
+                    //          这里横线和选中文字仍对齐,只是位置从滚轮正中
+                    //          变成正中再往上一格。
                     Positioned(
-                      top: (h - 40) / 2,
+                      top: (h - 120) / 2,
                       left: 0,
                       right: 0,
                       child: IgnorePointer(

@@ -8,6 +8,7 @@ import '../../core/router/app_router.dart';
 import '../../core/theme/tokens.dart';
 import '../../core/utils/account_presentation.dart';
 import '../../core/utils/finance.dart';
+import '../../core/utils/tab_refresh_signal.dart';
 import '../shared/providers.dart';
 import '../shared/toast_controller.dart';
 
@@ -21,11 +22,26 @@ class AccountsScreen extends ConsumerStatefulWidget {
 
 class _AccountsScreenState extends ConsumerState<AccountsScreen> {
   late Future<List<Account>> _future;
+  // ponytail: stale-while-revalidate — FutureBuilder 在 future 变化时
+  //          把 snap.data 重置为 null,reload 期间短暂会触发 loading 占位。
+  //          这里保留最后一次成功加载的数据,build 用 _data 渲染而不是
+  //          snap.data,reload 时旧 list 不消失(顶部加 LinearProgressIndicator
+  //          表示在拉新)。
+  List<Account>? _data;
 
   @override
   void initState() {
     super.initState();
     _future = _load();
+    // ponytail: 切到 accounts tab 时重拉(3)。next>prev 才触发,初始 0 不触发空拉。
+    ref.listenManual<int>(tabRefreshSignalProvider(3), (prev, next) {
+      if (prev != null && next > prev) {
+        final f = _load();
+        setState(() {
+          _future = f;
+        });
+      }
+    });
   }
 
   Future<List<Account>> _load() async {
@@ -79,8 +95,13 @@ class _AccountsScreenState extends ConsumerState<AccountsScreen> {
         child: FutureBuilder<List<Account>>(
           future: _future,
           builder: (context, snap) {
+            // 同步新数据到 _data(在 build 里直接赋值,build 期间 _data 是只
+            // 读缓存,snap.data 是新完成的引用,引用相等即停止更新)。
+            if (snap.hasData && !identical(snap.data, _data)) {
+              _data = snap.data;
+            }
             // 首次加载还没数据 → 整页占位
-            if (!snap.hasData) {
+            if (_data == null) {
               if (snap.connectionState != ConnectionState.done) {
                 return Center(
                   child: Text(
@@ -104,7 +125,7 @@ class _AccountsScreenState extends ConsumerState<AccountsScreen> {
               }
             }
             // 已有数据(包括刷新中的 stale snapshot)→ 渲染数据,顶部加进度条
-            final list = snap.data!;
+            final list = _data!;
             final isReloading =
                 snap.connectionState != ConnectionState.done;
             final total =

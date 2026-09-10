@@ -37,7 +37,14 @@ class AppTheme {
       appBarTheme: AppBarTheme(
         backgroundColor: c.bg,
         foregroundColor: c.text,
+        // ponytail: scrolledUnderElevation: 0 + surfaceTintColor: transparent
+        //          → 滚动时 AppBar 底色不变深也不出阴影(uniapp app-header
+        //          同样永远纯色不变)。只设 elevation: 0 不够,M3 AppBar 在
+        //          ListView 滚动时仍会从 scrolledUnderElevation(默认 3)
+        //          涨 elevation + 加 surfaceTint,表现为"变色"。
         elevation: 0,
+        scrolledUnderElevation: 0,
+        surfaceTintColor: Colors.transparent,
         centerTitle: true,
       ),
       cardTheme: CardThemeData(

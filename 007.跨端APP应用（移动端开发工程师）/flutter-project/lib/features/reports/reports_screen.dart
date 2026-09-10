@@ -7,6 +7,7 @@ import '../../core/i18n/locale_provider.dart';
 import '../../core/theme/tokens.dart';
 import '../../core/utils/date_util.dart';
 import '../../core/utils/finance.dart';
+import '../../core/utils/tab_refresh_signal.dart';
 import '../shared/charts/donut_chart.dart';
 import '../shared/providers.dart';
 
@@ -322,7 +323,7 @@ class _SegmentedTabs extends StatelessWidget {
   }
 }
 
-class _MonthlyTab extends ConsumerWidget {
+class _MonthlyTab extends ConsumerStatefulWidget {
   const _MonthlyTab({
     required this.month,
     required this.onMonthChanged,
@@ -333,16 +334,51 @@ class _MonthlyTab extends ConsumerWidget {
   final Widget header;
 
   @override
-  Widget build(BuildContext context, WidgetRef ref) {
+  ConsumerState<_MonthlyTab> createState() => _MonthlyTabState();
+}
+
+class _MonthlyTabState extends ConsumerState<_MonthlyTab> {
+  late Future<MonthlyReport> _future;
+
+  @override
+  void initState() {
+    super.initState();
+    _future = _load();
+    // ponytail: 切到 reports tab 时重拉月报(3)。next>prev 才触发,初始 0 不触发。
+    ref.listenManual<int>(tabRefreshSignalProvider(2), (prev, next) {
+      if (prev != null && next > prev) _reload();
+    });
+  }
+
+  @override
+  void didUpdateWidget(covariant _MonthlyTab old) {
+    super.didUpdateWidget(old);
+    // 月份切换 → 重新拉数据(月报依赖 month 参数)。
+    if (old.month != widget.month) _reload();
+  }
+
+  void _reload() {
+    final f = _load();
+    setState(() {
+      _future = f;
+    });
+  }
+
+  Future<MonthlyReport> _load() {
+    final bookId = ref.read(currentBookIdProvider);
+    return ref.read(reportsApiProvider).getMonthly(
+          month: widget.month,
+          bookId: bookId.isEmpty ? null : bookId,
+        );
+  }
+
+  @override
+  Widget build(BuildContext context) {
     final lang = I18n.of(context);
     final c = context.appColors;
-    final bookId = ref.watch(currentBookIdProvider);
-    final future = ref
-        .read(reportsApiProvider)
-        .getMonthly(month: month, bookId: bookId.isEmpty ? null : bookId);
     return Expanded(
       child: FutureBuilder<MonthlyReport>(
-        future: future,
+        future: _future,
         builder: (context, snap) {
           // 首次加载还没数据 → 整页占位
           if (!snap.hasData) {
@@ -375,18 +411,18 @@ class _MonthlyTab extends ConsumerWidget {
                   future: cats.listCategories(),
                   builder: (context, catsSnap) {
                     final catList = catsSnap.data ?? const [];
-                    final expSegs = _buildSegments(
+                    final expSegs = _buildMonthlySegments(
                       r.expenseByCategory,
                       catList,
                     );
-                    final incSegs = _buildSegments(
+                    final incSegs = _buildMonthlySegments(
                       r.incomeByCategory,
                       catList,
                     );
                     return ListView(
                       padding: const EdgeInsets.all(AppSpacing.md),
                       children: [
-                        header,
+                        widget.header,
                         const SizedBox(height: AppSpacing.lg),
                         _KpiColumn(
                           report: r,
@@ -428,42 +464,42 @@ class _MonthlyTab extends ConsumerWidget {
       ),
     );
   }
-
-  List<DonutSegment> _buildSegments(
-    List<CategoryAggregate> aggs,
-    List<Category> cats,
-  ) {
-    return [
-      for (final agg in aggs)
-        (() {
-          final cat = cats.firstWhere(
-            (c) => c.id == agg.categoryId,
-            orElse: () => Category(
-              id: agg.categoryId ?? '',
-              type: CategoryType.expense,
-              name: agg.categoryId ?? '',
-              icon: '',
-              color: '#727782',
-              sortOrder: 0,
-              isPreset: false,
-            ),
-          );
-          final color = cat.color.startsWith('#')
-              ? Color(
-                  int.parse('FF${cat.color.replaceFirst('#', '')}', radix: 16),
-                )
-              : Colors.grey;
-          return DonutSegment(
-            label: cat.name.isEmpty ? '—' : cat.name,
-            value: agg.amount,
-            color: color,
-          );
-        })(),
-    ];
-  }
 }
 
-class _YearlyTab extends ConsumerWidget {
+List<DonutSegment> _buildMonthlySegments(
+  List<CategoryAggregate> aggs,
+  List<Category> cats,
+) {
+  return [
+    for (final agg in aggs)
+      (() {
+        final cat = cats.firstWhere(
+          (c) => c.id == agg.categoryId,
+          orElse: () => Category(
+            id: agg.categoryId ?? '',
+            type: CategoryType.expense,
+            name: agg.categoryId ?? '',
+            icon: '',
+            color: '#727782',
+            sortOrder: 0,
+            isPreset: false,
+          ),
+        );
+        final color = cat.color.startsWith('#')
+            ? Color(
+                int.parse('FF${cat.color.replaceFirst('#', '')}', radix: 16),
+              )
+            : Colors.grey;
+        return DonutSegment(
+          label: cat.name.isEmpty ? '—' : cat.name,
+          value: agg.amount,
+          color: color,
+        );
+      })(),
+  ];
+}
+
+class _YearlyTab extends ConsumerStatefulWidget {
   const _YearlyTab({
     required this.year,
     required this.onYearChanged,
@@ -474,16 +510,51 @@ class _YearlyTab extends ConsumerWidget {
   final Widget header;
 
   @override
-  Widget build(BuildContext context, WidgetRef ref) {
+  ConsumerState<_YearlyTab> createState() => _YearlyTabState();
+}
+
+class _YearlyTabState extends ConsumerState<_YearlyTab> {
+  late Future<YearlyReport> _future;
+
+  @override
+  void initState() {
+    super.initState();
+    _future = _load();
+    // ponytail: 切到 reports tab 时也重拉年报。next>prev 才触发,初始 0 不触发。
+    ref.listenManual<int>(tabRefreshSignalProvider(2), (prev, next) {
+      if (prev != null && next > prev) _reload();
+    });
+  }
+
+  @override
+  void didUpdateWidget(covariant _YearlyTab old) {
+    super.didUpdateWidget(old);
+    // 年份切换 → 重新拉数据(年报依赖 year 参数)。
+    if (old.year != widget.year) _reload();
+  }
+
+  void _reload() {
+    final f = _load();
+    setState(() {
+      _future = f;
+    });
+  }
+
+  Future<YearlyReport> _load() {
+    final bookId = ref.read(currentBookIdProvider);
+    return ref.read(reportsApiProvider).getYearly(
+          year: widget.year,
+          bookId: bookId.isEmpty ? null : bookId,
+        );
+  }
+
+  @override
+  Widget build(BuildContext context) {
     final lang = I18n.of(context);
     final c = context.appColors;
-    final bookId = ref.watch(currentBookIdProvider);
-    final future = ref
-        .read(reportsApiProvider)
-        .getYearly(year: year, bookId: bookId.isEmpty ? null : bookId);
     return Expanded(
       child: FutureBuilder<YearlyReport>(
-        future: future,
+        future: _future,
         builder: (context, snap) {
           // 首次加载还没数据 → 整页占位
           if (!snap.hasData) {
@@ -516,14 +587,14 @@ class _YearlyTab extends ConsumerWidget {
                   future: cats.listCategories(),
                   builder: (context, catsSnap) {
                     final catList = catsSnap.data ?? const [];
-                    final expSegs = _buildSegments(
+                    final expSegs = _buildYearlySegments(
                       r.expenseByCategory,
                       catList,
                     );
                     return ListView(
                       padding: const EdgeInsets.all(AppSpacing.md),
                       children: [
-                        header,
+                        widget.header,
                         const SizedBox(height: AppSpacing.lg),
                         _KpiColumn(
                           report: r,
@@ -557,39 +628,39 @@ class _YearlyTab extends ConsumerWidget {
       ),
     );
   }
+}
 
-  List<DonutSegment> _buildSegments(
-    List<CategoryAggregate> aggs,
-    List<Category> cats,
-  ) {
-    return [
-      for (final agg in aggs)
-        (() {
-          final cat = cats.firstWhere(
-            (c) => c.id == agg.categoryId,
-            orElse: () => Category(
-              id: agg.categoryId ?? '',
-              type: CategoryType.expense,
-              name: agg.categoryId ?? '',
-              icon: '',
-              color: '#727782',
-              sortOrder: 0,
-              isPreset: false,
-            ),
-          );
-          final color = cat.color.startsWith('#')
-              ? Color(
-                  int.parse('FF${cat.color.replaceFirst('#', '')}', radix: 16),
-                )
-              : Colors.grey;
-          return DonutSegment(
-            label: cat.name.isEmpty ? '—' : cat.name,
-            value: agg.amount,
-            color: color,
-          );
-        })(),
-    ];
-  }
+List<DonutSegment> _buildYearlySegments(
+  List<CategoryAggregate> aggs,
+  List<Category> cats,
+) {
+  return [
+    for (final agg in aggs)
+      (() {
+        final cat = cats.firstWhere(
+          (c) => c.id == agg.categoryId,
+          orElse: () => Category(
+            id: agg.categoryId ?? '',
+            type: CategoryType.expense,
+            name: agg.categoryId ?? '',
+            icon: '',
+            color: '#727782',
+            sortOrder: 0,
+            isPreset: false,
+          ),
+        );
+        final color = cat.color.startsWith('#')
+            ? Color(
+                int.parse('FF${cat.color.replaceFirst('#', '')}', radix: 16),
+              )
+            : Colors.grey;
+        return DonutSegment(
+          label: cat.name.isEmpty ? '—' : cat.name,
+          value: agg.amount,
+          color: color,
+        );
+      })(),
+  ];
 }
 
 /// KPI 三卡 stacked(uniapp .kpi-list + .kpi-card + .kpi-net/income/expense 配色)。

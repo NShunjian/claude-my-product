@@ -8,6 +8,7 @@ import '../../core/i18n/locale_provider.dart';
 import '../../core/router/app_router.dart';
 import '../../core/theme/tokens.dart';
 import '../../core/utils/category_presentation.dart';
+import '../../core/utils/tab_refresh_signal.dart';
 import '../shared/auth_controller.dart';
 import '../shared/providers.dart';
 import '../shared/theme_controller.dart';
@@ -366,6 +367,11 @@ class _CategoriesCardState extends ConsumerState<_CategoriesCard> {
   void initState() {
     super.initState();
     _future = _load();
+    // ponytail: 切到 settings tab 时重拉分类列表(4)。沿用 ref.listenManual,
+    //          next > prev 才触发,初始 0 不触发空拉。
+    ref.listenManual<int>(tabRefreshSignalProvider(4), (prev, next) {
+      if (prev != null && next > prev) _refresh();
+    });
   }
 
   Future<List<Category>> _load() {
@@ -594,7 +600,10 @@ class _CategoriesCardState extends ConsumerState<_CategoriesCard> {
           FutureBuilder<List<Category>>(
             future: _future,
             builder: (context, snap) {
-              if (snap.connectionState != ConnectionState.done) {
+              // ponytail: 改用 !snap.hasData 而不是 connectionState != done —
+              //          reload 时保留旧数据,顶部加进度条,跟 home / accounts
+              //          风格一致;否则 reload 期间列表整体替换成 spinner。
+              if (!snap.hasData) {
                 return Padding(
                   padding: const EdgeInsets.all(AppSpacing.lg),
                   child: Center(

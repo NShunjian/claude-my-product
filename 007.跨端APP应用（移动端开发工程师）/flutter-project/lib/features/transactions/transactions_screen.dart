@@ -1,13 +1,11 @@
 import 'package:flutter/cupertino.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import 'package:go_router/go_router.dart';
 
 import '../../core/api/models.dart';
 import '../../core/api/records_api.dart';
 import '../../core/i18n/lang.dart';
 import '../../core/i18n/locale_provider.dart';
-import '../../core/router/app_router.dart';
 import '../../core/theme/tokens.dart';
 import '../../core/utils/date_util.dart';
 import '../../core/utils/finance.dart';
@@ -16,6 +14,7 @@ import '../shared/app_header.dart';
 import '../shared/month_picker.dart';
 import '../shared/providers.dart';
 import '../shared/quick_add_controller.dart';
+import '../shared/toast_controller.dart';
 import '../shared/transaction_row.dart';
 
 /// 对齐 pages/liushui/index.vue — AppHeader + 筛选(月/分类/账户) +
@@ -87,9 +86,14 @@ class _TransactionsScreenState extends ConsumerState<TransactionsScreen> {
 
   Future<void> _confirmDelete(Record r) async {
     final lang = I18n.of(context);
+    // 对齐 uniapp pages/transactions/index.vue remove() —
+    // uni.showModal({ title:'common.confirm', content:'transactions.deleteConfirm',
+    //                  success: ... }) → 成功后 records.value.filter(...) +
+    //                  toast.show('common.delete OK'),catch (e) → toast.show。
     final ok = await showDialog<bool>(
       context: context,
       builder: (ctx) => AlertDialog(
+        title: Text(lang.t('common.confirm')),
         content: Text(lang.t('transactions.deleteConfirm')),
         actions: [
           TextButton(
@@ -111,7 +115,17 @@ class _TransactionsScreenState extends ConsumerState<TransactionsScreen> {
       setState(() {
         _future = f;
       });
-    } catch (_) {/* 容忍 */}
+      ref.read(toastControllerProvider.notifier).show(
+            '${lang.t('common.delete')} OK',
+          );
+    } catch (e) {
+      if (!mounted) return;
+      ref.read(toastControllerProvider.notifier).show(
+            e.toString().isNotEmpty
+                ? e.toString()
+                : lang.t('common.error'),
+          );
+    }
   }
 
   @override
@@ -942,11 +956,14 @@ class _DayGroupBlock extends StatelessWidget {
           ),
         ),
         for (final r in group.records)
-          _DismissibleRow(
+          // 对齐 uniapp — 整行 @tap="remove(r.id)" 触发删除确认弹窗,
+          // 没有 swipe-to-delete。原 _DismissibleRow 包装(滑动手势删除)
+          // 是 Flutter 私有设计,uniapp 没有。
+          TransactionRow(
             record: r,
             category: _findCat(r.categoryId),
             account: _findAccount(r.accountId),
-            onDelete: () => onDelete(r),
+            onTap: () => onDelete(r),
           ),
         // uniapp .day-group { border-bottom:1px divider } 末组除外
         if (!isLast)
@@ -968,46 +985,5 @@ class _DayGroupBlock extends StatelessWidget {
       if (a.id == id) return a;
     }
     return null;
-  }
-}
-
-/// 流水行 + 左滑删除:对 uniapp row @tap="remove",在 Flutter 上用
-/// Dismissible 模拟"点击删除"前先二次确认 + 左滑删除两种入口。
-class _DismissibleRow extends StatelessWidget {
-  const _DismissibleRow({
-    required this.record,
-    required this.category,
-    required this.account,
-    required this.onDelete,
-  });
-
-  final Record record;
-  final Category? category;
-  final Account? account;
-  final VoidCallback onDelete;
-
-  @override
-  Widget build(BuildContext context) {
-    final c = context.appColors;
-    return Dismissible(
-      key: ValueKey(record.id),
-      direction: DismissDirection.endToStart,
-      background: Container(
-        color: c.error,
-        alignment: Alignment.centerRight,
-        padding: const EdgeInsets.symmetric(horizontal: AppSpacing.lg),
-        child: const Icon(Icons.delete, color: Colors.white),
-      ),
-      onDismissed: (_) => onDelete(),
-      child: TransactionRow(
-        record: record,
-        category: category,
-        account: account,
-        onTap: () => context.push(
-          AppRoutes.recordExpense,
-          extra: record,
-        ),
-      ),
-    );
   }
 }

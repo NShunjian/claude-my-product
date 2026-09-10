@@ -11,6 +11,7 @@ import '../../core/theme/tokens.dart';
 import '../../core/utils/category_presentation.dart';
 import '../../core/utils/date_util.dart';
 import '../../core/utils/finance.dart';
+import '../../core/utils/tab_refresh_signal.dart';
 import '../shared/app_header.dart';
 import '../shared/auth_controller.dart';
 import '../shared/month_picker.dart';
@@ -29,6 +30,10 @@ class HomeScreen extends ConsumerStatefulWidget {
 
 class _HomeScreenState extends ConsumerState<HomeScreen> {
   late Future<_HomeData> _future;
+  // ponytail: stale-while-revalidate — FutureBuilder 在 future 变化时把
+  //          snap.data 重置为 null,reload 期间会闪 loading。_data 保留最后
+  //          一次成功数据,build 永远用 _data 渲染(直到下次 _load 完成)。
+  _HomeData? _data;
   late String _month; // YYYY-MM
 
   @override
@@ -49,6 +54,16 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
           (next.savedAt != prev.savedAt || (prev.show && !next.show))) {
         // Future 必须先算出再传进 setState — 用箭头 () => _future = _load()
         // 会让 setState 收到 Future 返回值而抛错(_load() 是 async)。
+        final f = _load();
+        setState(() {
+          _future = f;
+        });
+      }
+    });
+    // ponytail: 切到 home tab 时重拉(3)。next>prev 才触发,初始 0 不触发空拉;
+    //          月份已切的视图仍走 _onMonthChanged。
+    ref.listenManual<int>(tabRefreshSignalProvider(0), (prev, next) {
+      if (prev != null && next > prev) {
         final f = _load();
         setState(() {
           _future = f;
@@ -117,8 +132,12 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
         child: FutureBuilder<_HomeData>(
           future: _future,
           builder: (context, snap) {
+            // 同步新数据到 _data(引用相等即停止更新,避免重复 setState)。
+            if (snap.hasData && !identical(snap.data, _data)) {
+              _data = snap.data;
+            }
             // 首次加载还没数据 → 显示整页 loading 占位
-            if (!snap.hasData) {
+            if (_data == null) {
               if (snap.connectionState != ConnectionState.done) {
                 return ListView(
                   children: [
@@ -147,7 +166,7 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
               }
             }
             // 已有数据(包括刷新中的 stale snapshot)→ 渲染数据,顶部加进度条表示在重新拉取
-            final data = snap.data!;
+            final data = _data!;
             final isReloading =
                 snap.connectionState != ConnectionState.done;
             final expenseRows = _buildBreakdownRows(

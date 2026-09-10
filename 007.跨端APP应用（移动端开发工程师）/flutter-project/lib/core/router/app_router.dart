@@ -214,58 +214,82 @@ class _TabScaffold extends ConsumerWidget {
                   );
                 },
                 destinations: [
+                  // ponytail: tabbar 图标用 uniapp 那套 PNG(对齐 1:1)。
+                  // Material Icons 风格跟 uniapp 自定义 PNG 视觉差太多,
+                  // uniapp 截图里是线条房子 / 清单 / 报表 / 账户 / 小人,
+                  // Flutter 之前 home/list_alt 跟它不像。直接 asset tab PNG。
                   NavigationDestination(
-                    icon: const Icon(
-                      Icons.home_outlined,
-                      color: Color(0xFF5F6368),
+                    icon: Image.asset(
+                      'assets/tabbar/home.png',
+                      width: 24,
+                      height: 24,
+                      color: const Color(0xFF5F6368),
                     ),
-                    selectedIcon: const Icon(
-                      Icons.home,
-                      color: Color(0xFF2E7DE6),
+                    selectedIcon: Image.asset(
+                      'assets/tabbar/home_active.png',
+                      width: 24,
+                      height: 24,
+                      color: const Color(0xFF2E7DE6),
                     ),
                     label: lang.t('tabbar.home'),
                   ),
                   NavigationDestination(
-                    icon: const Icon(
-                      Icons.list_alt_outlined,
-                      color: Color(0xFF5F6368),
+                    icon: Image.asset(
+                      'assets/tabbar/transactions.png',
+                      width: 24,
+                      height: 24,
+                      color: const Color(0xFF5F6368),
                     ),
-                    selectedIcon: const Icon(
-                      Icons.list_alt,
-                      color: Color(0xFF2E7DE6),
+                    selectedIcon: Image.asset(
+                      'assets/tabbar/transactions_active.png',
+                      width: 24,
+                      height: 24,
+                      color: const Color(0xFF2E7DE6),
                     ),
                     label: lang.t('tabbar.transactions'),
                   ),
                   NavigationDestination(
-                    icon: const Icon(
-                      Icons.bar_chart_outlined,
-                      color: Color(0xFF5F6368),
+                    icon: Image.asset(
+                      'assets/tabbar/reports.png',
+                      width: 24,
+                      height: 24,
+                      color: const Color(0xFF5F6368),
                     ),
-                    selectedIcon: const Icon(
-                      Icons.bar_chart,
-                      color: Color(0xFF2E7DE6),
+                    selectedIcon: Image.asset(
+                      'assets/tabbar/reports_active.png',
+                      width: 24,
+                      height: 24,
+                      color: const Color(0xFF2E7DE6),
                     ),
                     label: lang.t('tabbar.reports'),
                   ),
                   NavigationDestination(
-                    icon: const Icon(
-                      Icons.account_balance_wallet_outlined,
-                      color: Color(0xFF5F6368),
+                    icon: Image.asset(
+                      'assets/tabbar/accounts.png',
+                      width: 24,
+                      height: 24,
+                      color: const Color(0xFF5F6368),
                     ),
-                    selectedIcon: const Icon(
-                      Icons.account_balance_wallet,
-                      color: Color(0xFF2E7DE6),
+                    selectedIcon: Image.asset(
+                      'assets/tabbar/accounts_active.png',
+                      width: 24,
+                      height: 24,
+                      color: const Color(0xFF2E7DE6),
                     ),
                     label: lang.t('tabbar.accounts'),
                   ),
                   NavigationDestination(
-                    icon: const Icon(
-                      Icons.person_outline,
-                      color: Color(0xFF5F6368),
+                    icon: Image.asset(
+                      'assets/tabbar/settings.png',
+                      width: 24,
+                      height: 24,
+                      color: const Color(0xFF5F6368),
                     ),
-                    selectedIcon: const Icon(
-                      Icons.person,
-                      color: Color(0xFF2E7DE6),
+                    selectedIcon: Image.asset(
+                      'assets/tabbar/settings_active.png',
+                      width: 24,
+                      height: 24,
+                      color: const Color(0xFF2E7DE6),
                     ),
                     label: lang.t('tabbar.settings'),
                   ),

@@ -6,6 +6,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import 'package:image_picker/image_picker.dart';
 
+import '../../core/api/api_exception.dart';
 import '../../core/api/models.dart';
 import '../../core/i18n/locale_provider.dart';
 import '../../core/router/app_router.dart';
@@ -89,7 +90,7 @@ class _ProfileEditScreenState extends ConsumerState<ProfileEditScreen> {
       if (!mounted) return;
       setState(() => _saving = false);
       ref.read(toastControllerProvider.notifier).show(
-            '${lang.t('profileEdit.saveFailDefault')} ($e)',
+            '${lang.t('profileEdit.saveFailDefault')} ${e is ApiException ? e.message : '$e'}',
           );
     }
   }
@@ -138,7 +139,7 @@ class _ProfileEditScreenState extends ConsumerState<ProfileEditScreen> {
       if (!mounted) return;
       setState(() => _changingPw = false);
       ref.read(toastControllerProvider.notifier).show(
-            '${lang.t('profileEdit.passwordChangeFailDefault')} ($e)',
+            '${lang.t('profileEdit.passwordChangeFailDefault')} ${e is ApiException ? e.message : '$e'}',
           );
     }
   }
@@ -166,7 +167,7 @@ class _ProfileEditScreenState extends ConsumerState<ProfileEditScreen> {
     } catch (e) {
       if (!mounted) return;
       ref.read(toastControllerProvider.notifier).show(
-            '${lang.t('profileEdit.avatarReadFail')} ($e)',
+            '${lang.t('profileEdit.avatarReadFail')} ${e is ApiException ? e.message : '$e'}',
           );
     }
   }
@@ -200,7 +201,7 @@ class _ProfileEditScreenState extends ConsumerState<ProfileEditScreen> {
       if (!mounted) return;
       setState(() => _savingAvatar = false);
       ref.read(toastControllerProvider.notifier).show(
-            '${lang.t('profileEdit.saveFailDefault')} ($e)',
+            '${lang.t('profileEdit.saveFailDefault')} ${e is ApiException ? e.message : '$e'}',
           );
     }
   }

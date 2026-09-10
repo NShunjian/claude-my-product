@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 
+import '../../core/api/api_exception.dart';
 import '../../core/i18n/lang.dart';
 import '../../core/i18n/locale_provider.dart';
 import '../../core/theme/tokens.dart';
@@ -67,7 +68,7 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
       if (!mounted) return;
       setState(() => _busy = false);
       ref.read(toastControllerProvider.notifier).show(
-            '${lang.t('login.opFailed')} ($e)',
+            '${lang.t('login.opFailed')} ${e is ApiException ? e.message : '$e'}',
           );
     }
   }

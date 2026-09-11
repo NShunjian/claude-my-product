@@ -97,6 +97,7 @@ export function toAccount(a: ApiAccount): Account {
     name: a.name,
     subtitle: pres.subtitle,
     themeKey: pres.themeKey,
+    icon: pres.iconText,
     balance: numToDouble(a.balance),
     isArchived: !!a.isArchived,
     ...(pres.creditLimit ? { creditLimit: pres.creditLimit } : {}),

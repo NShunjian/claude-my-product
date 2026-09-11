@@ -11,7 +11,9 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.time.Instant;
+import java.util.HashSet;
 import java.util.List;
+import java.util.Set;
 import java.util.UUID;
 
 /**
@@ -34,6 +36,44 @@ public class CategoriesService {
     private static final int CODE_CATEGORY_NOT_FOUND     = 5001;
     private static final int CODE_CATEGORY_PRESET_LOCKED = 5002;
     private static final int CODE_CATEGORY_NAME_DUP      = 5003;
+
+    /**
+     * 自定义分类默认色板(V1.2 修复防撞色)。
+     * 24 色,轮询分配;单一 user 的同一 type 分类使用此集合,
+     * 保证同月内出现 2 个未选色自定义分类时颜色不同。
+     * 预设分类的色不在此集合内,也不参与轮询。
+     */
+    private static final String[] DEFAULT_PALETTE = {
+            "#2563EB", "#10B981", "#EF4444", "#F59E0B",
+            "#8B5CF6", "#14B8A6", "#EC4899", "#6366F1",
+            "#84CC16", "#F97316", "#0EA5E9", "#BE123C",
+            "#3730A3", "#34D399", "#FB7185", "#FBBF24",
+            "#A78BFA", "#22D3EE", "#D946EF", "#60A5FA",
+            "#A3E635", "#D97706", "#475569", "#A16207"
+    };
+
+    /**
+     * 取下一个未用色:轮询调色板,跳过已被该 user 在该 type 下使用过的颜色。
+     * 24 色对于单用户单 type 一般够;若极端全部用完,fallback 到最后一个稳定色。
+     */
+    private String nextDefaultColor(long userId, String type) {
+        List<Category> existing = categoryMapper.selectList(
+                Wrappers.<Category>lambdaQuery()
+                        .eq(Category::getUserId, userId)
+                        .eq(Category::getType, type)
+                        .eq(Category::getIsActive, (byte) 1)
+                        .isNotNull(Category::getColor)
+        );
+        Set<String> used = new HashSet<>();
+        for (Category c : existing) {
+            String col = c.getColor();
+            if (col != null && !col.isBlank()) used.add(col.toUpperCase());
+        }
+        for (String c : DEFAULT_PALETTE) {
+            if (!used.contains(c.toUpperCase())) return c;
+        }
+        return DEFAULT_PALETTE[DEFAULT_PALETTE.length - 1];
+    }
 
     private final CategoryMapper categoryMapper;
 
@@ -75,7 +115,7 @@ public class CategoriesService {
                 .type(req.type())
                 .name(req.name())
                 .icon(req.icon())
-                .color(req.color() == null ? "#A0AEC0" : req.color())
+                .color(req.color() == null ? nextDefaultColor(userId, req.type()) : req.color())
                 .isPreset((byte) 0)
                 .isActive((byte) 1)
                 .sortOrder(req.sortOrder() == null ? 0 : req.sortOrder())

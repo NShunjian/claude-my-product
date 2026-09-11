@@ -17,8 +17,9 @@ const ACCOUNT_TYPES: { value: AccountType; labelKey: string }[] = [
   { value: 'other', labelKey: 'accountAdd.type.other2' },
 ]
 
-// 原型账户图标（5 个圆形按钮）
-const ICONS = ['account_balance_wallet', 'credit_card', 'account_balance', 'payments', 'phone_iphone']
+// 原型账户图标（5 个圆形按钮，emoji 字）— 对齐 007 uniapp / Flutter:同 5 个 emoji,
+// 卡片渲染会直接读 acc.icon(跨端共享),不依赖 Material Symbols 字体。
+const ICONS = ['👛', '💳', '🏦', '💰', '📱']
 
 export function AccountAdd() {
   const { t } = useLanguage()
@@ -165,18 +166,13 @@ export function AccountAdd() {
                     type="button"
                     onClick={() => setIcon(ic)}
                     aria-pressed={selected}
-                    className={`w-12 h-12 rounded-full flex items-center justify-center transition-all ${
+                    className={`w-12 h-12 rounded-full flex items-center justify-center text-2xl transition-all ${
                       selected
                         ? 'border-2 border-primary bg-primary-light text-primary'
                         : 'border border-divider text-on-surface-variant hover:border-primary'
                     }`}
                   >
-                    <span
-                      className="material-symbols-outlined"
-                      style={{ fontVariationSettings: selected ? "'FILL' 1" : "'FILL' 0" }}
-                    >
-                      {ic}
-                    </span>
+                    {ic}
                   </button>
                 )
               })}

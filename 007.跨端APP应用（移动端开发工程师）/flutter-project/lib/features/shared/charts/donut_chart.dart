@@ -5,6 +5,7 @@ import 'package:fl_chart/fl_chart.dart';
 import 'package:flutter/material.dart';
 
 import '../../../core/theme/tokens.dart';
+import '../../../core/utils/chart_color.dart';
 
 class DonutSegment {
   DonutSegment({
@@ -15,6 +16,30 @@ class DonutSegment {
   final String label;
   final double value;
   final Color color;
+}
+
+/// 最小可视占比:2.8% 圆周 ≈ 10°。
+/// 作为硬底线 — sqrt 缩放后仍低于此值的扇区(如 0 / 极小值)才会被顶到 floor,
+/// 保证肉眼可见、可点击;再归一化让 sum = 1。
+///
+/// 算法核心是 **sqrt 缩放**,保留顺序 + 拉开小占比差距,避免"看起来都差不多"。
+/// (对齐 003 React components/DonutChart.tsx MIN_ARC_RATIO)
+const double minDisplayRatio = 0.028;
+
+/// 给一组 rawRatio(总和应为 1),返回调整后的 displayRatio。
+/// - sqrt 缩放保留顺序、放大小占比差异
+/// - floor 保证 0 / 极小值仍可见
+/// - 归一化保证 sum = 1
+List<double> computeDisplayRatios(List<double> rawRatios) {
+  final n = rawRatios.length;
+  if (n == 0) return [];
+  final transformed = rawRatios.map((r) => math.sqrt(r)).toList();
+  final sumT = transformed.fold<double>(0, (a, b) => a + b);
+  if (sumT == 0) return List.filled(n, 1 / n);
+  var display = transformed.map((t) => t / sumT).toList();
+  display = display.map((d) => d < minDisplayRatio ? minDisplayRatio : d).toList();
+  final sumD = display.fold<double>(0, (a, b) => a + b);
+  return display.map((d) => d / sumD).toList();
 }
 
 /// 对齐 components/DonutChart.vue — fl_chart PieChart + 中心数值 + 图例 +
@@ -82,7 +107,26 @@ class _DonutChartState extends State<DonutChart> {
         child: Text('—', style: TextStyle(color: c.textVariant)),
       );
     }
-    final total = widget.segments.fold<double>(0, (s, e) => s + e.value);
+    // 防撞色:同色扇区挨个调亮/调暗 ±20% L 阶梯(对齐 003 React 行为)。
+    // 仅替换 color,其它字段(label / value)保持原对象顺序。
+    final dedupedColors = deduplicateColors(widget.segments.map((s) => s.color).toList());
+    final processed = <DonutSegment>[
+      for (int i = 0; i < widget.segments.length; i++)
+        DonutSegment(
+          label: widget.segments[i].label,
+          value: widget.segments[i].value,
+          color: dedupedColors[i],
+        ),
+    ];
+    final total = processed.fold<double>(0, (s, e) => s + e.value);
+    // 最小可视扇区:0.1% / 1% 这种小占比不再被压成一条线。legend/tooltip
+    // 中显示的百分比仍是 seg.value / total 的真实比例。
+    final displayRatios = total > 0
+        ? computeDisplayRatios(processed.map((s) => s.value / total).toList())
+        : const <double>[];
+    final displayValues = [
+      for (int i = 0; i < processed.length; i++) displayRatios[i] * total,
+    ];
     if (widget.hideLegend) {
       return AspectRatio(
         aspectRatio: 1,
@@ -104,10 +148,10 @@ class _DonutChartState extends State<DonutChart> {
                         touchCallback: _onTouch,
                       ),
                       sections: [
-                        for (int i = 0; i < widget.segments.length; i++)
+                        for (int i = 0; i < processed.length; i++)
                           PieChartSectionData(
-                            value: widget.segments[i].value,
-                            color: widget.segments[i].color,
+                            value: displayValues[i],
+                            color: processed[i].color,
                             // hover 只比 normal 大 5(轻微放大效果,不要夸张弹出)。
                             radius: _hoverIdx == i ? 70 : 65,
                             title: '',
@@ -129,9 +173,10 @@ class _DonutChartState extends State<DonutChart> {
                     ),
                   ),
                 ),
-                if (_hoverIdx != null && _hoverIdx! < widget.segments.length)
+                if (_hoverIdx != null && _hoverIdx! < processed.length)
                   _SegmentTip(
-                    segments: widget.segments,
+                    segments: processed,
+                    displayValues: displayValues,
                     total: total,
                     idx: _hoverIdx!,
                     size: size,
@@ -158,10 +203,10 @@ class _DonutChartState extends State<DonutChart> {
                 centerSpaceRadius: 85,
                 pieTouchData: PieTouchData(touchCallback: _onTouch),
                 sections: [
-                  for (int i = 0; i < widget.segments.length; i++)
+                  for (int i = 0; i < processed.length; i++)
                     PieChartSectionData(
-                      value: widget.segments[i].value,
-                      color: widget.segments[i].color,
+                      value: displayValues[i],
+                      color: processed[i].color,
                       radius: _hoverIdx == i ? 70 : 65,
                       title: '',
                     ),
@@ -183,7 +228,7 @@ class _DonutChartState extends State<DonutChart> {
               Text(widget.totalValue,
                   style: TextStyle(color: c.text, fontSize: 22, fontWeight: FontWeight.w600)),
               const SizedBox(height: AppSpacing.sm),
-              for (int i = 0; i < widget.segments.length; i++)
+              for (int i = 0; i < processed.length; i++)
                 Padding(
                   // vertical: 1 (不是 2) — 给 Column 在 flex=3 / h=180 约束下留
                   // ~1px 余量,干掉 "RenderFlex overflowed by 1px"。
@@ -194,21 +239,21 @@ class _DonutChartState extends State<DonutChart> {
                         width: 10,
                         height: 10,
                         decoration: BoxDecoration(
-                          color: widget.segments[i].color,
+                          color: processed[i].color,
                           shape: BoxShape.circle,
                         ),
                       ),
                       const SizedBox(width: AppSpacing.sm),
                       Expanded(
                         child: Text(
-                          widget.segments[i].label,
+                          processed[i].label,
                           style: TextStyle(color: c.text, fontSize: 13),
                           overflow: TextOverflow.ellipsis,
                         ),
                       ),
                       Text(
                         total > 0
-                            ? '${(widget.segments[i].value / total * 100).toStringAsFixed(2)}%'
+                            ? '${(processed[i].value / total * 100).toStringAsFixed(2)}%'
                             : '0%',
                         style: TextStyle(color: c.textVariant, fontSize: 12),
                       ),
@@ -228,6 +273,7 @@ class _DonutChartState extends State<DonutChart> {
 class _SegmentTip extends StatelessWidget {
   const _SegmentTip({
     required this.segments,
+    required this.displayValues,
     required this.total,
     required this.idx,
     required this.size,
@@ -238,6 +284,9 @@ class _SegmentTip extends StatelessWidget {
   });
 
   final List<DonutSegment> segments;
+  /// 与 PieChart sections 的 value 一致(已应用 minDisplayRatio 调整),
+  /// 用它算中线角才能指向可见弧中心。
+  final List<double> displayValues;
   final double total;
   final int idx;
   final Size size;
@@ -250,13 +299,14 @@ class _SegmentTip extends StatelessWidget {
   Widget build(BuildContext context) {
     final seg = segments[idx];
     // 计算该 segment 中线角(uniapp 用 SVG path 的 mid angle,FlChart 没有
-    // 直接 API,从 values 累推)。
+    // 直接 API,从 values 累推)。用 displayValues 而非原始 value,
+    // 否则小扇区被放大后 tooltip 还指向真实位置,会贴不上可见弧。
     double acc = 0;
     for (int i = 0; i < idx; i++) {
-      acc += segments[i].value;
+      acc += displayValues[i];
     }
     final startDeg = (acc / total) * 360.0;
-    final endDeg = ((acc + seg.value) / total) * 360.0;
+    final endDeg = ((acc + displayValues[idx]) / total) * 360.0;
     final midDeg = (startDeg + endDeg) / 2.0;
     // uniapp: tipR = radius + 12(外侧),锚定到该角的圆周上。FlChart 没暴露
     // 外径(我们传的是 inner=85 + thickness=65 = outer=150),取 0.48 * size

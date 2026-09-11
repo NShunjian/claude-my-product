@@ -311,7 +311,7 @@ function onExpenseTap(i: number) {
               <text class="cat-name">{{ cat.name }}</text>
               <view class="cat-right">
                 <text class="cat-amount">¥{{ formatAmount(cat.total, false) }}</text>
-                <text class="cat-pct">{{ monthlyTotalIncome > 0 ? ((cat.total / monthlyTotalIncome) * 100).toFixed(0) : 0 }}%</text>
+                <text class="cat-pct">{{ monthlyTotalIncome > 0 ? ((cat.total / monthlyTotalIncome) * 100).toFixed(2) : 0 }}%</text>
               </view>
             </view>
             <view class="cat-bar">
@@ -334,7 +334,7 @@ function onExpenseTap(i: number) {
               <text class="cat-name">{{ cat.name }}</text>
               <view class="cat-right">
                 <text class="cat-amount">¥{{ formatAmount(cat.total, false) }}</text>
-                <text class="cat-pct">{{ monthlyTotalExpense > 0 ? ((cat.total / monthlyTotalExpense) * 100).toFixed(0) : 0 }}%</text>
+                <text class="cat-pct">{{ monthlyTotalExpense > 0 ? ((cat.total / monthlyTotalExpense) * 100).toFixed(2) : 0 }}%</text>
               </view>
             </view>
             <view class="cat-bar">
@@ -461,7 +461,10 @@ function onExpenseTap(i: number) {
                     <text class="cat-icon-text" :style="{ color: cat.pres.color }">{{ cat.pres.icon }}</text>
                   </view>
                   <text class="cat-name">{{ cat.name }}</text>
-                  <text class="cat-amount">¥{{ formatAmount(cat.total, false) }}</text>
+                  <view class="cat-right">
+                    <text class="cat-amount">¥{{ formatAmount(cat.total, false) }}</text>
+                    <text class="cat-pct">{{ yearlyTotalExpense > 0 ? ((cat.total / yearlyTotalExpense) * 100).toFixed(2) : 0 }}%</text>
+                  </view>
                 </view>
                 <view class="cat-bar">
                   <view class="cat-bar-fill" :style="{ width: (yearlyTotalExpense > 0 ? (cat.total / yearlyTotalExpense) * 100 : 0) + '%', background: cat.pres.color }" />
@@ -483,7 +486,10 @@ function onExpenseTap(i: number) {
                     <text class="cat-icon-text" :style="{ color: cat.pres.color }">{{ cat.pres.icon }}</text>
                   </view>
                   <text class="cat-name">{{ cat.name }}</text>
-                  <text class="cat-amount">¥{{ formatAmount(cat.total, false) }}</text>
+                  <view class="cat-right">
+                    <text class="cat-amount">¥{{ formatAmount(cat.total, false) }}</text>
+                    <text class="cat-pct">{{ yearlyTotalIncome > 0 ? ((cat.total / yearlyTotalIncome) * 100).toFixed(2) : 0 }}%</text>
+                  </view>
                 </view>
                 <view class="cat-bar">
                   <view class="cat-bar-fill" :style="{ width: (yearlyTotalIncome > 0 ? (cat.total / yearlyTotalIncome) * 100 : 0) + '%', background: cat.pres.color }" />

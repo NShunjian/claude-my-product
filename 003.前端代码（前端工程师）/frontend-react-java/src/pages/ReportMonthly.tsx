@@ -6,6 +6,7 @@ import { DonutChart, type DonutSegment } from '../components/DonutChart'
 import { MonthPicker } from '../components/MonthPicker'
 import { useMonthlyReport } from '../lib/hooks'
 import { getCategoryPresentationByTotal } from '../lib/category-presentation'
+import { deduplicateColors } from '../lib/chart-color'
 import { useLanguage } from '../i18n/LanguageContext'
 import type { CategoryTotal, DailyPoint, MonthlyReport } from '../api/reports'
 
@@ -115,22 +116,52 @@ export function ReportMonthly() {
 
   const topExpense = expenseRanking[0]
 
+  // 收入排行 + 支出排行 的 dedupe color map。
+  // donut 和 ranking 进度条都用同一份去重后颜色,保证视觉一致。
+  const expenseColorMap = useMemo(() => {
+    const segs = expenseRanking.map((cat) => ({
+      label: cat.categoryId,
+      value: 0,
+      color: getCategoryPresentationByTotal(cat).colorHex,
+    }))
+    const deduped = deduplicateColors(segs)
+    const map: Record<string, string> = {}
+    expenseRanking.forEach((cat, i) => {
+      map[cat.categoryId] = deduped[i].color
+    })
+    return map
+  }, [expenseRanking])
+
+  const incomeColorMap = useMemo(() => {
+    const segs = incomeRanking.map((cat) => ({
+      label: cat.categoryId,
+      value: 0,
+      color: getCategoryPresentationByTotal(cat).colorHex,
+    }))
+    const deduped = deduplicateColors(segs)
+    const map: Record<string, string> = {}
+    incomeRanking.forEach((cat, i) => {
+      map[cat.categoryId] = deduped[i].color
+    })
+    return map
+  }, [incomeRanking])
+
   // 环形图(所有有数据的分类,与排行一致)
   const expenseDonutSegments = useMemo<DonutSegment[]>(() => {
     return expenseRanking.map((cat) => ({
       label: cat.name,
       value: cat.total,
-      color: getCategoryPresentationByTotal(cat).colorHex,
+      color: expenseColorMap[cat.categoryId],
     }))
-  }, [expenseRanking])
+  }, [expenseRanking, expenseColorMap])
 
   const incomeDonutSegments = useMemo<DonutSegment[]>(() => {
     return incomeRanking.map((cat) => ({
       label: cat.name,
       value: cat.total,
-      color: getCategoryPresentationByTotal(cat).colorHex,
+      color: incomeColorMap[cat.categoryId],
     }))
-  }, [incomeRanking])
+  }, [incomeRanking, incomeColorMap])
 
   function goPrev() { setFilterMonth((m) => shiftMonth(m, -1)) }
   function goNext() { setFilterMonth((m) => shiftMonth(m, 1)) }
@@ -139,7 +170,7 @@ export function ReportMonthly() {
   const isError = !isLoading && !!reportQ.error
   const errMsg = reportQ.error?.message ?? null
 
-  function renderCategoryRow(cat: CategoryTotal, total: number) {
+  function renderCategoryRow(cat: CategoryTotal, total: number, colorHex: string) {
     const pres = getCategoryPresentationByTotal(cat)
     const pct = total > 0 ? (cat.total / total) * 100 : 0
     return (
@@ -148,11 +179,11 @@ export function ReportMonthly() {
           <div className="flex items-center gap-2">
             <span
               className="w-8 h-8 rounded-full flex items-center justify-center"
-              style={{ backgroundColor: `${pres.colorHex}26` }}
+              style={{ backgroundColor: `${colorHex}26` }}
             >
               <span
                 className="material-symbols-outlined"
-                style={{ fontSize: '16px', color: pres.colorHex, fontVariationSettings: "'FILL' 1" }}
+                style={{ fontSize: '16px', color: colorHex, fontVariationSettings: "'FILL' 1" }}
               >
                 {pres.icon}
               </span>
@@ -166,14 +197,14 @@ export function ReportMonthly() {
               ¥{formatMoney(cat.total)}
             </p>
             <p className="font-caption-sm text-caption-sm text-on-surface-variant">
-              {pct.toFixed(0)}%
+              {pct.toFixed(2)}%
             </p>
           </div>
         </div>
         <div className="h-2 bg-surface-container rounded-full overflow-hidden">
           <div
             className="h-full rounded-full transition-all"
-            style={{ width: `${pct}%`, backgroundColor: pres.colorHex }}
+            style={{ width: `${pct}%`, backgroundColor: colorHex }}
           />
         </div>
       </div>
@@ -364,12 +395,12 @@ export function ReportMonthly() {
 
       {/* 收入占比 + 收入排行 */}
       <div className="grid grid-cols-1 md:grid-cols-12 gap-6">
-        <div className="bento-item bg-bg-card md:col-span-4 h-[420px] flex flex-col">
-          <h3 className="font-headline-md text-headline-md text-text-primary mb-6">{t('reportMonthly.incomeShare')}</h3>
+        <div className="bento-item bg-bg-card md:col-span-4 flex flex-col">
+          <h3 className="font-headline-md text-headline-md text-text-primary mb-4">{t('reportMonthly.incomeShare')}</h3>
           {incomeDonutSegments.length === 0 ? (
             <p className="text-on-surface-variant text-center py-12">{t('reportMonthly.noIncomeRecords')}</p>
           ) : (
-            <div className="flex-1 relative flex items-center justify-center">
+            <div className="flex-1 flex items-center justify-center min-h-0">
               <DonutChart
                 segments={incomeDonutSegments}
                 totalValue={`¥${Math.round(totalIncome).toLocaleString('zh-CN')}`}
@@ -384,7 +415,7 @@ export function ReportMonthly() {
             <p className="text-on-surface-variant text-center py-8">{t('reportMonthly.noIncomeRecords')}</p>
           ) : (
             <div className="space-y-5 flex-1">
-              {incomeRanking.map((cat) => renderCategoryRow(cat, totalIncome))}
+              {incomeRanking.map((cat) => renderCategoryRow(cat, totalIncome, incomeColorMap[cat.categoryId]))}
             </div>
           )}
         </div>
@@ -392,12 +423,12 @@ export function ReportMonthly() {
 
       {/* 支出占比 + 支出排行（与收入配对布局一致） */}
       <div className="grid grid-cols-1 md:grid-cols-12 gap-6">
-        <div className="bento-item bg-bg-card md:col-span-4 h-[420px] flex flex-col">
-          <h3 className="font-headline-md text-headline-md text-text-primary mb-6">{t('reportMonthly.expenseShare')}</h3>
+        <div className="bento-item bg-bg-card md:col-span-4 flex flex-col">
+          <h3 className="font-headline-md text-headline-md text-text-primary mb-4">{t('reportMonthly.expenseShare')}</h3>
           {expenseDonutSegments.length === 0 ? (
             <p className="text-on-surface-variant text-center py-12">{t('reportMonthly.noExpenseRecords')}</p>
           ) : (
-            <div className="flex-1 relative flex items-center justify-center">
+            <div className="flex-1 flex items-center justify-center min-h-0">
               <DonutChart
                 segments={expenseDonutSegments}
                 totalValue={`¥${Math.round(totalExpense).toLocaleString('zh-CN')}`}
@@ -412,7 +443,7 @@ export function ReportMonthly() {
             <p className="text-on-surface-variant text-center py-8">{t('reportMonthly.noExpenseRecords')}</p>
           ) : (
             <div className="space-y-5 flex-1">
-              {expenseRanking.map((cat) => renderCategoryRow(cat, totalExpense))}
+              {expenseRanking.map((cat) => renderCategoryRow(cat, totalExpense, expenseColorMap[cat.categoryId]))}
             </div>
           )}
         </div>

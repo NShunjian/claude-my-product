@@ -4,6 +4,7 @@ import { usePageTitle, usePageBack } from '../components/PageTitleContext'
 import { DonutChart, type DonutSegment } from '../components/DonutChart'
 import { useYearlyReport } from '../lib/hooks'
 import { getCategoryPresentationByTotal } from '../lib/category-presentation'
+import { deduplicateColors } from '../lib/chart-color'
 import { useLanguage } from '../i18n/LanguageContext'
 import type { CategoryTotal, MonthlyPoint, YearlyReport } from '../api/reports'
 
@@ -66,20 +67,48 @@ export function ReportYearly() {
   }, [report])
 
   const expenseDonutSegments: DonutSegment[] = useMemo(() => {
-    return expenseByCategory.map((cat) => ({
+    const segs = expenseByCategory.map((cat) => ({
+      label: cat.categoryId,
+      value: 0,
+      color: getCategoryPresentationByTotal(cat).colorHex,
+    }))
+    const deduped = deduplicateColors(segs)
+    return expenseByCategory.map((cat, i) => ({
       label: cat.name,
       value: cat.total,
-      color: getCategoryPresentationByTotal(cat).colorHex,
+      color: deduped[i].color,
     }))
   }, [expenseByCategory])
 
   const incomeDonutSegments: DonutSegment[] = useMemo(() => {
-    return incomeByCategory.map((cat) => ({
-      label: cat.name,
-      value: cat.total,
+    const segs = incomeByCategory.map((cat) => ({
+      label: cat.categoryId,
+      value: 0,
       color: getCategoryPresentationByTotal(cat).colorHex,
     }))
+    const deduped = deduplicateColors(segs)
+    return incomeByCategory.map((cat, i) => ({
+      label: cat.name,
+      value: cat.total,
+      color: deduped[i].color,
+    }))
   }, [incomeByCategory])
+
+  const expenseColorMap = useMemo(() => {
+    const m: Record<string, string> = {}
+    expenseDonutSegments.forEach((s, i) => {
+      m[expenseByCategory[i].categoryId] = s.color
+    })
+    return m
+  }, [expenseDonutSegments, expenseByCategory])
+
+  const incomeColorMap = useMemo(() => {
+    const m: Record<string, string> = {}
+    incomeDonutSegments.forEach((s, i) => {
+      m[incomeByCategory[i].categoryId] = s.color
+    })
+    return m
+  }, [incomeDonutSegments, incomeByCategory])
 
   const monthKeys = useMemo(
     () => [
@@ -104,7 +133,7 @@ export function ReportYearly() {
   const isError = !isLoading && !!reportQ.error
   const errMsg = reportQ.error?.message ?? null
 
-  function renderCategoryRow(cat: CategoryTotal, total: number) {
+  function renderCategoryRow(cat: CategoryTotal, total: number, colorHex: string) {
     const pres = getCategoryPresentationByTotal(cat)
     const pct = total > 0 ? (cat.total / total) * 100 : 0
     return (
@@ -113,11 +142,11 @@ export function ReportYearly() {
           <div className="flex items-center gap-2">
             <span
               className="w-8 h-8 rounded-full flex items-center justify-center"
-              style={{ backgroundColor: `${pres.colorHex}26` }}
+              style={{ backgroundColor: `${colorHex}26` }}
             >
               <span
                 className="material-symbols-outlined"
-                style={{ fontSize: '16px', color: pres.colorHex, fontVariationSettings: "'FILL' 1" }}
+                style={{ fontSize: '16px', color: colorHex, fontVariationSettings: "'FILL' 1" }}
               >
                 {pres.icon}
               </span>
@@ -129,14 +158,14 @@ export function ReportYearly() {
               ¥{formatMoney(cat.total)}
             </p>
             <p className="font-caption-sm text-caption-sm text-on-surface-variant">
-              {pct.toFixed(0)}%
+              {pct.toFixed(2)}%
             </p>
           </div>
         </div>
         <div className="h-2 bg-surface-container rounded-full overflow-hidden">
           <div
             className="h-full rounded-full transition-all"
-            style={{ width: `${pct}%`, backgroundColor: pres.colorHex }}
+            style={{ width: `${pct}%`, backgroundColor: colorHex }}
           />
         </div>
       </div>
@@ -355,12 +384,12 @@ export function ReportYearly() {
 
         {/* 收入占比 + 收入排行(参考月报布局:环形图 + 排行进度条 side-by-side) */}
         <div className="grid grid-cols-1 md:grid-cols-12 gap-6">
-          <div className="bento-item bg-bg-card md:col-span-4 h-[420px] flex flex-col">
-            <h3 className="font-headline-md text-headline-md text-text-primary mb-6">{t('reportYearly.incomeShare')}</h3>
+          <div className="bento-item bg-bg-card md:col-span-4 flex flex-col">
+            <h3 className="font-headline-md text-headline-md text-text-primary mb-4">{t('reportYearly.incomeShare')}</h3>
             {incomeDonutSegments.length === 0 ? (
               <p className="text-on-surface-variant text-center py-12">{t('reportYearly.noIncomeRecords')}</p>
             ) : (
-              <div className="flex-1 relative flex items-center justify-center">
+              <div className="flex-1 flex items-center justify-center min-h-0">
                 <DonutChart
                   segments={incomeDonutSegments}
                   totalValue={`¥${Math.round(totalIncome).toLocaleString('zh-CN')}`}
@@ -375,7 +404,7 @@ export function ReportYearly() {
               <p className="text-on-surface-variant text-center py-8">{t('reportYearly.noIncomeRecords')}</p>
             ) : (
               <div className="space-y-5 flex-1">
-                {incomeByCategory.map((cat) => renderCategoryRow(cat, totalIncome))}
+                {incomeByCategory.map((cat) => renderCategoryRow(cat, totalIncome, incomeColorMap[cat.categoryId]))}
               </div>
             )}
           </div>
@@ -383,12 +412,12 @@ export function ReportYearly() {
 
         {/* 支出占比 + 支出排行(与收入配对布局一致) */}
         <div className="grid grid-cols-1 md:grid-cols-12 gap-6">
-          <div className="bento-item bg-bg-card md:col-span-4 h-[420px] flex flex-col">
-            <h3 className="font-headline-md text-headline-md text-text-primary mb-6">{t('reportYearly.expenseShare')}</h3>
+          <div className="bento-item bg-bg-card md:col-span-4 flex flex-col">
+            <h3 className="font-headline-md text-headline-md text-text-primary mb-4">{t('reportYearly.expenseShare')}</h3>
             {expenseDonutSegments.length === 0 ? (
               <p className="text-on-surface-variant text-center py-12">{t('reportYearly.noExpenseRecords')}</p>
             ) : (
-              <div className="flex-1 relative flex items-center justify-center">
+              <div className="flex-1 flex items-center justify-center min-h-0">
                 <DonutChart
                   segments={expenseDonutSegments}
                   totalValue={`¥${Math.round(totalExpense).toLocaleString('zh-CN')}`}
@@ -403,7 +432,7 @@ export function ReportYearly() {
               <p className="text-on-surface-variant text-center py-8">{t('reportYearly.noExpenseRecords')}</p>
             ) : (
               <div className="space-y-5 flex-1">
-                {expenseByCategory.map((cat) => renderCategoryRow(cat, totalExpense))}
+                {expenseByCategory.map((cat) => renderCategoryRow(cat, totalExpense, expenseColorMap[cat.categoryId]))}
               </div>
             )}
           </div>

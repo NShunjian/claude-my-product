@@ -12,6 +12,95 @@ import { useLanguage } from '@/i18n/useLanguage'
 // 对外接口不变(:segments / :totalValue / :totalLabel / :hideLegend),
 // monthly.vue 不需要改。
 
+// ========================= 防撞色去重 =========================
+// 对齐 003 React lib/chart-color.ts 与 007 Flutter core/utils/chart_color.dart:
+// 同一图表内出现 ≥2 个 hex 相同的扇区时,挨个差异化。
+//   - **彩色**(S ≥ 0.20):调 L ±20% 阶梯,保留色相。
+//   - **灰/低饱和**(S < 0.20):加饱和 + 偏色相,让肉眼能区分。
+// 第 1 个保持原色,第 2 个 +L,第 3 个 -L,第 4 个 +2L,第 5 个 -2L …
+// uniapp vue3 SFC 不便引外部工具,这里 inline 一份。
+function deduplicateColors<T extends { color: string }>(segs: T[]): T[] {
+  if (segs.length <= 1) return segs.map(s => ({ ...s }))
+  const sameIdx: Record<string, number> = {}
+  return segs.map((s) => {
+    const key = s.color.trim().toUpperCase()
+    const idx = sameIdx[key] ?? 0
+    sameIdx[key] = idx + 1
+    if (idx === 0) return { ...s }
+    const m = /^#?([a-f\d]{2})([a-f\d]{2})([a-f\d]{2})$/i.exec(s.color)
+    if (!m) return { ...s } // 非 hex 跳过
+    const r = parseInt(m[1], 16) / 255
+    const g = parseInt(m[2], 16) / 255
+    const b = parseInt(m[3], 16) / 255
+    const maxV = Math.max(r, g, b)
+    const minV = Math.min(r, g, b)
+    const l = (maxV + minV) / 2
+    let h = 0, s2 = 0
+    if (maxV !== minV) {
+      const d = maxV - minV
+      s2 = l > 0.5 ? d / (2 - maxV - minV) : d / (maxV + minV)
+      if (maxV === r) h = ((g - b) / d + (g < b ? 6 : 0)) * 60
+      else if (maxV === g) h = ((b - r) / d + 2) * 60
+      else h = ((r - g) / d + 4) * 60
+    }
+    const step = 0.2
+    const magnitude = Math.ceil(idx / 2) * step
+    const direction = idx % 2 === 1 ? 1 : -1
+    let newH = h
+    let newS = s2
+    // 调亮/调暗封顶 [0.3, 0.7],避免太浅/太暗
+    let newL = Math.max(0.3, Math.min(0.7, l + direction * magnitude))
+    // 阈值 0.30(含 #A0AEC0 这种擦边灰)— 走灰分支更明显
+    if (s2 < 0.3) {
+      // 灰/低饱和:加饱和 + 偏色相 + L 锁中段 ±10%
+      newS = Math.min(0.7, 0.55 + magnitude * 0.3)
+      const huePool = [220, 30, 290, 140, 10, 260, 180]
+      newH = huePool[(idx - 1) % huePool.length]
+      newL = Math.max(0.35, Math.min(0.65, 0.5 + direction * 0.08))
+    }
+    const c = (1 - Math.abs(2 * newL - 1)) * newS
+    const hp = newH / 60
+    const x = c * (1 - Math.abs((hp % 2) - 1))
+    let r1 = 0, g1 = 0, b1 = 0
+    if (hp >= 0 && hp < 1) [r1, g1, b1] = [c, x, 0]
+    else if (hp < 2) [r1, g1, b1] = [x, c, 0]
+    else if (hp < 3) [r1, g1, b1] = [0, c, x]
+    else if (hp < 4) [r1, g1, b1] = [0, x, c]
+    else if (hp < 5) [r1, g1, b1] = [x, 0, c]
+    else [r1, g1, b1] = [c, 0, x]
+    const m2 = newL - c / 2
+    const toHex = (n: number) => {
+      const v = Math.max(0, Math.min(255, Math.round((n + m2) * 255)))
+      return v.toString(16).padStart(2, '0')
+    }
+    return { ...s, color: `#${toHex(r1)}${toHex(g1)}${toHex(b1)}` }
+  })
+}
+
+// ========================= 最小可视扇区 =========================
+// 对齐 003 React components/DonutChart.tsx MIN_ARC_RATIO 与 007 Flutter
+// features/shared/charts/donut_chart.dart minDisplayRatio:2.8% 圆周 ≈ 10°。
+//
+// 算法核心是 **sqrt 缩放**:raw → sqrt → 归一化。保留顺序 + 拉开小占比之间的差距,
+// 让 12% / 9% / 2% / 0.5% 在弧度上肉眼可分,而不是都被顶到同一个 floor。
+// MIN_DISPLAY_RATIO 只作为硬底线,sqrt 后还低于它的(0 / 极小值)才顶到 floor。
+// legend/tooltip 展示的百分比仍是真实占比,所以信息不丢。
+const MIN_DISPLAY_RATIO = 0.028
+function computeDisplayRatios(rawRatios: number[]): number[] {
+  const n = rawRatios.length
+  if (n === 0) return []
+  // 第 1 步:sqrt 缩放
+  const transformed = rawRatios.map((r) => Math.sqrt(r))
+  const sumT = transformed.reduce((a, b) => a + b, 0)
+  if (sumT === 0) return rawRatios.map(() => 1 / n)
+  let display = transformed.map((t) => t / sumT)
+  // 第 2 步:floor 兜底
+  display = display.map((d) => d < MIN_DISPLAY_RATIO ? MIN_DISPLAY_RATIO : d)
+  // 第 3 步:归一化
+  const sumD = display.reduce((a, b) => a + b, 0)
+  return display.map((d) => d / sumD)
+}
+
 interface Segment { label: string; value: number; color: string }
 const props = withDefaults(defineProps<{
   segments: Segment[]
@@ -38,14 +127,28 @@ const W = 200, H = 200
 const hoverIdx = ref<number | null>(null)
 let touchTimer: ReturnType<typeof setTimeout> | null = null
 
+const processedSegments = computed(() => deduplicateColors(props.segments))
+
+// 最小可视扇区:0.1% / 1% 这种小占比不再被压成一条线。legend/tooltip 中显示的
+// 百分比仍是 seg.value / total 的真实比例(displayValue 仅用于画弧 + 浮窗位置)。
+const displayValues = computed(() => {
+  const segs = processedSegments.value
+  if (segs.length === 0) return [] as number[]
+  const total = segs.reduce((s, x) => s + x.value, 0) || 1
+  const ratios = computeDisplayRatios(segs.map((s) => s.value / total))
+  return ratios.map((r) => r * total)
+})
+
 const arcs = computed(() => {
-  const total = props.segments.reduce((s, x) => s + x.value, 0) || 1
+  const segs = processedSegments.value
+  const total = segs.reduce((s, x) => s + x.value, 0) || 1
+  const values = displayValues.value
   let acc = 0
-  return props.segments.map((s, i) => {
+  return segs.map((s, i) => {
     const start = (acc / total) * Math.PI * 2 - Math.PI / 2
-    acc += s.value
+    acc += values[i]
     let end = (acc / total) * Math.PI * 2 - Math.PI / 2
-    if (props.segments.length === 1) {
+    if (segs.length === 1) {
       end = start + Math.PI * 2 - 0.001
     }
     const mid = (start + end) / 2
@@ -60,7 +163,7 @@ const arcs = computed(() => {
     return {
       d: `M ${x1} ${y1} A ${radius} ${radius} 0 ${large} 1 ${x2} ${y2} L ${ix1} ${iy1} A ${inner} ${inner} 0 ${large} 0 ${ix2} ${iy2} Z`,
       color: s.color, label: s.label, value: s.value,
-      pct: ((s.value / total) * 100).toFixed(1),
+      pct: ((s.value / total) * 100).toFixed(2),
       tipX, tipY,
     }
   })
@@ -84,13 +187,15 @@ function clearHover() {
 // 设 background-color 兜底,如果 conic-gradient 被忽略,显示单色 ring + 中心文字。
 
 const conicStops = computed(() => {
-  if (props.segments.length === 0) return ''
-  const total = props.segments.reduce((s, x) => s + x.value, 0) || 1
+  if (processedSegments.value.length === 0) return ''
+  const total = processedSegments.value.reduce((s, x) => s + x.value, 0) || 1
+  const values = displayValues.value
   const stops: string[] = []
   let acc = 0
-  for (const s of props.segments) {
+  for (let i = 0; i < processedSegments.value.length; i++) {
+    const s = processedSegments.value[i]
     const startDeg = (acc / total) * 360
-    acc += s.value
+    acc += values[i]
     const endDeg = (acc / total) * 360
     stops.push(`${s.color} ${startDeg}deg ${endDeg}deg`)
   }
@@ -99,7 +204,7 @@ const conicStops = computed(() => {
 
 const fallbackBg = computed(() => {
   // conic-gradient 不支持时,显示首个 segment 颜色(或灰)
-  return props.segments[0]?.color ?? '#E2E8F0'
+  return processedSegments.value[0]?.color ?? '#E2E8F0'
 })
 
 // MP 点击浮窗:conic-gradient 没有可交互的元素,所以用透明覆盖层捕获触摸位置,
@@ -126,7 +231,7 @@ const MP_RING_PX = 320
 const MP_HOLE_PX = 200
 
 function findSegmentAt(localX: number, localY: number, size: number): number | null {
-  if (props.segments.length === 0) return null
+  if (processedSegments.value.length === 0) return null
   const cx = size / 2
   const cy = size / 2
   const rOuter = size / 2
@@ -139,16 +244,16 @@ function findSegmentAt(localX: number, localY: number, size: number): number | n
   let deg = Math.atan2(dy, dx) * 180 / Math.PI + 90
   if (deg < 0) deg += 360
   if (deg >= 360) deg -= 1e-6
-  const total = props.segments.reduce((s, x) => s + x.value, 0) || 1
+  const total = processedSegments.value.reduce((s, x) => s + x.value, 0) || 1
+  const values = displayValues.value
   let acc = 0
-  for (let i = 0; i < props.segments.length; i++) {
-    const s = props.segments[i]
+  for (let i = 0; i < processedSegments.value.length; i++) {
     const startDeg = (acc / total) * 360
-    acc += s.value
+    acc += values[i]
     const endDeg = (acc / total) * 360
     if (deg >= startDeg && deg < endDeg) return i
   }
-  return props.segments.length - 1
+  return processedSegments.value.length - 1
 }
 
 function onDonutTouch(e: any) {
@@ -177,12 +282,14 @@ function onDonutTouch(e: any) {
       mpTipIdx.value = null
       return
     }
-    // 浮窗位置:命中 segment 的中线角,往外挪 12rpx
-    const total = props.segments.reduce((s, x) => s + x.value, 0) || 1
+    // 浮窗位置:命中 segment 的中线角,往外挪 12rpx。
+    // 用 displayValues(而非 raw value)算中线角,保证指向可见弧中心。
+    const total = processedSegments.value.reduce((s, x) => s + x.value, 0) || 1
+    const values = displayValues.value
     let acc = 0
-    for (let i = 0; i < idx; i++) acc += props.segments[i].value
+    for (let i = 0; i < idx; i++) acc += values[i]
     const startDeg = (acc / total) * 360
-    const endDeg = ((acc + props.segments[idx].value) / total) * 360
+    const endDeg = ((acc + values[idx]) / total) * 360
     const midDeg = (startDeg + endDeg) / 2
     const midRad = (midDeg - 90) * Math.PI / 180
     const tipR = rect.width / 2 + 12  // 12rpx 外侧
@@ -205,13 +312,13 @@ function onDonutTouch(e: any) {
 const mpTipSeg = computed(() => {
   const idx = mpTipIdx.value
   if (idx === null) return null
-  return props.segments[idx] ?? null
+  return processedSegments.value[idx] ?? null
 })
 const mpTipPct = computed(() => {
   const seg = mpTipSeg.value
-  if (!seg) return '0.0'
-  const total = props.segments.reduce((s, x) => s + x.value, 0) || 1
-  return ((seg.value / total) * 100).toFixed(1)
+  if (!seg) return '0.00'
+  const total = processedSegments.value.reduce((s, x) => s + x.value, 0) || 1
+  return ((seg.value / total) * 100).toFixed(2)
 })
 
 // 数据源切换时清掉 tooltip

@@ -15,13 +15,15 @@ function formatMoney(amount: number): string {
 
 const ACCOUNT_THEME: Record<
   string,
-  { iconBg: string; iconColor: string; iconName: string }
+  { iconBg: string; iconColor: string }
 > = {
-  wechat: { iconBg: '#E5F5E9', iconColor: '#09B83E', iconName: 'chat_bubble' },
-  alipay: { iconBg: '#E3F2FD', iconColor: '#1677FF', iconName: 'payments' },
-  bank: { iconBg: '#e5eeff', iconColor: '#005394', iconName: 'account_balance' },
-  credit: { iconBg: 'rgb(167 8 25 / 0.12)', iconColor: '#ba1a1a', iconName: 'credit_card' },
-  cash: { iconBg: '#dce9ff', iconColor: '#8B6E4E', iconName: 'local_atm' },
+  // 对齐 007 uniapp themeMap + Flutter _icons:iconName 现在是 emoji 字符
+  // (后端 acc.icon 优先),这里只保留 iconBg / iconColor 给底圈染色。
+  wechat: { iconBg: '#E5F5E9', iconColor: '#09B83E' },
+  alipay: { iconBg: '#E3F2FD', iconColor: '#1677FF' },
+  bank:   { iconBg: '#e5eeff', iconColor: '#005394' },
+  credit: { iconBg: 'rgb(167 8 25 / 0.12)', iconColor: '#ba1a1a' },
+  cash:   { iconBg: '#dce9ff', iconColor: '#8B6E4E' },
 }
 
 /** 0=active only, 1=all(活跃+归档), 2=archived only。默认 active。 */
@@ -169,15 +171,11 @@ export function Accounts() {
               >
                 <div className="flex justify-between items-start mb-6">
                   <div
-                    className="w-12 h-12 rounded-full flex items-center justify-center"
-                    style={{ backgroundColor: theme.iconBg }}
+                    className="w-12 h-12 rounded-full flex items-center justify-center text-2xl"
+                    style={{ backgroundColor: theme.iconBg, color: theme.iconColor }}
                   >
-                    <span
-                      className="material-symbols-outlined text-2xl"
-                      style={{ color: theme.iconColor, fontVariationSettings: "'FILL' 1" }}
-                    >
-                      {theme.iconName}
-                    </span>
+                    {/* emoji 字(来自后端 acc.icon 或 themeKey 兜底),对齐 uniapp/Flutter */}
+                    <span aria-hidden="true">{acc.icon}</span>
                   </div>
                   {/* ponytail: 卡片右上角更多菜单 — 用原生 <details>/<summary>
                               配合下拉,避免引第三方 popover 库;同 macOS/Windows/移动

@@ -2,7 +2,11 @@
  * 后端 account → 前端展示用 account 的派生字段。
  *
  * 后端 account 只有基础字段（name/type/icon/balance/currency 等）；
- * 前端 Account 卡片需要的 subtitle / themeKey / creditLimit 按 type + name 启发式派生。
+ * 前端 Account 卡片需要的 subtitle / themeKey / iconText / creditLimit 按 type + name 启发式派生。
+ *
+ * iconText 对齐 007 uniapp / Flutter:卡片用 emoji 字符(跨端自带,不会出现
+ * "credit_card" 这种 ligature 渲染成英文乱码)。后端 acc.icon 有值就用(用户在
+ * Flutter 端选的会跨端共享),fallback 到 themeKey 默认 emoji。
  */
 import type { Account as ApiAccount } from '../api/accounts'
 
@@ -12,6 +16,8 @@ export interface AccountPresentation {
   /** 卡片副标题：英文类型 / 卡号占位 */
   subtitle: string
   themeKey: ThemeKey
+  /** 渲染字符:emoji 或任意 backend 下发的字符串(UniApp/Flutter/React 三端统一) */
+  iconText: string
   /** 仅信用卡：显示额度（暂无用户输入字段，使用占位） */
   creditLimit?: string
 }
@@ -34,6 +40,15 @@ const TYPE_TO_SUBTITLE: Record<ApiAccount['type'], string> = {
   other: 'Other Account',
 }
 
+/** 对齐 uniapp themeMap + Flutter _icons 的 emoji 字符。 */
+const THEME_ICON_DEFAULT: Record<ThemeKey, string> = {
+  wechat: '💬',
+  alipay: '💰',
+  bank:   '🏦',
+  credit: '💳',
+  cash:   '💵',
+}
+
 function detectThemeByName(name: string, fallback: ThemeKey): ThemeKey {
   const n = name.toLowerCase()
   if (n.includes('微信') || n.includes('wechat')) return 'wechat'
@@ -50,7 +65,12 @@ export function getAccountPresentation(a: ApiAccount): AccountPresentation {
   // 否则 招商银行 这种其实是信用卡的账户,balance 会失去 'credit' 主题的负号渲染。
   const themeKey = baseTheme === 'credit' ? 'credit' : detectThemeByName(a.name, baseTheme)
   const subtitle = TYPE_TO_SUBTITLE[a.type] ?? 'Account'
-  const result: AccountPresentation = { subtitle, themeKey }
+  // 后端 icon 优先(用户在任一端选的,跨端共享),fallback 到当前主题默认 emoji。
+  // 兼容老数据:旧后端可能下发 Material Symbols ligature 字符串(credit_card 等),
+  // 那种在 React Material Symbols 字体里能渲染,但 emoji 不可读 — 不强行改写,
+  // 让用户自己新建账户才会用 emoji。
+  const iconText = (a.icon && a.icon.trim()) || THEME_ICON_DEFAULT[themeKey]
+  const result: AccountPresentation = { subtitle, themeKey, iconText }
   if (a.type === 'credit') {
     result.creditLimit = '—'
   }

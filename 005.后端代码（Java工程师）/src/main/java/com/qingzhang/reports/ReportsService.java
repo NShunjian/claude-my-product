@@ -6,6 +6,7 @@ import com.qingzhang.books.entity.Book;
 import com.qingzhang.categories.entity.Category;
 import com.qingzhang.categories.mapper.CategoryMapper;
 import com.qingzhang.common.BizException;
+import com.qingzhang.common.ChartColors;
 import com.qingzhang.common.ErrorCode;
 import com.qingzhang.reports.dto.CategoryTotal;
 import com.qingzhang.reports.dto.DailyPoint;
@@ -127,7 +128,10 @@ public class ReportsService {
         return booksService.mustAccessibleBook(userId, bookUuid).getId();
     }
 
-    /** 分类汇总 + 反查 name/icon/color。 */
+    /** 分类汇总 + 反查 name/icon/color。
+     *  输出前会按当前报表上下文(同一图表里出现的分类集合)做撞色重映射,
+     *  保证 4 端(React / Flutter / uniapp / Admin)拉同一份数据都看到一致去重色。
+     *  前端渲染时仍可保留 dedup 作 defense-in-depth,但服务端是 single source of truth。 */
     private List<CategoryTotal> categoryTotals(long userId, String type, Long bookId, LocalDate from, LocalDate to) {
         List<Map<String, Object>> rows = reportMapper.sumByCategory(userId, type, bookId, from, to);
         if (rows.isEmpty()) return List.of();
@@ -139,17 +143,36 @@ public class ReportsService {
         Map<Long, Category> catById = categoryMapper.selectBatchIds(ids).stream()
                 .collect(Collectors.toMap(Category::getId, c -> c));
 
-        List<CategoryTotal> out = new ArrayList<>(rows.size());
+        // 第 1 遍:按报表出现顺序收集 Category + 原始 color(过滤已删分类)
+        List<Category> ordered = new ArrayList<>(rows.size());
+        List<String> rawColors = new ArrayList<>(rows.size());
         for (Map<String, Object> row : rows) {
             Long catId = ((Number) row.get("category_id")).longValue();
             Category c = catById.get(catId);
-            if (c == null) continue; // 分类被删 → 跳过
+            if (c == null) continue;
+            ordered.add(c);
+            rawColors.add(c.getColor());
+        }
+        // 撞色重映射:同色按出现顺序差异化(灰系加饱和+偏色相)
+        List<String> dedupedColors = ChartColors.deduplicate(rawColors);
+
+        // 第 2 遍:按 categoryId 回查 row 拿 total,组装 DTO
+        Map<Long, BigDecimal> totalByCatId = new HashMap<>();
+        for (Map<String, Object> row : rows) {
+            totalByCatId.put(
+                    ((Number) row.get("category_id")).longValue(),
+                    (BigDecimal) row.get("total")
+            );
+        }
+        List<CategoryTotal> out = new ArrayList<>(ordered.size());
+        for (int i = 0; i < ordered.size(); i++) {
+            Category c = ordered.get(i);
             out.add(new CategoryTotal(
                     c.getUuid(),
                     c.getName(),
                     c.getIcon(),
-                    c.getColor(),
-                    (BigDecimal) row.get("total")
+                    dedupedColors.get(i),
+                    totalByCatId.get(c.getId())
             ));
         }
         return out;

@@ -85,4 +85,45 @@ describe('getAccountPresentation', () => {
     expect(getAccountPresentation(makeAccount({ type: 'investment' })).subtitle).toBe('Investment')
     expect(getAccountPresentation(makeAccount({ type: 'other' })).subtitle).toBe('Other Account')
   })
+
+  // ===== iconText:对齐 007 uniapp / Flutter 后端 emoji =====
+
+  it('iconText: backend acc.icon 优先(用户在 Flutter 端选的,跨端共享)', () => {
+    // 后端下发 '💰',前端直接用,不被 themeKey 默认覆盖
+    const out = getAccountPresentation(
+      makeAccount({ name: '招商银行', type: 'debit', icon: '💰' })
+    )
+    expect(out.iconText).toBe('💰')
+  })
+
+  it('iconText: 后端空 / 空白 → fallback 到 themeKey 默认 emoji', () => {
+    expect(getAccountPresentation(makeAccount({ type: 'wallet', icon: '' })).iconText).toBe('💬')
+    expect(getAccountPresentation(makeAccount({ type: 'wallet', icon: '   ' })).iconText).toBe('💬')
+  })
+
+  it('iconText: wallet+无 wechat 字样 → wechat 默认 💬(对齐 uniapp themeMap)', () => {
+    const out = getAccountPresentation(makeAccount({ type: 'wallet', name: 'Unknown Wallet', icon: '' }))
+    expect(out.themeKey).toBe('wechat')
+    expect(out.iconText).toBe('💬')
+  })
+
+  it('iconText: 信用卡 type=credit → themeKey=credit,fallback 💳(不被银行名覆盖)', () => {
+    const out = getAccountPresentation(makeAccount({ name: '招商银行信用卡', type: 'credit', icon: '' }))
+    expect(out.themeKey).toBe('credit')
+    expect(out.iconText).toBe('💳')
+  })
+
+  it('iconText: bank theme 默认 🏦', () => {
+    expect(getAccountPresentation(makeAccount({ name: '工商银行', type: 'debit', icon: '' })).iconText).toBe('🏦')
+  })
+
+  it('iconText: cash theme 默认 💵', () => {
+    expect(getAccountPresentation(makeAccount({ type: 'cash', icon: '' })).iconText).toBe('💵')
+  })
+
+  it('iconText: alipay theme(支付宝 in name)默认 💰', () => {
+    const out = getAccountPresentation(makeAccount({ name: '支付宝余额', type: 'wallet', icon: '' }))
+    expect(out.themeKey).toBe('alipay')
+    expect(out.iconText).toBe('💰')
+  })
 })

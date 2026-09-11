@@ -15,5 +15,10 @@ import { afterEach } from 'vitest'
 
 afterEach(() => {
   // localStorage / fetch mock 由各用例自己 reset,避免用例间串味
-  localStorage.clear()
+  // 在 node 环境(纯函数单测)localStorage 不存在,跳过即可
+  try {
+    localStorage.clear()
+  } catch {
+    /* node 环境无 localStorage */
+  }
 })

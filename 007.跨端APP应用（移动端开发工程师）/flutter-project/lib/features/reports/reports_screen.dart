@@ -521,7 +521,6 @@ class _YearlyTabState extends ConsumerState<_YearlyTab> {
                         total: r.totalExpense,
                         totalValueOverride:
                             '¥${(r.totalExpense / 1000).toStringAsFixed(1)}k',
-                        showPct: false,
                         compact: true,
                       ),
                       const SizedBox(height: AppSpacing.md),
@@ -533,7 +532,6 @@ class _YearlyTabState extends ConsumerState<_YearlyTab> {
                         total: r.totalIncome,
                         totalValueOverride:
                             '¥${(r.totalIncome / 1000).toStringAsFixed(1)}k',
-                        showPct: false,
                         compact: true,
                       ),
                     ],
@@ -1012,8 +1010,9 @@ class _LegendDot extends StatelessWidget {
 /// name + amount + pct% + bar)。
 ///
 /// totalValueOverride — 年报 donut 中心总额用 k 格式(¥1.5k),月报不传,默认
-/// formatAmount(total)。showPct=false → 不显示 pct%(年报)。compact=true →
+/// formatAmount(total)。compact=true →
 /// cat-icon 24dp/text 10dp + cat-name 12dp + cat-amount 12dp(年报用)。
+/// 月报 / 年报 cat-list 都展示占比(2 位小数)。
 class _CategoryCard extends StatelessWidget {
   const _CategoryCard({
     required this.title,
@@ -1022,7 +1021,6 @@ class _CategoryCard extends StatelessWidget {
     required this.cats,
     required this.total,
     this.totalValueOverride,
-    this.showPct = true,
     this.compact = false,
   });
   final String title;
@@ -1031,7 +1029,6 @@ class _CategoryCard extends StatelessWidget {
   final List<Category> cats;
   final double total;
   final String? totalValueOverride;
-  final bool showPct;
   final bool compact;
 
   @override
@@ -1156,8 +1153,7 @@ class _CategoryCard extends StatelessWidget {
                                   fontWeight: FontWeight.w600,
                                 ),
                               ),
-                              if (showPct)
-                                Text(
+                              Text(
                                   '$pct%',
                                   style: TextStyle(
                                     color: c.textVariant,

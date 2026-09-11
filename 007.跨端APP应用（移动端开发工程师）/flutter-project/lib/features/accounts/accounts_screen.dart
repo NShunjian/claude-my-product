@@ -12,6 +12,7 @@ import '../../core/utils/finance.dart';
 import '../../core/utils/tab_refresh_signal.dart';
 import '../shared/app_header.dart';
 import '../shared/providers.dart';
+import '../shared/skeleton_shimmer.dart';
 import '../shared/toast_controller.dart';
 
 /// 对齐 pages/zhanghu/index.vue — 账户列表 + 归档/删除/新增。
@@ -630,73 +631,75 @@ class _AccountsSkeleton extends StatelessWidget {
           padding: const EdgeInsets.all(12),
           child: child ?? const SizedBox.shrink(),
         );
-    return ListView(
-      padding: const EdgeInsets.all(AppSpacing.lg),
-      children: [
-        card(
-          child: Column(
-            mainAxisSize: MainAxisSize.min,
-            crossAxisAlignment: CrossAxisAlignment.start,
+    return Shimmer(
+      child: ListView(
+        padding: const EdgeInsets.all(AppSpacing.lg),
+        children: [
+          card(
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                bar(80, h: 12),
+                const SizedBox(height: 12),
+                bar(180, h: 28),
+                const SizedBox(height: 12),
+                bar(120, h: 12),
+              ],
+            ),
+          ),
+          const SizedBox(height: AppSpacing.md),
+          Row(
             children: [
-              bar(80, h: 12),
-              const SizedBox(height: 12),
-              bar(180, h: 28),
-              const SizedBox(height: 12),
-              bar(120, h: 12),
+              for (int i = 0; i < 3; i++) ...[
+                Container(
+                  width: 70,
+                  height: 28,
+                  decoration: BoxDecoration(
+                    color: high,
+                    borderRadius: BorderRadius.circular(14),
+                  ),
+                ),
+                if (i < 2) const SizedBox(width: 8),
+              ],
             ],
           ),
-        ),
-        const SizedBox(height: AppSpacing.md),
-        Row(
-          children: [
-            for (int i = 0; i < 3; i++) ...[
-              Container(
-                width: 70,
-                height: 28,
-                decoration: BoxDecoration(
-                  color: high,
-                  borderRadius: BorderRadius.circular(14),
-                ),
-              ),
-              if (i < 2) const SizedBox(width: 8),
-            ],
-          ],
-        ),
-        const SizedBox(height: AppSpacing.md),
-        GridView.count(
-          crossAxisCount: 2,
-          shrinkWrap: true,
-          physics: const NeverScrollableScrollPhysics(),
-          mainAxisSpacing: AppSpacing.md,
-          crossAxisSpacing: AppSpacing.md,
-          childAspectRatio: 1.1,
-          children: [
-            for (int i = 0; i < 4; i++)
-              card(
-                child: Column(
-                  mainAxisSize: MainAxisSize.min,
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Container(
-                      width: 36,
-                      height: 36,
-                      decoration: BoxDecoration(
-                        color: high,
-                        shape: BoxShape.circle,
+          const SizedBox(height: AppSpacing.md),
+          GridView.count(
+            crossAxisCount: 2,
+            shrinkWrap: true,
+            physics: const NeverScrollableScrollPhysics(),
+            mainAxisSpacing: AppSpacing.md,
+            crossAxisSpacing: AppSpacing.md,
+            childAspectRatio: 1.1,
+            children: [
+              for (int i = 0; i < 4; i++)
+                card(
+                  child: Column(
+                    mainAxisSize: MainAxisSize.min,
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Container(
+                        width: 36,
+                        height: 36,
+                        decoration: BoxDecoration(
+                          color: high,
+                          shape: BoxShape.circle,
+                        ),
                       ),
-                    ),
-                    const SizedBox(height: 8),
-                    bar(double.infinity, h: 12),
-                    const SizedBox(height: 6),
-                    bar(80, h: 10),
-                    const Spacer(),
-                    bar(100, h: 14),
-                  ],
+                      const SizedBox(height: 8),
+                      bar(double.infinity, h: 12),
+                      const SizedBox(height: 6),
+                      bar(80, h: 10),
+                      const Spacer(),
+                      bar(100, h: 14),
+                    ],
+                  ),
                 ),
-              ),
-          ],
-        ),
-      ],
+            ],
+          ),
+        ],
+      ),
     );
   }
 }

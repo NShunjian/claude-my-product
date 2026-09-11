@@ -13,6 +13,7 @@ import '../../core/utils/tab_refresh_signal.dart';
 import '../shared/auth_controller.dart';
 import '../shared/app_header.dart';
 import '../shared/providers.dart';
+import '../shared/skeleton_shimmer.dart';
 import '../shared/theme_controller.dart';
 import '../shared/toast_controller.dart';
 
@@ -1106,28 +1107,30 @@ class _CategoriesCardState extends ConsumerState<_CategoriesCard> {
               if (!snap.hasData) {
                 // ponytail: 骨架占位 — 模仿真实 cat-grid 的 6/7 列网格,
                 // 6 个圆角方块占位,数据回来平滑替换。避免空白 spinner。
-                return Padding(
-                  padding: const EdgeInsets.symmetric(
-                    horizontal: AppSpacing.lg,
-                  ),
-                  child: GridView.count(
-                    crossAxisCount: 6,
-                    shrinkWrap: true,
-                    physics: const NeverScrollableScrollPhysics(),
-                    mainAxisSpacing: AppSpacing.sm,
-                    crossAxisSpacing: AppSpacing.sm,
-                    childAspectRatio: 1,
-                    children: [
-                      for (int i = 0; i < 12; i++)
-                        Container(
-                          decoration: BoxDecoration(
-                            color: c.textVariant.withValues(alpha: 0.15),
-                            borderRadius: BorderRadius.circular(
-                              AppRadius.sm,
+                return Shimmer(
+                  child: Padding(
+                    padding: const EdgeInsets.symmetric(
+                      horizontal: AppSpacing.lg,
+                    ),
+                    child: GridView.count(
+                      crossAxisCount: 6,
+                      shrinkWrap: true,
+                      physics: const NeverScrollableScrollPhysics(),
+                      mainAxisSpacing: AppSpacing.sm,
+                      crossAxisSpacing: AppSpacing.sm,
+                      childAspectRatio: 1,
+                      children: [
+                        for (int i = 0; i < 12; i++)
+                          Container(
+                            decoration: BoxDecoration(
+                              color: c.textVariant.withValues(alpha: 0.15),
+                              borderRadius: BorderRadius.circular(
+                                AppRadius.sm,
+                              ),
                             ),
                           ),
-                        ),
-                    ],
+                      ],
+                    ),
                   ),
                 );
               }

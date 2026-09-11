@@ -17,6 +17,7 @@ import '../shared/auth_controller.dart';
 import '../shared/month_picker.dart';
 import '../shared/providers.dart';
 import '../shared/quick_add_controller.dart';
+import '../shared/skeleton_shimmer.dart';
 import '../shared/transaction_row.dart';
 
 /// 对齐 pages/home/index.vue — 顶部 AppHeader + 总览/月份 + 资产卡(内嵌快速记账)
@@ -143,13 +144,59 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
             //          平滑替换。
             if (_data == null) {
               if (snap.hasError) {
+                // ponytail: 首屏加载失败给可读错误 + 重试按钮,不再裸 Dio 文本。
+                //          401 已被 _onResponse 监听器踢回登录,这里只处理
+                //          其他网络/服务错误。
                 return ListView(
+                  padding: const EdgeInsets.symmetric(vertical: 80),
                   children: [
-                    Padding(
-                      padding: const EdgeInsets.all(AppSpacing.xl),
-                      child: Text(
-                        '${lang.t('home.loadErrorPrefix')}${snap.error}',
-                        style: TextStyle(color: c.error),
+                    Center(
+                      child: Column(
+                        mainAxisSize: MainAxisSize.min,
+                        children: [
+                          Icon(Icons.cloud_off, size: 48, color: c.textVariant),
+                          const SizedBox(height: 16),
+                          Padding(
+                            padding: const EdgeInsets.symmetric(
+                              horizontal: AppSpacing.xl,
+                            ),
+                            child: Text(
+                              lang.t('home.loadErrorPrefix'),
+                              textAlign: TextAlign.center,
+                              style: TextStyle(
+                                color: c.error,
+                                fontSize: 14,
+                              ),
+                            ),
+                          ),
+                          const SizedBox(height: 20),
+                          OutlinedButton(
+                            onPressed: () {
+                              setState(() {
+                                _future = _load();
+                              });
+                            },
+                            style: OutlinedButton.styleFrom(
+                              side: BorderSide(color: c.divider),
+                              tapTargetSize: MaterialTapTargetSize.shrinkWrap,
+                              minimumSize: const Size(120, 36),
+                              padding: const EdgeInsets.symmetric(
+                                horizontal: 20,
+                              ),
+                              shape: RoundedRectangleBorder(
+                                borderRadius:
+                                    BorderRadius.circular(AppRadius.sm),
+                              ),
+                            ),
+                            child: Text(
+                              lang.t('common.retry'),
+                              style: TextStyle(
+                                color: c.text,
+                                fontSize: 14,
+                              ),
+                            ),
+                          ),
+                        ],
                       ),
                     ),
                   ],
@@ -159,8 +206,7 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
             }
             // 已有数据(包括刷新中的 stale snapshot)→ 渲染数据,顶部加进度条表示在重新拉取
             final data = _data!;
-            final isReloading =
-                snap.connectionState != ConnectionState.done;
+            final isReloading = snap.connectionState != ConnectionState.done;
             final expenseRows = _buildBreakdownRows(
               data,
               RecordType.expense,
@@ -190,8 +236,9 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
                       _AssetsCard(
                         totalAssets: data.totalAssets,
                         accounts: data.accounts.length,
-                        onQuickAdd: () =>
-                            ref.read(quickAddControllerProvider.notifier).open(),
+                        onQuickAdd: () => ref
+                            .read(quickAddControllerProvider.notifier)
+                            .open(),
                       ),
                       const SizedBox(height: 10),
                       _ExpenseCard(amount: data.report.totalExpense),
@@ -213,7 +260,8 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
                         //          保证"每次点击都同步",跟 uniapp monthly.vue
                         //          → liushui.vue 用 Pinia 传 month 同思路。
                         onViewAll: () {
-                          ref.read(pendingTxMonthProvider.notifier).state = _month;
+                          ref.read(pendingTxMonthProvider.notifier).state =
+                              _month;
                           context.go(AppRoutes.transactions);
                         },
                       ),
@@ -256,9 +304,8 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
   /// 关键:data.records 是全量(recordsApi 不带 month 参数),必须按当前 _month 过滤
   /// 才能对齐 `data.report` 的当月口径(否则会显示全部历史累计金额)。
   List<_CatRow> _buildBreakdownRows(_HomeData data, RecordType type) {
-    final catType = type == RecordType.expense
-        ? CategoryType.expense
-        : CategoryType.income;
+    final catType =
+        type == RecordType.expense ? CategoryType.expense : CategoryType.income;
     final cats = data.categories.where((c) => c.type == catType).toList();
     if (cats.isEmpty) return const [];
     // 按当前月过滤:recordDate 是 YYYY-MM-DD,_month 是 YYYY-MM。
@@ -266,8 +313,9 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
         .where((r) => r.type == type && r.recordDate.startsWith(_month))
         .toList();
     // 当月总额(uniapp 用 monthExpense / monthIncome,即 totalExpense / totalIncome)。
-    final grandTotal =
-        type == RecordType.expense ? data.report.totalExpense : data.report.totalIncome;
+    final grandTotal = type == RecordType.expense
+        ? data.report.totalExpense
+        : data.report.totalIncome;
 
     final rows = <_CatRow>[];
     for (final cat in cats) {
@@ -615,7 +663,8 @@ class _BreakdownCard extends StatelessWidget {
           // uniapp .card-title { font-size: 30rpx; font-weight: 600 } → 15dp
           Text(
             title,
-            style: TextStyle(color: c.text, fontSize: 15, fontWeight: FontWeight.w600),
+            style: TextStyle(
+                color: c.text, fontSize: 15, fontWeight: FontWeight.w600),
           ),
           // uniapp .breakdown-card { gap: 24rpx } → 12dp(title → cat-list 间距)
           const SizedBox(height: 12),
@@ -975,93 +1024,102 @@ class _HomeSkeleton extends StatelessWidget {
           padding: const EdgeInsets.all(12),
           child: child ?? const SizedBox.shrink(),
         );
-    return ListView(
-      padding: const EdgeInsets.fromLTRB(12, 12, 12, 12),
-      children: [
-        Row(
-          mainAxisAlignment: MainAxisAlignment.spaceBetween,
-          children: [
-            bar(140, h: 18),
-            bar(80, h: 14),
-          ],
-        ),
-        const SizedBox(height: 10),
-        card(child: Column(
-          mainAxisSize: MainAxisSize.min,
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            bar(100, h: 12),
-            const SizedBox(height: 12),
-            bar(180, h: 28),
-            const SizedBox(height: 12),
-            bar(140, h: 12),
-          ],
-        )),
-        const SizedBox(height: 10),
-        card(child: Column(
-          mainAxisSize: MainAxisSize.min,
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            bar(60, h: 12),
-            const SizedBox(height: 10),
-            bar(120, h: 22),
-          ],
-        )),
-        const SizedBox(height: 10),
-        card(child: Column(
-          mainAxisSize: MainAxisSize.min,
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            bar(60, h: 12),
-            const SizedBox(height: 10),
-            bar(120, h: 22),
-          ],
-        )),
-        const SizedBox(height: 10),
-        card(child: Column(
-          mainAxisSize: MainAxisSize.min,
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            bar(60, h: 12),
-            const SizedBox(height: 10),
-            bar(120, h: 22),
-          ],
-        )),
-        const SizedBox(height: 10),
-        card(child: Column(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            for (int i = 0; i < 5; i++) ...[
-              if (i > 0) Divider(height: 1, thickness: 1, color: base),
-              Padding(
-                padding: const EdgeInsets.symmetric(vertical: 10),
-                child: Row(
-                  children: [
-                    Container(
-                      width: 32, height: 32,
-                      decoration: BoxDecoration(
-                        color: high,
-                        shape: BoxShape.circle,
-                      ),
-                    ),
-                    const SizedBox(width: 10),
-                    Expanded(child: Column(
-                      mainAxisSize: MainAxisSize.min,
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        bar(double.infinity, h: 12),
-                        const SizedBox(height: 6),
-                        bar(100, h: 10),
-                      ],
-                    )),
-                    bar(70, h: 14),
-                  ],
-                ),
-              ),
+    return Shimmer(
+      child: ListView(
+        padding: const EdgeInsets.fromLTRB(12, 12, 12, 12),
+        children: [
+          Row(
+            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+            children: [
+              bar(140, h: 18),
+              bar(80, h: 14),
             ],
-          ],
-        )),
-      ],
+          ),
+          const SizedBox(height: 10),
+          card(
+              child: Column(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              bar(100, h: 12),
+              const SizedBox(height: 12),
+              bar(180, h: 28),
+              const SizedBox(height: 12),
+              bar(140, h: 12),
+            ],
+          )),
+          const SizedBox(height: 10),
+          card(
+              child: Column(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              bar(60, h: 12),
+              const SizedBox(height: 10),
+              bar(120, h: 22),
+            ],
+          )),
+          const SizedBox(height: 10),
+          card(
+              child: Column(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              bar(60, h: 12),
+              const SizedBox(height: 10),
+              bar(120, h: 22),
+            ],
+          )),
+          const SizedBox(height: 10),
+          card(
+              child: Column(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              bar(60, h: 12),
+              const SizedBox(height: 10),
+              bar(120, h: 22),
+            ],
+          ),),
+          const SizedBox(height: 10),
+          card(
+              child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              for (int i = 0; i < 5; i++) ...[
+                if (i > 0) Divider(height: 1, thickness: 1, color: base),
+                Padding(
+                  padding: const EdgeInsets.symmetric(vertical: 10),
+                  child: Row(
+                    children: [
+                      Container(
+                        width: 32,
+                        height: 32,
+                        decoration: BoxDecoration(
+                          color: high,
+                          shape: BoxShape.circle,
+                        ),
+                      ),
+                      const SizedBox(width: 10),
+                      Expanded(
+                          child: Column(
+                        mainAxisSize: MainAxisSize.min,
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          bar(double.infinity, h: 12),
+                          const SizedBox(height: 6),
+                          bar(100, h: 10),
+                        ],
+                      )),
+                      bar(70, h: 14),
+                    ],
+                  ),
+                ),
+              ],
+            ],
+          )),
+        ],
+      ),
     );
   }
 }

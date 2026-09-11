@@ -15,6 +15,7 @@ import '../shared/app_header.dart';
 import '../shared/month_picker.dart';
 import '../shared/providers.dart';
 import '../shared/quick_add_controller.dart';
+import '../shared/skeleton_shimmer.dart';
 import '../shared/toast_controller.dart';
 import '../shared/transaction_row.dart';
 
@@ -1170,95 +1171,97 @@ class _TransactionsSkeleton extends StatelessWidget {
           padding: const EdgeInsets.all(12),
           child: child ?? const SizedBox.shrink(),
         );
-    return ListView(
-      padding: const EdgeInsets.fromLTRB(12, 12, 12, 12),
-      children: [
-        block(child: Column(
-          mainAxisSize: MainAxisSize.min,
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            bar(80, h: 14),
-            const SizedBox(height: 12),
-            Row(children: [
-              Expanded(child: Container(
-                height: 36,
-                decoration: BoxDecoration(
-                  color: high,
-                  borderRadius: BorderRadius.circular(6),
-                ),
-              )),
-              const SizedBox(width: 6),
-              Expanded(child: Container(
-                height: 36,
-                decoration: BoxDecoration(
-                  color: high,
-                  borderRadius: BorderRadius.circular(6),
-                ),
-              )),
-              const SizedBox(width: 6),
-              Expanded(child: Container(
-                height: 36,
-                decoration: BoxDecoration(
-                  color: high,
-                  borderRadius: BorderRadius.circular(6),
-                ),
-              )),
-            ]),
-          ],
-        )),
-        const SizedBox(height: 8),
-        block(child: Column(
-          mainAxisSize: MainAxisSize.min,
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            bar(80, h: 13, color: c.primary.withValues(alpha: 0.2)),
-            const SizedBox(height: 12),
-            bar(160, h: 28),
-            const SizedBox(height: 12),
-            Row(
-              mainAxisAlignment: MainAxisAlignment.spaceBetween,
-              children: [
-                bar(80, h: 12),
-                bar(80, h: 12),
-              ],
-            ),
-          ],
-        )),
-        const SizedBox(height: 8),
-        block(child: Column(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            for (int i = 0; i < 4; i++) ...[
-              if (i > 0) Divider(height: 1, thickness: 1, color: base),
-              Padding(
-                padding: const EdgeInsets.symmetric(vertical: 12),
-                child: Row(
-                  children: [
-                    Container(
-                      width: 36, height: 36,
-                      decoration: BoxDecoration(
-                        color: high,
-                        shape: BoxShape.circle,
-                      ),
-                    ),
-                    const SizedBox(width: 12),
-                    Expanded(child: Column(
-                      mainAxisSize: MainAxisSize.min,
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        bar(double.infinity, h: 12),
-                        const SizedBox(height: 6),
-                        bar(120, h: 10),
-                      ],
-                    )),
-                    bar(70, h: 14),
-                  ],
-                ),
+    return Shimmer(
+      child: ListView(
+        padding: const EdgeInsets.fromLTRB(12, 12, 12, 12),
+        children: [
+          block(child: Column(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              bar(80, h: 14),
+              const SizedBox(height: 12),
+              Row(children: [
+                Expanded(child: Container(
+                  height: 36,
+                  decoration: BoxDecoration(
+                    color: high,
+                    borderRadius: BorderRadius.circular(6),
+                  ),
+                )),
+                const SizedBox(width: 6),
+                Expanded(child: Container(
+                  height: 36,
+                  decoration: BoxDecoration(
+                    color: high,
+                    borderRadius: BorderRadius.circular(6),
+                  ),
+                )),
+                const SizedBox(width: 6),
+                Expanded(child: Container(
+                  height: 36,
+                  decoration: BoxDecoration(
+                    color: high,
+                    borderRadius: BorderRadius.circular(6),
+                  ),
+                )),
+              ]),
+            ],
+          )),
+          const SizedBox(height: 8),
+          block(child: Column(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              bar(80, h: 13, color: c.primary.withValues(alpha: 0.2)),
+              const SizedBox(height: 12),
+              bar(160, h: 28),
+              const SizedBox(height: 12),
+              Row(
+                mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                children: [
+                  bar(80, h: 12),
+                  bar(80, h: 12),
+                ],
               ),
             ],
-          ],
-        )),
-      ],
+          )),
+          const SizedBox(height: 8),
+          block(child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              for (int i = 0; i < 4; i++) ...[
+                if (i > 0) Divider(height: 1, thickness: 1, color: base),
+                Padding(
+                  padding: const EdgeInsets.symmetric(vertical: 12),
+                  child: Row(
+                    children: [
+                      Container(
+                        width: 36, height: 36,
+                        decoration: BoxDecoration(
+                          color: high,
+                          shape: BoxShape.circle,
+                        ),
+                      ),
+                      const SizedBox(width: 12),
+                      Expanded(child: Column(
+                        mainAxisSize: MainAxisSize.min,
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          bar(double.infinity, h: 12),
+                          const SizedBox(height: 6),
+                          bar(120, h: 10),
+                        ],
+                      )),
+                      bar(70, h: 14),
+                    ],
+                  ),
+                ),
+              ],
+            ],
+          )),
+        ],
+      ),
     );
   }
 }

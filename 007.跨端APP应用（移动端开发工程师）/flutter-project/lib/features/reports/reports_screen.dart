@@ -14,6 +14,7 @@ import '../shared/app_header.dart';
 import '../shared/charts/donut_chart.dart';
 import '../shared/month_picker.dart';
 import '../shared/providers.dart';
+import '../shared/skeleton_shimmer.dart';
 
 /// 对齐 pages/reports/monthly.vue — header-row + 月/年 segmented tab +
 /// 月报 KPI(三卡带 footer)+ 折线图 + 双 donut;年报 KPI(三卡)+ 12 月柱状图
@@ -1998,91 +1999,93 @@ class _ReportsSkeleton extends StatelessWidget {
           padding: const EdgeInsets.all(12),
           child: child ?? const SizedBox.shrink(),
         );
-    return ListView(
-      padding: const EdgeInsets.all(AppSpacing.md),
-      children: [
-        // KPI 卡(3 列: 收入 / 支出 / 结余)
-        Row(
-          children: [
-            for (int i = 0; i < 3; i++) ...[
-              Expanded(child: card(child: Column(
-                mainAxisSize: MainAxisSize.min,
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  bar(50, h: 10),
-                  const SizedBox(height: 10),
-                  bar(double.infinity, h: 22),
-                ],
-              ))),
-              if (i < 2) const SizedBox(width: AppSpacing.sm),
-            ],
-          ],
-        ),
-        const SizedBox(height: AppSpacing.md),
-        // 趋势图卡(220px,内部 5 根柱) — 这里需要固定 220px 给 Expanded 柱子占空间,
-        // 之前的 card(h: 220, ...) 用 Container.height,改成 SizedBox 包 card。
-        SizedBox(
-          height: 220,
-          child: card(child: Column(
-            mainAxisSize: MainAxisSize.min,
-            crossAxisAlignment: CrossAxisAlignment.start,
+    return Shimmer(
+      child: ListView(
+        padding: const EdgeInsets.all(AppSpacing.md),
+        children: [
+          // KPI 卡(3 列: 收入 / 支出 / 结余)
+          Row(
             children: [
-              bar(80, h: 12),
-              const SizedBox(height: 16),
-              Expanded(child: Row(
-                crossAxisAlignment: CrossAxisAlignment.end,
-                children: [
-                  for (int i = 0; i < 5; i++) ...[
-                    Expanded(child: Container(
-                      height: 40 + (i * 18).toDouble(),
-                      margin: const EdgeInsets.symmetric(horizontal: 6),
-                      decoration: BoxDecoration(
-                        color: high,
-                        borderRadius: BorderRadius.circular(4),
-                      ),
-                    )),
+              for (int i = 0; i < 3; i++) ...[
+                Expanded(child: card(child: Column(
+                  mainAxisSize: MainAxisSize.min,
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    bar(50, h: 10),
+                    const SizedBox(height: 10),
+                    bar(double.infinity, h: 22),
                   ],
-                ],
-              )),
+                ))),
+                if (i < 2) const SizedBox(width: AppSpacing.sm),
+              ],
+            ],
+          ),
+          const SizedBox(height: AppSpacing.md),
+          // 趋势图卡(220px,内部 5 根柱) — 这里需要固定 220px 给 Expanded 柱子占空间,
+          // 之前的 card(h: 220, ...) 用 Container.height,改成 SizedBox 包 card。
+          SizedBox(
+            height: 220,
+            child: card(child: Column(
+              mainAxisSize: MainAxisSize.min,
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                bar(80, h: 12),
+                const SizedBox(height: 16),
+                Expanded(child: Row(
+                  crossAxisAlignment: CrossAxisAlignment.end,
+                  children: [
+                    for (int i = 0; i < 5; i++) ...[
+                      Expanded(child: Container(
+                        height: 40 + (i * 18).toDouble(),
+                        margin: const EdgeInsets.symmetric(horizontal: 6),
+                        decoration: BoxDecoration(
+                          color: high,
+                          borderRadius: BorderRadius.circular(4),
+                        ),
+                      )),
+                    ],
+                  ],
+                )),
+              ],
+            )),
+          ),
+          const SizedBox(height: AppSpacing.md),
+          // 分类汇总(5 行:圆形 icon + 文字 + 数字)
+          card(child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              for (int i = 0; i < 5; i++) ...[
+                if (i > 0) Divider(height: 1, thickness: 1, color: base),
+                Padding(
+                  padding: const EdgeInsets.symmetric(vertical: 10),
+                  child: Row(
+                    children: [
+                      Container(
+                        width: 28, height: 28,
+                        decoration: BoxDecoration(
+                          color: high,
+                          shape: BoxShape.circle,
+                        ),
+                      ),
+                      const SizedBox(width: 10),
+                      Expanded(child: Column(
+                        mainAxisSize: MainAxisSize.min,
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          bar(double.infinity, h: 12),
+                          const SizedBox(height: 6),
+                          bar(80, h: 10),
+                        ],
+                      )),
+                      bar(70, h: 14),
+                    ],
+                  ),
+                ),
+              ],
             ],
           )),
-        ),
-        const SizedBox(height: AppSpacing.md),
-        // 分类汇总(5 行:圆形 icon + 文字 + 数字)
-        card(child: Column(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            for (int i = 0; i < 5; i++) ...[
-              if (i > 0) Divider(height: 1, thickness: 1, color: base),
-              Padding(
-                padding: const EdgeInsets.symmetric(vertical: 10),
-                child: Row(
-                  children: [
-                    Container(
-                      width: 28, height: 28,
-                      decoration: BoxDecoration(
-                        color: high,
-                        shape: BoxShape.circle,
-                      ),
-                    ),
-                    const SizedBox(width: 10),
-                    Expanded(child: Column(
-                      mainAxisSize: MainAxisSize.min,
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        bar(double.infinity, h: 12),
-                        const SizedBox(height: 6),
-                        bar(80, h: 10),
-                      ],
-                    )),
-                    bar(70, h: 14),
-                  ],
-                ),
-              ),
-            ],
-          ],
-        )),
-      ],
+        ],
+      ),
     );
   }
 }

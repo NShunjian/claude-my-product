@@ -85,13 +85,17 @@ class ApiClient {
     ResponseInterceptorHandler handler,
   ) {
     final data = response.data;
-    final Map<String, dynamic> env = data is Map<String, dynamic>
-        ? data
-        : <String, dynamic>{};
+    final Map<String, dynamic> env =
+        data is Map<String, dynamic> ? data : <String, dynamic>{};
     final code = env['code'] ?? 'INTERNAL';
     final message = env['message']?.toString() ?? 'HTTP ${response.statusCode}';
+    final status = response.statusCode ?? 0;
 
-    if (code == authInvalidCode &&
+    // ponytail: 任意 HTTP 401 也踢回登录,不只信 1401 —— 后端 UserAuthInterceptor
+    //          tokenVersion 不一致返 code=1401 是正常路径,但中间件 / 网关
+    //          / 包体非 Map / code 字段意外为空等边界 case 都会让 1401 检测失效,
+    //          用户卡在 tab 页看到裸 Dio 错误但没人踢他。兜底改成"401 OR 1401"。
+    if ((code == authInvalidCode || status == 401) &&
         !_suppressAuthInvalid &&
         DateTime.now().isAfter(_navGraceUntil)) {
       for (final fn in _authInvalidListeners.toList()) {
@@ -101,10 +105,7 @@ class ApiClient {
       }
     }
 
-    final status = response.statusCode ?? 0;
-    if (status < 200 ||
-        status >= 300 ||
-        code != 0) {
+    if (status < 200 || status >= 300 || code != 0) {
       handler.reject(
         DioException(
           requestOptions: response.requestOptions,
@@ -141,11 +142,26 @@ class ApiClient {
       return env['data'] as T;
     } on DioException catch (e) {
       final inner = e.error;
+      // ponytail: 兜底兜底再兜底 —— 不管 DioException.error 是不是 ApiException,
+      //          只要 status==401 就当 token 失效:fire listener 让 router 踢登录,
+      //          再抛出去让 UI 收到错误(下次进 tab 会自然到 login 页)。
+      //          这覆盖了"包体非 Map / code 字段意外为空 / Dio 5.x 内部把
+      //          DioException.error 二次封装"等所有 _onResponse 监听器漏踢的边界。
+      final status = e.response?.statusCode ?? 0;
+      if (status == 401 &&
+          !_suppressAuthInvalid &&
+          DateTime.now().isAfter(_navGraceUntil)) {
+        for (final fn in _authInvalidListeners.toList()) {
+          try {
+            fn();
+          } catch (_) {}
+        }
+      }
       if (inner is ApiException) throw inner;
       throw ApiException(
         'NETWORK',
         e.message ?? 'Network error',
-        e.response?.statusCode ?? 0,
+        status,
       );
     }
   }

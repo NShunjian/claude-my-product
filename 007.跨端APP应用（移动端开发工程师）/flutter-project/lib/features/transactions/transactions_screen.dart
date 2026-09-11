@@ -273,6 +273,10 @@ class _TransactionsScreenState extends ConsumerState<TransactionsScreen> {
     final lang = I18n.of(context);
     final c = context.appColors;
     return Scaffold(
+      // ponytail: 流水页 Scaffold 底色用 surface(浅灰 0xFFF5F5F5),配合
+      //          ListView 尾部 SizedBox(80),让"白卡片 + 灰页底"形成视觉
+      //          层次,消除卡片下方"一大段空白"错觉(同 home/accounts)。
+      backgroundColor: c.surface,
       appBar: AppHeader(title: lang.t('pageTitle.transactions')),
       body: FutureBuilder<_TxData>(
         future: _future,
@@ -375,6 +379,11 @@ class _TransactionsScreenState extends ConsumerState<TransactionsScreen> {
                   onDelete: _confirmDelete,
                   empty: filtered.isEmpty,
               ),
+                      // ponytail: ListView 内容不够长时底部留 80pt 视觉缓冲,
+                      //          内容滑到底也不会紧贴 nav bar;配合 Scaffold
+                      //          backgroundColor: c.surface 形成"灰底+白卡片"
+                      //          视觉层次,消除"一大段空白"错觉。
+                      const SizedBox(height: 80),
                     ],
                   ),
                 ),

@@ -39,7 +39,11 @@ class _ReportsScreenState extends ConsumerState<ReportsScreen> {
   @override
   Widget build(BuildContext context) {
     final lang = I18n.of(context);
+    final c = context.appColors;
     return Scaffold(
+      // ponytail: 报表页 Scaffold 底色用 surface,统一"白卡片 + 灰页底"视觉
+      //          层次,跟 home/transactions/accounts 一致。
+      backgroundColor: c.surface,
       appBar: AppHeader(title: lang.t('pageTitle.reportMonthly')),
       body: Column(
         children: [

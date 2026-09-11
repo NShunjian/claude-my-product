@@ -216,6 +216,9 @@ class _AccountsScreenState extends ConsumerState<AccountsScreen> {
     return Scaffold(
       // ponytail: 账户页是 tab 内页不是 push 进来的,uniapp 截图顶部没返
       //          回箭头,Flutter 之前 back: true 多余,改成 false。
+      //          Scaffold 底色 surface 跟 home/transactions/统一,ListView
+      //          短内容下方留灰底形成"页底"层次,消除"一大段空白"错觉。
+      backgroundColor: c.surface,
       appBar: AppHeader(title: lang.t('accounts.title'), back: false),
       body: RefreshIndicator(
         onRefresh: () async {
@@ -330,6 +333,11 @@ class _AccountsScreenState extends ConsumerState<AccountsScreen> {
                               ),
                           ],
                         ),
+                      // ponytail: 账户少的时候 GridView 后留 80pt 缓冲,内容
+                      //          滑到底也不会紧贴 nav bar;配合 Scaffold
+                      //          backgroundColor: c.surface 形成"灰底+白卡片"
+                      //          视觉层次,消除"一大段空白"错觉。
+                      const SizedBox(height: 80),
                     ],
                   ),
                 ),

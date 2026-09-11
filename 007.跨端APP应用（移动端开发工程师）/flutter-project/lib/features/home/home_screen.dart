@@ -123,6 +123,11 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
     final c = context.appColors;
 
     return Scaffold(
+      // ponytail: light 模式下 bg / bgCard 都是纯白,cards 没边框时 ListView
+      //          短内容下方的"空白"和卡片完全同色,视觉上像没渲染完。给
+      //          Scaffold 一个 surface(浅灰 0xFFF5F5F5)底色,空白区域自然
+      //          形成"页底"层次,白卡片浮在上面 → 消除"一大段空白"错觉。
+      backgroundColor: c.surface,
       appBar: AppHeader(title: lang.t('pageTitle.home')),
       body: RefreshIndicator(
         onRefresh: () async {
@@ -229,8 +234,15 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
                   ),
                 Expanded(
                   child: ListView(
-                    // uniapp .scroll-area { padding: 0 24rpx 24rpx } → 12dp
-                    padding: const EdgeInsets.fromLTRB(12, 12, 12, 12),
+                    // ponytail: bottom = 80 + safeArea 是 nav bar 高度,让最后一张
+                    //          卡能滚到 nav bar 之上不被遮挡(scaffold 不设
+                    //          extendBody,ListView 视口只到 nav bar 上沿)。
+                    padding: EdgeInsets.only(
+                      top: AppSpacing.md,
+                      left: AppSpacing.md,
+                      right: AppSpacing.md,
+                      bottom: 80 + MediaQuery.of(context).padding.bottom,
+                    ),
                     children: [
                       _GreetingRow(
                         month: _month,
@@ -292,6 +304,8 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
                           ),
                         ],
                       ),
+                      // ponytail: 兜底 padding,避免 safeArea == 0 时最后一张卡紧贴 nav bar。
+                      const SizedBox(height: 24),
                     ],
                   ),
                 ),

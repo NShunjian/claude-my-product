@@ -1,8 +1,38 @@
 import type { AccountType } from '@/api/accounts'
 import type { CategoryType } from '@/api/categories'
 
-export function formatAmount(n: number, withSymbol = false): string {
-  return (withSymbol ? '¥' : '') + n.toLocaleString('zh-CN', { minimumFractionDigits: 2, maximumFractionDigits: 2 })
+/**
+ * V1.2 金额核算审计:ISO 4217 货币码 → 显示符号。
+ * 没收录的码回退 `¥`,与历史行为一致。
+ */
+export function currencySymbol(code: string | null | undefined): string {
+  switch ((code ?? '').toUpperCase()) {
+    case 'CNY':
+    case 'RMB': return '¥'
+    case 'USD': return '$'
+    case 'EUR': return '€'
+    case 'GBP': return '£'
+    case 'JPY': return '¥'
+    case 'HKD': return 'HK$'
+    default: return '¥'
+  }
+}
+
+/**
+ * V1.2 金额核算审计:
+ *   - NaN/Infinity → '--' 而不是 '¥NaN' 炸屏。
+ *   - currency 优先于 withSymbol;传 currency 时直接用货币码对应符号。
+ */
+export function formatAmount(
+  n: number | null | undefined,
+  withSymbol = false,
+  currency?: string | null,
+): string {
+  if (n == null || !Number.isFinite(n)) return '--'
+  const num = n as number
+  const body = num.toLocaleString('zh-CN', { minimumFractionDigits: 2, maximumFractionDigits: 2 })
+  const sym = currency != null ? currencySymbol(currency) : (withSymbol ? '¥' : '')
+  return sym + body
 }
 
 /** ISO 字符串(后端返回的 createdAt / updatedAt)格式化为本地时区 `YYYY-MM-DD HH:mm`。 */

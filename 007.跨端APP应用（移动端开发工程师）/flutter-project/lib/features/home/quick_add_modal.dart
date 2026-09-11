@@ -203,16 +203,7 @@ class _QuickAddModalState extends ConsumerState<QuickAddModal>
 
   // ===== 数字键盘表达式(对齐 uniapp pressKey + computeAmount) =====
 
-  double _computeAmount() {
-    if (_expression.isEmpty) return 0;
-    if (!_expression.contains('+')) {
-      final n = double.tryParse(_expression) ?? 0;
-      return n.isFinite ? n : 0;
-    }
-    return _expression
-        .split('+')
-        .fold<double>(0, (s, x) => s + (double.tryParse(x) ?? 0));
-  }
+  double _computeAmount() => _parseKeypadAmount(_expression);
 
   void _pressKey(String key) {
     setState(() {
@@ -619,7 +610,7 @@ class _AmountDisplay extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final c = context.appColors;
-    final amount = _compute(expression);
+    final amount = _parseKeypadAmount(expression);
     return Container(
       // uniapp .qa-amount 整段是 c.surface(更暗一档)做底,跟 sheet 区分
       color: c.bg,
@@ -691,17 +682,20 @@ class _AmountDisplay extends StatelessWidget {
       ),
     );
   }
+}
 
-  double _compute(String expr) {
-    if (expr.isEmpty) return 0;
-    if (!expr.contains('+')) {
-      final n = double.tryParse(expr) ?? 0;
-      return n.isFinite ? n : 0;
-    }
-    return expr
-        .split('+')
-        .fold<double>(0, (s, x) => s + (double.tryParse(x) ?? 0));
-  }
+/// QuickAdd 数字键盘表达式解析(顶层 helper,State._computeAmount 和
+/// _AmountDisplay 共享同一份逻辑 — 之前两份几乎一样的实现各跑各的)。
+///
+/// V1.2 金额核算审计:
+///   - `+` 分段求和,每段 `double.tryParse` 失败回退 0(不抛 NaN)。
+///   - 整体加 `isFinite` 守卫,溢出 / Infinity 直接归零,后续提交逻辑会因
+///     `<= 0` 拒绝,不会让脏数据进 _submit → API。
+double _parseKeypadAmount(String expr) {
+  if (expr.isEmpty) return 0;
+  final parts = expr.split('+');
+  final sum = parts.fold<double>(0, (s, x) => s + (double.tryParse(x) ?? 0));
+  return sum.isFinite ? sum : 0;
 }
 
 class _BlinkTween extends Animatable<double> {

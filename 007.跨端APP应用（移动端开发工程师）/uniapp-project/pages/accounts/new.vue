@@ -34,6 +34,18 @@ const errorMsg = ref<string | null>(null)
 
 async function handleSubmit() {
   if (!name.value.trim() || !type.value) return
+  // V1.2 金额核算审计:解析失败不再静默退化为 0(input maxlength 已经限制
+  // 大致格式),NaN / Infinity / 超界显式拒绝。
+  const raw = balance.value.trim()
+  const parsed = Number.parseFloat(raw)
+  if (!Number.isFinite(parsed)) {
+    errorMsg.value = '请输入有效的金额'
+    return
+  }
+  if (parsed > 999999999999.99) {
+    errorMsg.value = '余额超出最大限制'
+    return
+  }
   submitting.value = true
   errorMsg.value = null
   try {
@@ -41,7 +53,7 @@ async function handleSubmit() {
       name: name.value.trim(),
       type: type.value,
       icon: icon.value,
-      initialBalance: Number.parseFloat(balance.value) || 0,
+      initialBalance: parsed,
       currency: 'CNY',
       isDefault: isDefault.value,
     })
@@ -80,7 +92,7 @@ async function handleSubmit() {
         <text class="field-label">{{ t('accountAdd.balance') }}</text>
         <view class="balance-row">
           <text class="currency">¥</text>
-          <input v-model="balance" class="field-input" type="digit" placeholder="0.00" />
+          <input v-model="balance" class="field-input" type="digit" placeholder="0.00" maxlength="15" />
         </view>
       </view>
 

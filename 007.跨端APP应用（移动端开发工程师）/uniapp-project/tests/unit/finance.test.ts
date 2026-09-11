@@ -12,6 +12,7 @@
 import { describe, expect, it } from 'vitest'
 import {
   balanceSign,
+  currencySymbol,
   formatAmount,
   formatDateTime,
   typeOfAccount,
@@ -51,6 +52,47 @@ describe('utils/finance — formatAmount', () => {
   it('超过 2 位 1234.5678 → "1,234.57" (截断到 2 位)', () => {
     expect(formatAmount(1234.5678)).toBe('1,234.57')
   })
+
+  // V1.2 金额核算审计:NaN / Infinity / null 全部回退到 '--',不渲染 ¥NaN。
+  it('NaN → "--"', () => {
+    expect(formatAmount(Number.NaN)).toBe('--')
+  })
+  it('Infinity → "--"', () => {
+    expect(formatAmount(Number.POSITIVE_INFINITY)).toBe('--')
+  })
+  it('null → "--"', () => {
+    expect(formatAmount(null)).toBe('--')
+  })
+  it('undefined → "--"', () => {
+    expect(formatAmount(undefined)).toBe('--')
+  })
+  it('withSymbol=true + NaN → "--" (不带 ¥ 前缀)', () => {
+    expect(formatAmount(Number.NaN, true)).toBe('--')
+  })
+
+  // V1.2 金额核算审计:currency 参数优先于 withSymbol
+  it('currency="USD" + withSymbol=false → "$1,234.50"', () => {
+    expect(formatAmount(1234.5, false, 'USD')).toBe('$1,234.50')
+  })
+  it('currency="EUR" 优先于 withSymbol=true', () => {
+    expect(formatAmount(99, true, 'EUR')).toBe('€99.00')
+  })
+  it('unknown currency 回退到 ¥', () => {
+    expect(formatAmount(1, false, 'XYZ')).toBe('¥1.00')
+  })
+})
+
+describe('utils/finance — currencySymbol', () => {
+  it('CNY → ¥', () => expect(currencySymbol('CNY')).toBe('¥'))
+  it('RMB → ¥', () => expect(currencySymbol('RMB')).toBe('¥'))
+  it('USD → $', () => expect(currencySymbol('USD')).toBe('$'))
+  it('EUR → €', () => expect(currencySymbol('EUR')).toBe('€'))
+  it('GBP → £', () => expect(currencySymbol('GBP')).toBe('£'))
+  it('JPY → ¥', () => expect(currencySymbol('JPY')).toBe('¥'))
+  it('HKD → HK$', () => expect(currencySymbol('HKD')).toBe('HK$'))
+  it('小写 cny 也能匹配', () => expect(currencySymbol('cny')).toBe('¥'))
+  it('null → ¥(回退)', () => expect(currencySymbol(null)).toBe('¥'))
+  it('unknown → ¥(回退)', () => expect(currencySymbol('XYZ')).toBe('¥'))
 })
 
 describe('utils/finance — formatDateTime', () => {

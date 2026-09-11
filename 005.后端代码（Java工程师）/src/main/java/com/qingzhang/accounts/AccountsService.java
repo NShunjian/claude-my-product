@@ -72,6 +72,13 @@ public class AccountsService {
         boolean wantDefault = Boolean.TRUE.equals(req.isDefault());
         // 业务校验:bookId 归属
         Book book = resolveBookForCreate(userId, req.bookId());
+        // V1.2 金额核算审计:启用 currency mismatch 校验 — account 与所在 book 币种必须一致
+        // (否则 record 的 currency 跟 book 走,与 account 实际货币脱节,v_account_balance
+        //  会把它们当同币种相加静默腐烂)
+        if (!currency.equals(book.getCurrency())) {
+            throw new BizException(CODE_CURRENCY_MISMATCH,
+                    "账户货币(" + currency + ")与账本货币(" + book.getCurrency() + ")不一致");
+        }
 
         Account a = Account.builder()
                 .uuid(UUID.randomUUID().toString())
@@ -111,6 +118,15 @@ public class AccountsService {
         if (req.currency() != null)        a.setCurrency(req.currency().toUpperCase());
         if (req.sortOrder() != null)       a.setSortOrder(req.sortOrder());
         if (req.note() != null)            a.setNote(req.note());
+        // V1.2 金额核算审计:currency 改动时校验与所属 book 一致
+        if (req.currency() != null && a.getBookId() != null) {
+            Book book = booksService.mustAccessibleBookById(userId, a.getBookId());
+            String newCurrency = req.currency().toUpperCase();
+            if (!newCurrency.equals(book.getCurrency())) {
+                throw new BizException(CODE_CURRENCY_MISMATCH,
+                        "账户货币(" + newCurrency + ")与账本货币(" + book.getCurrency() + ")不一致");
+            }
+        }
         if (Boolean.TRUE.equals(req.isDefault())) {
             accountMapper.update(null, Wrappers.<Account>lambdaUpdate()
                     .set(Account::getIsDefault, (byte) 0)

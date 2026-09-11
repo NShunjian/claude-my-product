@@ -143,6 +143,12 @@ export function RecordModal({
   async function handleSubmit() {
     const amount = computeAmount()
     if (amount <= 0) return
+    // V1.2 金额核算审计:上界 9999999999.99(与后端 @DecimalMax 对齐),
+    // 超界前端先挡掉,避免后端抛 400。
+    if (amount > 9999999999.99) {
+      setErrorMsg('金额超出最大限制')
+      return
+    }
     if (!categoryId) {
       setErrorMsg(activeTab === 'expense' ? t('recordExpense.categoryRequired') : t('recordIncome.categoryRequired'))
       return

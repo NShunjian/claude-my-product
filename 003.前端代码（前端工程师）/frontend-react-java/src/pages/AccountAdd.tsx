@@ -38,15 +38,25 @@ export function AccountAdd() {
   async function handleSubmit(e: React.FormEvent<HTMLFormElement>): Promise<void> {
     e.preventDefault()
     if (!name.trim() || !type) return
+    // V1.2 金额核算审计:显式拒绝 NaN / Infinity,不再静默退化为 0;
+    // 同时给上界 999999999999.99(与后端 @DecimalMax 对齐)。
+    const initialBalance = Number.parseFloat(balance)
+    if (!Number.isFinite(initialBalance)) {
+      setErrorMsg('请输入有效的金额')
+      return
+    }
+    if (initialBalance > 999999999999.99) {
+      setErrorMsg('余额超出最大限制')
+      return
+    }
     setSubmitting(true)
     setErrorMsg(null)
     try {
-      const initialBalance = Number.parseFloat(balance)
       await accountsApi.createAccount({
         name: name.trim(),
         type: type,
         icon,
-        initialBalance: Number.isFinite(initialBalance) ? initialBalance : 0,
+        initialBalance,
         currency: 'CNY',
         isDefault,
       })
@@ -130,6 +140,9 @@ export function AccountAdd() {
                 type="number"
                 inputMode="decimal"
                 step="0.01"
+                // V1.2 金额核算审计:12 位整数 + . + 2 位小数 = 15 字符上限,
+                // 防止粘贴板/IME 边角塞超长串进来让后端 @DecimalMax 拒绝。
+                maxLength={15}
                 value={balance}
                 onChange={(e) => setBalance(e.target.value)}
                 placeholder="0.00"

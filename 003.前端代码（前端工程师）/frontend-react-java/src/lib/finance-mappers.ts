@@ -7,6 +7,13 @@
  * - backend Category.icon (emoji)           →  Category.icon (Material Symbol) via lookup
  * - backend Category.color (#RRGGBB)        →  Category.colorToken (语义 token) via lookup
  * - backend Account 无 subtitle/themeKey    →  按 type + name 推导
+ *
+ * V1.2 金额核算审计:
+ *   后端 Jackson 的 `ToStringSerializer(BigDecimal)` 把 BigDecimal 序列化成
+ *   **JSON 字符串**(例如 `"12.34"`),不是 number。`Transaction.amount` 类型
+ *   仍是 `number`,但运行期实际可能是 string — 直接做加法会触发字符串拼接
+ *   腐坏(`0 + "12.34" === "012.34"`),reduce 求和全错。`numToDouble` 在边界
+ *   把 string/number/null 都规整成 finite double,保住求和正确。
  */
 import type { Record as ApiRecord } from '../api/records'
 import type { Account as ApiAccount } from '../api/accounts'
@@ -14,6 +21,43 @@ import type { Category as ApiCategory } from '../api/categories'
 import type { Transaction, Account, Category } from './finance-types'
 import { getCategoryPresentation } from './category-presentation'
 import { getAccountPresentation } from './account-presentation'
+
+/**
+ * 把任意值规整成 finite double,失败回退 [fallback]。
+ * 服务端 BigDecimal 序列化成 `"12.34"` 时,直接 Number(...) 会得到数字(JS
+ * 自己转换),但如果服务端以后改成给科学计数法字符串或 null,这个 helper 还能
+ * 兜住。CategoryBreakdown 求和是按数字加的,不能漏。
+ */
+export function numToDouble(v: unknown, fallback = 0): number {
+  if (v == null) return fallback
+  if (typeof v === 'number') return Number.isFinite(v) ? v : fallback
+  if (typeof v === 'string') {
+    const d = Number.parseFloat(v)
+    return Number.isFinite(d) ? d : fallback
+  }
+  return fallback
+}
+
+/** ISO 4217 → 显示符号。未知码回退 ¥。 */
+export function currencySymbol(code: string | null | undefined): string {
+  switch ((code ?? '').toUpperCase()) {
+    case 'CNY':
+    case 'RMB':
+      return '¥'
+    case 'USD':
+      return '$'
+    case 'EUR':
+      return '€'
+    case 'GBP':
+      return '£'
+    case 'JPY':
+      return '¥'
+    case 'HKD':
+      return 'HK$'
+    default:
+      return '¥'
+  }
+}
 
 /**
  * 后端 record 转前端 transaction。
@@ -26,7 +70,7 @@ export function toTransaction(r: ApiRecord): Transaction | null {
     date: r.recordDate,
     type: r.type,
     categoryId: r.categoryId ?? '',
-    amount: r.amount,
+    amount: numToDouble(r.amount),
     note: r.note ?? '',
     accountId: r.accountId,
     createdAt: r.createdAt,
@@ -53,7 +97,7 @@ export function toAccount(a: ApiAccount): Account {
     name: a.name,
     subtitle: pres.subtitle,
     themeKey: pres.themeKey,
-    balance: a.balance,
+    balance: numToDouble(a.balance),
     ...(pres.creditLimit ? { creditLimit: pres.creditLimit } : {}),
   }
 }

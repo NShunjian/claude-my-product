@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 
@@ -71,7 +72,23 @@ class _AccountNewScreenState extends ConsumerState<AccountNewScreen> {
     final lang = I18n.of(context);
     final name = _nameCtrl.text.trim();
     if (name.isEmpty) return;
-    final bal = double.tryParse(_balanceCtrl.text.trim()) ?? 0;
+    // V1.2 金额核算审计:解析失败不再静默退化为 0(inputFormatters 已经过滤了大部分垃圾),
+    // NaN / Infinity 显式拒绝。
+    final raw = _balanceCtrl.text.trim();
+    final bal = double.tryParse(raw);
+    if (bal == null || !bal.isFinite) {
+      ref.read(toastControllerProvider.notifier).show(lang.t('accountNew.invalidBalance'));
+      return;
+    }
+    if (bal > 999999999999.99) {
+      ref.read(toastControllerProvider.notifier).show(lang.t('accountNew.balanceTooLarge'));
+      return;
+    }
+    // 信用卡允许负余额;现金/借记/钱包/投资/其他不接受负数
+    if (bal < 0 && _type != AccountType.credit) {
+      ref.read(toastControllerProvider.notifier).show(lang.t('accountNew.negativeBalance'));
+      return;
+    }
     setState(() => _submitting = true);
     try {
       await ref.read(accountsApiProvider).createAccount(
@@ -185,7 +202,16 @@ class _AccountNewScreenState extends ConsumerState<AccountNewScreen> {
                   label: lang.t('accountAdd.balance'),
                   child: TextField(
                     controller: _balanceCtrl,
-                    keyboardType: const TextInputType.numberWithOptions(decimal: true),
+                    keyboardType: const TextInputType.numberWithOptions(
+                      decimal: true,
+                      signed: true, // 信用卡允许负余额
+                    ),
+                    // V1.2 金额核算审计:inputFormatters 拒绝粘贴板/IME 边角非法输入。
+                    // 12 位整数 + . + 2 位小数 = 15 字符上限。
+                    inputFormatters: [
+                      FilteringTextInputFormatter.allow(RegExp(r'^-?\d{0,12}(\.\d{0,2})?')),
+                      LengthLimitingTextInputFormatter(16), // 13(12 + -) + . + 2
+                    ],
                     decoration: InputDecoration(
                       border: InputBorder.none,
                       enabledBorder: UnderlineInputBorder(borderSide: BorderSide(color: c.divider)),

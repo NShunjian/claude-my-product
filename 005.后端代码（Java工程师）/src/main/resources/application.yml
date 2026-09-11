@@ -15,6 +15,11 @@ spring:
   jackson:
     default-property-inclusion: non_null
     time-zone: UTC
+    # V1.2 金额核算审计:反序列化时 JSON number → BigDecimal 而非 Double,
+    # 防止客户端发 0.001 / 1e10 / Infinity 走 IEEE-754 后再被 BigDecimal 接受时丢精度。
+    # WRITE_BIGDECIMAL_AS_PLAIN 由 JacksonConfig 配置(代码里显式更可控)。
+    deserialization:
+      use-big-decimal-for-floats: true
   # Spring 默认 Flyway 关掉 —— 由 FlywayConfig 接管双库各自一个 Flyway 实例。
   flyway:
     enabled: false

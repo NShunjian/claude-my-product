@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../core/api/api_exception.dart';
@@ -66,9 +67,16 @@ class _RecordFormState extends ConsumerState<RecordForm> {
 
   Future<void> _submit() async {
     final lang = I18n.of(context);
+    // V1.2 金额核算审计:加 isFinite 守卫,拒绝 `NaN` / `Infinity` / `1e10` 这类
+    // double.tryParse 接受但后端会拒的值(inputFormatters 已经限制小数位和字符,
+    // 但粘贴板 / IME 边角仍可能绕过 — 兜底在 service)。
     final amount = double.tryParse(_amountCtrl.text.trim());
-    if (amount == null || amount <= 0) {
+    if (amount == null || !amount.isFinite || amount <= 0) {
       ref.read(toastControllerProvider.notifier).show(lang.t('recordExpense.amountPrompt'));
+      return;
+    }
+    if (amount > 9999999999.99) {
+      ref.read(toastControllerProvider.notifier).show(lang.t('recordExpense.amountTooLarge'));
       return;
     }
     if (_category == null) {
@@ -145,6 +153,12 @@ class _RecordFormState extends ConsumerState<RecordForm> {
             TextField(
               controller: _amountCtrl,
               keyboardType: const TextInputType.numberWithOptions(decimal: true),
+              // V1.2 金额核算审计:inputFormatters 直接拦截粘贴板 / IME 边角 —
+              // 仅允许「最多 12 位整数 + 1 个小数点 + 最多 2 位小数」,拒绝 1e10 / 多小数 / 字母。
+              inputFormatters: [
+                FilteringTextInputFormatter.allow(RegExp(r'^\d{0,12}(\.\d{0,2})?')),
+                LengthLimitingTextInputFormatter(15), // 12 + . + 2
+              ],
               decoration: InputDecoration(
                 prefixText: '¥ ',
                 hintText: lang.t('recordExpense.amountPrompt'),

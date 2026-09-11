@@ -3,6 +3,7 @@ import { ApiError, request } from '../api/client'
 import type { AdminRecordListItem, Page } from '../api/types'
 import { DataTable } from '../components/DataTable'
 import { useToast } from '../components/Toast'
+import { formatMoney } from '../lib/money'
 
 type TypeFilter = '' | 'income' | 'expense'
 
@@ -78,7 +79,10 @@ export function AdminRecords() {
           { key: 'type', label: '类型', width: '70px',
             render: (r) => r.type === 'income' ? '收入' : '支出' },
           { key: 'amount', label: '金额', width: '110px',
-            render: (r) => `${r.currency} ${r.amount}` },
+            // V1.2 金额核算审计:r.amount 可能是后端 Jackson BigDecimal
+            // 序列化的 JSON 字符串(例如 "35.50");formatMoney 自动规整成
+            // number 并走 Intl 千分位 + currencySymbol 转换。
+            render: (r) => formatMoney(r.amount, r.currency) },
           { key: 'username', label: '用户', width: '120px' },
           { key: 'bookName', label: '账本', width: '140px',
             render: (r) => r.bookName ?? '—' },

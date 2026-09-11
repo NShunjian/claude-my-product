@@ -1,6 +1,20 @@
 // ===== User / Auth =====
 enum Gender { male, female, other }
 
+// V1.2 金额核算审计:服务端 Jackson WRITE_BIGDECIMAL_AS_PLAIN 把 BigDecimal
+// 序列化成 plain 字符串(不是 JSON number),旧的 `as num?` 在收到 "12.34"
+// 时会抛 `type String is not subtype of num?` 崩溃。这个 helper 同时吃
+// `num` / `String` / null,任意一边失效回退到 [fallback]。
+double _numToDouble(dynamic v, {double fallback = 0}) {
+  if (v == null) return fallback;
+  if (v is num) return v.toDouble();
+  if (v is String) {
+    final d = double.tryParse(v);
+    if (d != null && d.isFinite) return d;
+  }
+  return fallback;
+}
+
 Gender? genderFromString(String? s) {
   if (s == null) return null;
   for (final g in Gender.values) {
@@ -235,8 +249,8 @@ class Account {
         name: json['name'] as String,
         type: accountTypeFromString(json['type'] as String? ?? 'other'),
         icon: json['icon'] as String? ?? '',
-        initialBalance: (json['initialBalance'] as num? ?? 0).toDouble(),
-        balance: (json['balance'] as num? ?? 0).toDouble(),
+        initialBalance: _numToDouble(json['initialBalance']),
+        balance: _numToDouble(json['balance']),
         currency: json['currency'] as String? ?? 'CNY',
         isDefault: json['isDefault'] as bool? ?? false,
         sortOrder: json['sortOrder'] as int? ?? 0,
@@ -394,7 +408,7 @@ class Record {
         categoryId: json['categoryId']?.toString(),
         accountId: json['accountId'].toString(),
         toAccountId: json['toAccountId']?.toString(),
-        amount: (json['amount'] as num? ?? 0).toDouble(),
+        amount: _numToDouble(json['amount']),
         currency: json['currency'] as String? ?? 'CNY',
         note: json['note'] as String?,
         recordDate: json['recordDate'] as String,
@@ -546,7 +560,7 @@ class CategoryAggregate {
         categoryId: json['categoryId']?.toString(),
         // 后端字段是 total,老 Flutter 代码读 amount(uniapp MonthlyPoint 也是 total);
         // 兼容老字段名。
-        amount: ((json['total'] ?? json['amount']) as num?)?.toDouble() ?? 0,
+        amount: _numToDouble(json['total'] ?? json['amount']),
         name: json['name'] as String?,
         icon: json['icon'] as String?,
         color: json['color'] as String?,
@@ -562,8 +576,8 @@ class DailyDataPoint {
         // 后端字段是 `day`(当月第几天,int);旧字段名 `date` 保留兼容。优先 `date`,
         // 缺失时用 day.toString() 兜底,避免 'type Null is not subtype of String' 崩溃。
         date: (json['date'] as String?) ?? json['day']?.toString() ?? '',
-        income: (json['income'] as num? ?? 0).toDouble(),
-        expense: (json['expense'] as num? ?? 0).toDouble(),
+        income: _numToDouble(json['income']),
+        expense: _numToDouble(json['expense']),
       );
 }
 
@@ -589,9 +603,9 @@ class MonthlyReport {
 
   factory MonthlyReport.fromJson(Map<String, dynamic> json) => MonthlyReport(
         month: json['month'] as String,
-        totalIncome: (json['totalIncome'] as num? ?? 0).toDouble(),
-        totalExpense: (json['totalExpense'] as num? ?? 0).toDouble(),
-        netSavings: (json['netSavings'] as num? ?? 0).toDouble(),
+        totalIncome: _numToDouble(json['totalIncome']),
+        totalExpense: _numToDouble(json['totalExpense']),
+        netSavings: _numToDouble(json['netSavings']),
         incomeByCategory: ((json['incomeByCategory'] as List?) ?? [])
             .map((e) => CategoryAggregate.fromJson(e as Map<String, dynamic>))
             .toList(),
@@ -622,11 +636,11 @@ class MonthlyComparison {
       MonthlyComparison(
         // 后端字段是 totalIncome/totalExpense/netSavings,老代码读 income/expense;
         // 兼容老字段名。
-        income:
-            ((json['totalIncome'] ?? json['income']) as num?)?.toDouble() ?? 0,
-        expense:
-            ((json['totalExpense'] ?? json['expense']) as num?)?.toDouble() ?? 0,
-        netSavings: (json['netSavings'] as num?)?.toDouble(),
+        income: _numToDouble(json['totalIncome'] ?? json['income']),
+        expense: _numToDouble(json['totalExpense'] ?? json['expense']),
+        netSavings: json['netSavings'] == null
+            ? null
+            : _numToDouble(json['netSavings']),
       );
 }
 
@@ -641,8 +655,8 @@ class MonthlyDataPoint {
   final double expense;
   factory MonthlyDataPoint.fromJson(Map<String, dynamic> json) => MonthlyDataPoint(
         month: json['month'] as int,
-        income: (json['income'] as num? ?? 0).toDouble(),
-        expense: (json['expense'] as num? ?? 0).toDouble(),
+        income: _numToDouble(json['income']),
+        expense: _numToDouble(json['expense']),
       );
 }
 
@@ -666,9 +680,9 @@ class YearlyReport {
 
   factory YearlyReport.fromJson(Map<String, dynamic> json) => YearlyReport(
         year: json['year'] as int,
-        totalIncome: (json['totalIncome'] as num? ?? 0).toDouble(),
-        totalExpense: (json['totalExpense'] as num? ?? 0).toDouble(),
-        netSavings: (json['netSavings'] as num? ?? 0).toDouble(),
+        totalIncome: _numToDouble(json['totalIncome']),
+        totalExpense: _numToDouble(json['totalExpense']),
+        netSavings: _numToDouble(json['netSavings']),
         monthlyData: ((json['monthlyData'] as List?) ?? [])
             .map((e) => MonthlyDataPoint.fromJson(e as Map<String, dynamic>))
             .toList(),

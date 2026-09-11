@@ -39,8 +39,15 @@ watch(() => book.current?.uuid, load, { immediate: true })
 
 async function save() {
   if (!book.current) return
-  if (!amount.value || Number(amount.value) <= 0) {
+  // V1.2 金额核算审计:`Number('') === 0` 会把空串静默当成 0 提交,
+  // `NaN <= 0` 是 false 反而让脏数据漏过 → 显式用 Number.isFinite 守卫。
+  const n = Number(amount.value)
+  if (!amount.value || !Number.isFinite(n) || n <= 0) {
     toast.show('请输入金额')
+    return
+  }
+  if (n > 9999999999.99) {
+    toast.show('金额超出最大限制')
     return
   }
   if (!accountId.value) {
@@ -69,7 +76,7 @@ async function save() {
       toAccountId: props.type === 'transfer' ? toAccountId.value : undefined,
       categoryId: props.type === 'transfer' ? undefined : categoryId.value,
       type: props.type,
-      amount: Number(amount.value),
+      amount: n,
       recordDate: date.value,
       note: note.value || undefined,
     } as any)
@@ -91,7 +98,7 @@ async function save() {
     </view>
     <view class="field">
       <text class="label">金额</text>
-      <input v-model="amount" type="digit" placeholder="0.00" class="input" />
+      <input v-model="amount" type="digit" placeholder="0.00" class="input" maxlength="15" />
     </view>
     <view class="field">
       <text class="label">账户</text>

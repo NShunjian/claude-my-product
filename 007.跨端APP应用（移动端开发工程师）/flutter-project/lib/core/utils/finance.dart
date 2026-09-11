@@ -2,10 +2,39 @@ import 'package:intl/intl.dart';
 
 import '../api/models.dart';
 
+/// V1.2 金额核算审计:ISO 4217 货币码 → 显示符号。
+/// 没收录的码(空/null)回退 `¥`,与历史行为一致。
+String currencySymbol(String? code) {
+  switch (code?.toUpperCase()) {
+    case 'CNY':
+    case 'RMB':
+      return '¥';
+    case 'USD':
+      return r'$';
+    case 'EUR':
+      return '€';
+    case 'GBP':
+      return '£';
+    case 'JPY':
+      return '¥';
+    case 'HKD':
+      return 'HK\$';
+    default:
+      return '¥';
+  }
+}
+
 /// 对齐 utils/finance.ts。
-String formatAmount(num n, {bool withSymbol = false}) {
+///
+/// V1.2 金额核算审计:
+///   - 入参若 NaN / Infinity / null,返回 `'--'` 而不是渲染 `¥NaN`(避免炸屏)。
+///   - `currency` 优先于 `withSymbol`;传 `currency` 时直接用货币码对应的符号,
+///     否则按 `withSymbol` 兜底为 `¥`。
+String formatAmount(num? n, {bool withSymbol = false, String? currency}) {
+  if (n == null || !n.isFinite) return '--';
   final formatter = NumberFormat('#,##0.00', 'zh_CN');
-  return (withSymbol ? '¥' : '') + formatter.format(n);
+  final sym = currency != null ? currencySymbol(currency) : (withSymbol ? '¥' : '');
+  return sym + formatter.format(n);
 }
 
 /// ISO 字符串 -> `YYYY-MM-DD HH:mm`(本地时区)。

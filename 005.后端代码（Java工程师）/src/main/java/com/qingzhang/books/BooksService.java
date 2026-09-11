@@ -373,6 +373,27 @@ public class BooksService {
         return b;
     }
 
+    /**
+     * V1.2 金额核算审计:按内部 id 查账本(给已有 a.getBookId() 这种调用方用,
+     * 复用具名账户权限校验,避免注入 BookMapper 走旁路)。
+     */
+    public Book mustAccessibleBookById(long userId, long bookId) {
+        Book b = bookMapper.selectById(bookId);
+        if (b == null) {
+            throw new BizException(CODE_BOOK_NOT_FOUND, "账本不存在");
+        }
+        if (b.getOwnerId() == userId) {
+            return b;
+        }
+        BookMember m = memberMapper.selectOne(Wrappers.<BookMember>lambdaQuery()
+                .eq(BookMember::getBookId, b.getId())
+                .eq(BookMember::getUserId, userId));
+        if (m == null) {
+            throw new BizException(CODE_BOOK_NOT_ACCESSIBLE, "无权访问该账本");
+        }
+        return b;
+    }
+
     private void mustBeOwner(Book b, long userId) {
         if (b.getOwnerId() != userId) {
             throw new BizException(CODE_NOT_OWNER, "仅账本 owner 可执行此操作");

@@ -61,6 +61,8 @@ public class RecordsService {
     private static final int CODE_INVALID_RECORD_DATE    = 3015;
     private static final int CODE_ACCOUNT_NOT_FOUND      = 3016;
     private static final int CODE_ACCOUNT_NOT_IN_BOOK    = 3017;
+    // V1.2 金额核算审计:record 与账户/账本币种不一致(同名但不同域,3003 是 accounts 域)
+    private static final int CODE_CURRENCY_MISMATCH      = 3018;
 
     private final RecordMapper recordMapper;
     private final CategoryMapper categoryMapper;
@@ -171,6 +173,19 @@ public class RecordsService {
             assertAccountInBook(to, book, "toAccountId");
             toAccountUuid = to.getUuid();
             toAccountId = to.getId();
+            // V1.2 金额核算审计:transfer 两个账户货币必须一致(否则 v_account_balance
+            //  会把不同币种 DECIMAL 当同币种相加静默腐烂)
+            if (!account.getCurrency().equals(to.getCurrency())) {
+                throw new BizException(CODE_CURRENCY_MISMATCH,
+                        "转出账户货币(" + account.getCurrency() + ")与转入账户货币(" + to.getCurrency() + ")不一致");
+            }
+        }
+        // V1.2 金额核算审计:record 写入的 currency 必须与 account/book 一致
+        // (account 在 create 路径已经通过 AccountsService.create 校验过与 book 一致,
+        //  所以校验 account.currency == book.currency 即可)
+        if (!account.getCurrency().equals(book.getCurrency())) {
+            throw new BizException(CODE_CURRENCY_MISMATCH,
+                    "账户货币(" + account.getCurrency() + ")与账本货币(" + book.getCurrency() + ")不一致");
         }
 
         LocalDate recordDate = parseRecordDate(req.recordDate());
@@ -248,6 +263,23 @@ public class RecordsService {
                 assertAccountInBook(to, b, "toAccountId");
                 r.setToAccountId(to.getId());
                 toAccountUuid = to.getUuid();
+            }
+        }
+
+        // V1.2 金额核算审计:accountId 或 toAccountId 改动后,验证两个账户(若适用)与所属账本币种一致
+        if (req.accountId() != null || req.toAccountId() != null) {
+            Account cur = accountMapper.selectById(r.getAccountId());
+            Book b = bookMapper.selectById(r.getBookId());
+            if (cur != null && b != null && !cur.getCurrency().equals(b.getCurrency())) {
+                throw new BizException(CODE_CURRENCY_MISMATCH,
+                        "账户货币(" + cur.getCurrency() + ")与账本货币(" + b.getCurrency() + ")不一致");
+            }
+            if ("transfer".equals(r.getType()) && r.getToAccountId() != null) {
+                Account to = accountMapper.selectById(r.getToAccountId());
+                if (cur != null && to != null && !cur.getCurrency().equals(to.getCurrency())) {
+                    throw new BizException(CODE_CURRENCY_MISMATCH,
+                            "转出账户货币(" + cur.getCurrency() + ")与转入账户货币(" + to.getCurrency() + ")不一致");
+                }
             }
         }
 

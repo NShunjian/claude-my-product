@@ -271,6 +271,7 @@ class CreateAccountInput {
     required this.initialBalance,
     required this.currency,
     required this.isDefault,
+    this.bookId,
     this.note,
   });
   final String name;
@@ -279,6 +280,10 @@ class CreateAccountInput {
   final double initialBalance;
   final String currency;
   final bool isDefault;
+  // ponytail: 不传 bookId 时后端会落到用户默认账本,跟当前 currentBookId
+  //          可能不一致 —— 新建账户的列表页 _load() 用 currentBookIdProvider
+  //          过滤,看不到刚建的账户。前端必须传当前 bookId 下去。
+  final String? bookId;
   final String? note;
   Map<String, dynamic> toJson() => {
         'name': name,
@@ -287,6 +292,7 @@ class CreateAccountInput {
         'initialBalance': initialBalance,
         'currency': currency,
         'isDefault': isDefault,
+        if (bookId != null && bookId!.isNotEmpty) 'bookId': bookId,
         if (note != null) 'note': note,
       };
 }

@@ -44,6 +44,8 @@ class RecordsApi {
   }
 
   Future<Record> createRecord(CreateRecordInput input) async {
+    // 后端: ApiResponse.ok(Map.of("record", service.create(...))) —
+    // envelope.data = {record: {...}},request<T> 拿到 env = {record: ...}。
     final env = await _c.post<Map<String, dynamic>>(
       '/api/records',
       data: input.toJson(),
@@ -52,6 +54,7 @@ class RecordsApi {
   }
 
   Future<Record> updateRecord(String id, UpdateRecordInput input) async {
+    // 后端: ApiResponse.ok(Map.of("record", service.update(...)))。
     final env = await _c.patch<Map<String, dynamic>>(
       '/api/records/$id',
       data: input.toJson(),

@@ -12,6 +12,8 @@ class BooksApi {
   }
 
   Future<Book> getBook(String uuid) async {
+    // 后端: ApiResponse.ok(Map.of("book", service.get(...))) —
+    // envelope.data = {book: {...}},request<T> 拿到 env = {book: ...}。
     final env = await _c.get<Map<String, dynamic>>(
       '/api/books/${Uri.encodeComponent(uuid)}',
     );
@@ -19,6 +21,7 @@ class BooksApi {
   }
 
   Future<Book> createBook(CreateBookInput input) async {
+    // 后端: ApiResponse.ok(Map.of("book", service.create(...)))。
     final env = await _c.post<Map<String, dynamic>>(
       '/api/books',
       data: input.toJson(),
@@ -27,6 +30,7 @@ class BooksApi {
   }
 
   Future<Book> updateBook(String uuid, UpdateBookInput input) async {
+    // 后端: ApiResponse.ok(Map.of("book", service.update(...)))。
     final env = await _c.patch<Map<String, dynamic>>(
       '/api/books/${Uri.encodeComponent(uuid)}',
       data: input.toJson(),
@@ -38,6 +42,7 @@ class BooksApi {
       _c.delete('/api/books/${Uri.encodeComponent(uuid)}');
 
   Future<Book> setDefaultBook(String uuid) async {
+    // 后端: ApiResponse.ok(Map.of("book", service.setDefault(...)))。
     final env = await _c.post<Map<String, dynamic>>(
       '/api/books/${Uri.encodeComponent(uuid)}/default',
     );
@@ -54,6 +59,7 @@ class BooksApi {
   }
 
   Future<BookMember> addMember(String bookUuid, AddMemberInput input) async {
+    // 后端: ApiResponse.ok(Map.of("member", service.addMember(...)))。
     final env = await _c.post<Map<String, dynamic>>(
       '/api/books/${Uri.encodeComponent(bookUuid)}/members',
       data: input.toJson(),
@@ -66,6 +72,7 @@ class BooksApi {
     String userUuid,
     UpdateMemberRoleInput input,
   ) async {
+    // 后端: ApiResponse.ok(Map.of("member", service.updateMemberRole(...)))。
     final env = await _c.patch<Map<String, dynamic>>(
       '/api/books/${Uri.encodeComponent(bookUuid)}/members/${Uri.encodeComponent(userUuid)}',
       data: input.toJson(),

@@ -21,11 +21,15 @@ class AccountsApi {
   }
 
   Future<Account> getAccount(String id) async {
+    // 后端: ApiResponse.ok(Map.of("account", service.get(...))) —
+    // envelope.data = {account: {...}},request<T> 拿到 env = {account: ...}。
     final env = await _c.get<Map<String, dynamic>>('/api/accounts/$id');
     return Account.fromJson(env['account'] as Map<String, dynamic>);
   }
 
   Future<Account> createAccount(CreateAccountInput input) async {
+    // 后端: ApiResponse.ok(Map.of("account", service.create(...))) —
+    // envelope.data = {account: {...}},request<T> 拿到 env = {account: ...}。
     final env = await _c.post<Map<String, dynamic>>(
       '/api/accounts',
       data: input.toJson(),
@@ -34,6 +38,7 @@ class AccountsApi {
   }
 
   Future<Account> updateAccount(String id, Map<String, dynamic> patch) async {
+    // 后端: ApiResponse.ok(Map.of("account", service.update(...)))。
     final env = await _c.patch<Map<String, dynamic>>(
       '/api/accounts/$id',
       data: patch,

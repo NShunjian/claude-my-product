@@ -15,6 +15,8 @@ class CategoriesApi {
   }
 
   Future<Category> createCategory(CreateCategoryInput input) async {
+    // 后端: ApiResponse.ok(Map.of("category", service.create(...))) —
+    // envelope.data = {category: {...}},request<T> 拿到 env = {category: ...}。
     final env = await _c.post<Map<String, dynamic>>(
       '/api/categories',
       data: input.toJson(),
@@ -23,6 +25,7 @@ class CategoriesApi {
   }
 
   Future<Category> updateCategory(String id, UpdateCategoryInput input) async {
+    // 后端: ApiResponse.ok(Map.of("category", service.update(...)))。
     final env = await _c.patch<Map<String, dynamic>>(
       '/api/categories/${Uri.encodeComponent(id)}',
       data: input.toJson(),

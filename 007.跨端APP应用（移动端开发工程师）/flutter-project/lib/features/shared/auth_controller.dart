@@ -30,6 +30,16 @@ class AuthController extends Notifier<AuthState> {
     // 注册 1401 监听器(只注册一次)。
     final api = ref.read(apiClientProvider);
     api.onAuthInvalid(_onAuthInvalid);
+    // 对齐 uniapp App.vue:95 onLaunch —— 冷启动 token 还在时异步拉一次 /me 拿 user。
+    // 不调的话,settings 等页会拿到 token 有但 user=null 的半态,5 行 info 全走 fallback。
+    // 401 由已注册的 _onAuthInvalid 接管(清 token + router 跳 login);网络错误容忍。
+    final t = p.token;
+    if (t != null && t.isNotEmpty) {
+      try {
+        final u = await ref.read(authApiProvider).me();
+        state = state.copyWith(user: u);
+      } catch (_) { /* 容忍 — 401 已注册 listener 接管 */ }
+    }
   }
 
   Future<void> login(String username, String password) async {

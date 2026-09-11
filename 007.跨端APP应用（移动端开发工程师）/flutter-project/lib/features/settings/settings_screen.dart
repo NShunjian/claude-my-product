@@ -11,6 +11,7 @@ import '../../core/theme/tokens.dart';
 import '../../core/utils/category_presentation.dart';
 import '../../core/utils/tab_refresh_signal.dart';
 import '../shared/auth_controller.dart';
+import '../shared/app_header.dart';
 import '../shared/providers.dart';
 import '../shared/theme_controller.dart';
 import '../shared/toast_controller.dart';
@@ -41,7 +42,8 @@ const List<String> _kColorChoices = [
   '#f43f5e', '#84cc16', '#facc15', '#a855f7',
 ];
 
-/// 对齐 pages/me/index.vue — 用户卡 + 系统偏好 + 自定义分类 + 数据导出 + 关于 + 退出。
+/// 对齐 uniapp pages/settings/index.vue — 6 节:用户卡 + 系统偏好 + 自定义分类 + 数据导出 + 关于轻账 + 账号安全。
+/// 卡片内部结构(head + 子内容 + 退出按钮)全部按 uniapp 同款视觉重建。
 class SettingsScreen extends ConsumerWidget {
   const SettingsScreen({super.key});
 
@@ -51,59 +53,43 @@ class SettingsScreen extends ConsumerWidget {
     final c = context.appColors;
     final auth = ref.watch(authControllerProvider);
     return Scaffold(
-      appBar: AppBar(title: Text(lang.t('pageTitle.settings'))),
+      appBar: AppHeader(title: lang.t('pageTitle.settings'), back: false),
       body: ListView(
-        padding: const EdgeInsets.all(AppSpacing.lg),
+        padding: const EdgeInsets.fromLTRB(
+          AppSpacing.lg,
+          AppSpacing.lg,
+          AppSpacing.lg,
+          AppSpacing.xl,
+        ),
         children: [
+          // heading(对齐 uniapp .heading:32rpx w700 — Flutter 用 18 w600 折中)
+          Text(
+            lang.t('settings.heading'),
+            style: TextStyle(
+              color: c.text,
+              fontSize: 18,
+              fontWeight: FontWeight.w700,
+            ),
+          ),
+          const SizedBox(height: AppSpacing.lg),
           _UserCard(user: auth.user),
           const SizedBox(height: AppSpacing.lg),
-          _SectionCard(
-            title: lang.t('settings.prefs.title'),
-            children: [
-              const _ThemePrefTile(),
-              const _LanguagePrefTile(),
-            ],
-          ),
+          const _PrefsCard(),
           const SizedBox(height: AppSpacing.lg),
           const _CategoriesCard(),
           const SizedBox(height: AppSpacing.lg),
-          _SectionCard(
-            title: lang.t('settings.data.title'),
-            children: [
-              _DataExportTile(),
-            ],
-          ),
+          const _ExportCard(),
           const SizedBox(height: AppSpacing.lg),
-          _SectionCard(
-            title: lang.t('settings.about.title'),
-            children: const [
-              _AboutTile(),
-            ],
-          ),
+          const _AboutCard(),
           const SizedBox(height: AppSpacing.lg),
-          _SectionCard(
-            title: lang.t('settings.accountSecurity.title'),
-            children: [
-              ListTile(
-                leading: Icon(Icons.logout, color: c.error),
-                title: Text(
-                  lang.t('settings.accountSecurity.logout'),
-                  style: TextStyle(color: c.error),
-                ),
-                onTap: () async {
-                  await ref.read(authControllerProvider.notifier).logout();
-                  if (!context.mounted) return;
-                  if (context.canPop()) context.pop();
-                  context.go(AppRoutes.login);
-                },
-              ),
-            ],
-          ),
+          const _SecurityCard(),
         ],
       ),
     );
   }
 }
+
+// ===== 用户卡(对齐 uniapp .user-card:居中 + 大圆头像 + 信息行 + 全宽编辑按钮) =====
 
 class _UserCard extends StatelessWidget {
   const _UserCard({required this.user});
@@ -113,52 +99,94 @@ class _UserCard extends StatelessWidget {
   Widget build(BuildContext context) {
     final lang = I18n.of(context);
     final c = context.appColors;
+    final displayName =
+        user?.displayName ?? user?.username ?? lang.t('login.title');
+    final genderText = switch (user?.gender) {
+      Gender.male => lang.t('settings.userCard.gender.male'),
+      Gender.female => lang.t('settings.userCard.gender.female'),
+      Gender.other => lang.t('settings.userCard.gender.other'),
+      null => lang.t('settings.userCard.gender.none'),
+    };
+    final ageText = user?.age != null
+        ? '${user!.age}'
+        : lang.t('settings.userCard.age.none');
+    final avatarUrl = user?.avatar;
+    final hasAvatar = avatarUrl != null && avatarUrl.isNotEmpty;
+
     return Container(
-      padding: const EdgeInsets.all(AppSpacing.lg),
+      padding: const EdgeInsets.all(AppSpacing.xl),
       decoration: BoxDecoration(
         color: c.bgCard,
         borderRadius: BorderRadius.circular(AppRadius.md),
         border: Border.all(color: c.divider),
       ),
-      child: Row(
+      child: Column(
         children: [
-          CircleAvatar(
-            radius: 28,
-            backgroundColor: c.primaryLight,
-            child: Text(
-              (user?.displayName ?? user?.username ?? '?')
-                  .characters
-                  .first
-                  .toUpperCase(),
-              style: TextStyle(
-                color: c.primary,
-                fontSize: 22,
-                fontWeight: FontWeight.w600,
-              ),
+          Container(
+            width: 80,
+            height: 80,
+            decoration: BoxDecoration(
+              color: c.primaryLight,
+              shape: BoxShape.circle,
+            ),
+            alignment: Alignment.center,
+            child: hasAvatar
+                ? ClipOval(
+                    child: Image.network(
+                      avatarUrl,
+                      width: 80,
+                      height: 80,
+                      fit: BoxFit.cover,
+                      errorBuilder: (_, __, ___) => Text(
+                        '👤',
+                        style: TextStyle(fontSize: 40, color: c.primary),
+                      ),
+                    ),
+                  )
+                : Text('👤', style: TextStyle(fontSize: 40, color: c.primary)),
+          ),
+          const SizedBox(height: AppSpacing.md),
+          Text(
+            displayName,
+            style: TextStyle(
+              color: c.text,
+              fontSize: 18,
+              fontWeight: FontWeight.w600,
             ),
           ),
-          const SizedBox(width: AppSpacing.md),
-          Expanded(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Text(
-                  user?.displayName ?? user?.username ?? lang.t('login.title'),
-                  style: TextStyle(
-                    color: c.text,
-                    fontSize: 16,
-                    fontWeight: FontWeight.w600,
-                  ),
+          const SizedBox(height: AppSpacing.xs),
+          Text(
+            '${lang.t('settings.userCard.accountLabel')}: ${user?.username ?? '—'}',
+            style: TextStyle(color: c.textVariant, fontSize: 13),
+          ),
+          Text(
+            lang.t('settings.userCard.freeVersion'),
+            style: TextStyle(color: c.textVariant, fontSize: 13),
+          ),
+          Text(
+            '${lang.t('settings.userCard.genderLabel')}: $genderText',
+            style: TextStyle(color: c.textVariant, fontSize: 13),
+          ),
+          Text(
+            '${lang.t('settings.userCard.ageLabel')}: $ageText',
+            style: TextStyle(color: c.textVariant, fontSize: 13),
+          ),
+          const SizedBox(height: AppSpacing.lg),
+          SizedBox(
+            width: double.infinity,
+            child: OutlinedButton(
+              onPressed: () => context.push(AppRoutes.profileEdit),
+              style: OutlinedButton.styleFrom(
+                side: BorderSide(color: c.divider),
+                padding: const EdgeInsets.symmetric(vertical: AppSpacing.md),
+                shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(AppRadius.sm),
                 ),
-                Text(
-                  lang.t('settings.userCard.freeVersion'),
-                  style: TextStyle(color: c.textVariant, fontSize: 12),
-                ),
-                TextButton(
-                  onPressed: () => context.push(AppRoutes.profileEdit),
-                  child: Text(lang.t('settings.userCard.editProfile')),
-                ),
-              ],
+              ),
+              child: Text(
+                lang.t('settings.userCard.editProfile'),
+                style: TextStyle(color: c.text, fontSize: 14),
+              ),
             ),
           ),
         ],
@@ -167,14 +195,17 @@ class _UserCard extends StatelessWidget {
   }
 }
 
-class _SectionCard extends StatelessWidget {
-  const _SectionCard({required this.title, required this.children});
-  final String title;
-  final List<Widget> children;
+// ===== 系统偏好卡(对齐 uniapp .prefs-card:⚙️ 标题 + 主题分段 + 分隔线 + 语言下拉) =====
+
+class _PrefsCard extends ConsumerWidget {
+  const _PrefsCard();
 
   @override
-  Widget build(BuildContext context) {
+  Widget build(BuildContext context, WidgetRef ref) {
+    final lang = I18n.of(context);
     final c = context.appColors;
+    final currentTheme = ref.watch(themeControllerProvider);
+    final currentLang = ref.watch(languageProvider);
     return Container(
       decoration: BoxDecoration(
         color: c.bgCard,
@@ -187,166 +218,620 @@ class _SectionCard extends StatelessWidget {
           Padding(
             padding: const EdgeInsets.fromLTRB(
               AppSpacing.lg,
-              AppSpacing.md,
               AppSpacing.lg,
-              AppSpacing.xs,
+              AppSpacing.lg,
+              0,
             ),
-            child: Text(
-              title,
-              style: TextStyle(
-                color: c.textVariant,
-                fontSize: 12,
-                fontWeight: FontWeight.w500,
-              ),
+            child: Row(
+              children: [
+                const _IconCircle(emoji: '⚙️'),
+                const SizedBox(width: AppSpacing.md),
+                Text(
+                  lang.t('settings.prefs.title'),
+                  style: TextStyle(
+                    color: c.text,
+                    fontSize: 15,
+                    fontWeight: FontWeight.w600,
+                  ),
+                ),
+              ],
             ),
           ),
-          ...children,
-          const SizedBox(height: AppSpacing.sm),
+          const SizedBox(height: AppSpacing.md),
+          Padding(
+            padding: const EdgeInsets.symmetric(horizontal: AppSpacing.lg),
+            child: _ThemeRow(
+              current: currentTheme,
+              onChange: (m) =>
+                  ref.read(themeControllerProvider.notifier).setMode(m),
+              lang: lang,
+            ),
+          ),
+          const Padding(
+            padding: EdgeInsets.symmetric(horizontal: AppSpacing.lg),
+            child: Divider(height: 1),
+          ),
+          Padding(
+            padding: const EdgeInsets.fromLTRB(
+              AppSpacing.lg,
+              AppSpacing.md,
+              AppSpacing.lg,
+              AppSpacing.lg,
+            ),
+            child: _LangRow(
+              current: currentLang,
+              onChange: (l) =>
+                  ref.read(languageProvider.notifier).setLang(l),
+              lang: lang,
+            ),
+          ),
         ],
       ),
     );
   }
 }
 
-class _ThemePrefTile extends ConsumerWidget {
-  const _ThemePrefTile();
-
-  @override
-  Widget build(BuildContext context, WidgetRef ref) {
-    final lang = I18n.of(context);
-    final c = context.appColors;
-    final current = ref.watch(themeControllerProvider);
-    return ListTile(
-      title: Text(lang.t('settings.prefs.theme.label')),
-      subtitle: Text(lang.t('settings.prefs.theme.desc'),
-          style: TextStyle(color: c.textVariant, fontSize: 12)),
-      trailing: DropdownButton<ThemeChoice>(
-        value: current,
-        underline: const SizedBox.shrink(),
-        items: ThemeChoice.values
-            .map(
-              (m) => DropdownMenuItem(
-                value: m,
-                child: Text(_themeLabel(lang, m)),
-              ),
-            )
-            .toList(),
-        onChanged: (m) {
-          if (m != null) ref.read(themeControllerProvider.notifier).setMode(m);
-        },
-      ),
-    );
-  }
-
-  String _themeLabel(Lang lang, ThemeChoice m) {
-    final key = switch (m) {
-      ThemeChoice.system => 'settings.prefs.theme.system',
-      ThemeChoice.light => 'settings.prefs.theme.light',
-      ThemeChoice.dark => 'settings.prefs.theme.dark',
-    };
-    return lang.t(key);
-  }
-}
-
-class _LanguagePrefTile extends ConsumerWidget {
-  const _LanguagePrefTile();
-
-  @override
-  Widget build(BuildContext context, WidgetRef ref) {
-    final c = context.appColors;
-    final lang = I18n.of(context);
-    final current = ref.watch(languageProvider);
-    return ListTile(
-      title: Text(lang.t('settings.prefs.lang.label')),
-      subtitle: Text(lang.t('settings.prefs.lang.desc'),
-          style: TextStyle(color: c.textVariant, fontSize: 12)),
-      trailing: DropdownButton<Lang>(
-        value: current,
-        underline: const SizedBox.shrink(),
-        items: Lang.values
-            .map(
-              (l) => DropdownMenuItem(
-                value: l,
-                child: Text(l.label),
-              ),
-            )
-            .toList(),
-        onChanged: (l) {
-          if (l != null) ref.read(languageProvider.notifier).setLang(l);
-        },
-      ),
-    );
-  }
-}
-
-class _DataExportTile extends ConsumerStatefulWidget {
-  @override
-  ConsumerState<_DataExportTile> createState() => _DataExportTileState();
-}
-
-class _DataExportTileState extends ConsumerState<_DataExportTile> {
-  bool _busy = false;
-
-  Future<void> _runExport(String kind) async {
-    final lang = I18n.of(context);
-    setState(() => _busy = true);
-    try {
-      // 占位:实际导出逻辑在 utils/export.dart(由后续 PR 实现)。
-      await Future.delayed(const Duration(milliseconds: 500));
-      if (!mounted) return;
-      ref.read(toastControllerProvider.notifier).show('exported $kind');
-    } catch (e) {
-      if (!mounted) return;
-      ref.read(toastControllerProvider.notifier).show(
-            '${lang.t('settings.data.exportFailPrefix')} ${e is ApiException ? e.message : '$e'}',
-          );
-    } finally {
-      if (mounted) setState(() => _busy = false);
-    }
-  }
+class _ThemeRow extends StatelessWidget {
+  const _ThemeRow({
+    required this.current,
+    required this.onChange,
+    required this.lang,
+  });
+  final ThemeChoice current;
+  final ValueChanged<ThemeChoice> onChange;
+  final Lang lang;
 
   @override
   Widget build(BuildContext context) {
-    final lang = I18n.of(context);
-    return Column(
+    final c = context.appColors;
+    String label(ThemeChoice m) {
+      final key = switch (m) {
+        ThemeChoice.system => 'settings.prefs.theme.system',
+        ThemeChoice.light => 'settings.prefs.theme.light',
+        ThemeChoice.dark => 'settings.prefs.theme.dark',
+      };
+      return lang.t(key);
+    }
+    return Padding(
+      padding: const EdgeInsets.symmetric(vertical: AppSpacing.md),
+      child: Row(
+        children: [
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  lang.t('settings.prefs.theme.label'),
+                  style: TextStyle(
+                    color: c.text,
+                    fontSize: 14,
+                    fontWeight: FontWeight.w600,
+                  ),
+                ),
+                const SizedBox(height: 2),
+                Text(
+                  lang.t('settings.prefs.theme.desc'),
+                  style: TextStyle(color: c.textVariant, fontSize: 12),
+                ),
+              ],
+            ),
+          ),
+          Container(
+            decoration: BoxDecoration(
+              color: c.surface,
+              borderRadius: BorderRadius.circular(AppRadius.sm),
+              border: Border.all(color: c.divider),
+            ),
+            child: Row(
+              mainAxisSize: MainAxisSize.min,
+              children: ThemeChoice.values.map((m) {
+                final active = m == current;
+                return GestureDetector(
+                  onTap: () => onChange(m),
+                  behavior: HitTestBehavior.opaque,
+                  child: Container(
+                    padding: const EdgeInsets.symmetric(
+                      horizontal: AppSpacing.md,
+                      vertical: AppSpacing.xs,
+                    ),
+                    decoration: BoxDecoration(
+                      color: active ? c.bgCard : Colors.transparent,
+                      borderRadius: BorderRadius.circular(AppRadius.sm),
+                    ),
+                    child: Text(
+                      label(m),
+                      style: TextStyle(
+                        color: active ? c.text : c.textVariant,
+                        fontSize: 12,
+                        fontWeight: active ? FontWeight.w600 : FontWeight.w500,
+                      ),
+                    ),
+                  ),
+                );
+              }).toList(),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+class _LangRow extends StatelessWidget {
+  const _LangRow({
+    required this.current,
+    required this.onChange,
+    required this.lang,
+  });
+  final Lang current;
+  final ValueChanged<Lang> onChange;
+  final Lang lang;
+
+  @override
+  Widget build(BuildContext context) {
+    final c = context.appColors;
+    return Row(
       children: [
-        ListTile(
-          leading: const Icon(Icons.calendar_view_month),
-          title: Text(lang.t('settings.data.exportMonthly')),
-          onTap: _busy ? null : () => _runExport('monthly'),
+        Expanded(
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Text(
+                lang.t('settings.prefs.lang.label'),
+                style: TextStyle(
+                  color: c.text,
+                  fontSize: 14,
+                  fontWeight: FontWeight.w600,
+                ),
+              ),
+              const SizedBox(height: 2),
+              Text(
+                lang.t('settings.prefs.lang.desc'),
+                style: TextStyle(color: c.textVariant, fontSize: 12),
+              ),
+            ],
+          ),
         ),
-        ListTile(
-          leading: const Icon(Icons.category_outlined),
-          title: Text(lang.t('settings.data.exportCategory')),
-          onTap: _busy ? null : () => _runExport('category'),
-        ),
-        ListTile(
-          leading: const Icon(Icons.dataset_outlined),
-          title: Text(lang.t('settings.data.exportAll')),
-          onTap: _busy ? null : () => _runExport('all'),
+        PopupMenuButton<Lang>(
+          tooltip: '',
+          offset: const Offset(0, 32),
+          onSelected: onChange,
+          itemBuilder: (_) => Lang.values
+              .map((l) => PopupMenuItem(value: l, child: Text(l.label)))
+              .toList(),
+          child: Container(
+            padding: const EdgeInsets.symmetric(
+              horizontal: AppSpacing.md,
+              vertical: AppSpacing.xs,
+            ),
+            decoration: BoxDecoration(
+              color: c.surface,
+              borderRadius: BorderRadius.circular(AppRadius.sm),
+              border: Border.all(color: c.divider),
+            ),
+            child: Row(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                Text(
+                  current.label,
+                  style: TextStyle(color: c.text, fontSize: 13),
+                ),
+                const SizedBox(width: 4),
+                Icon(Icons.expand_more, size: 16, color: c.textVariant),
+              ],
+            ),
+          ),
         ),
       ],
     );
   }
 }
 
-class _AboutTile extends ConsumerWidget {
-  const _AboutTile();
+// ===== 通用:icon-circle(对齐 uniapp .icon-circle / .icon-circle-lg) =====
+
+class _IconCircle extends StatelessWidget {
+  /// emoji 字符串 或 child Widget — 任一即可(uniapp 用 emoji,Flutter 用 Material Icon)。
+  const _IconCircle({this.emoji, this.child});
+  final String? emoji;
+  final Widget? child;
+
+  @override
+  Widget build(BuildContext context) {
+    final c = context.appColors;
+    return Container(
+      width: 36,
+      height: 36,
+      decoration: BoxDecoration(
+        color: c.primaryLight,
+        shape: BoxShape.circle,
+      ),
+      alignment: Alignment.center,
+      child: child ?? (emoji != null
+          ? Text(emoji!, style: const TextStyle(fontSize: 18))
+          : null),
+    );
+  }
+}
+
+// ===== 数据导出卡(对齐 uniapp .data-card + .export-grid:3 张卡 + Material 图标) =====
+
+class _ExportCard extends ConsumerStatefulWidget {
+  const _ExportCard();
+
+  @override
+  ConsumerState<_ExportCard> createState() => _ExportCardState();
+}
+
+class _ExportCardState extends ConsumerState<_ExportCard> {
+  String? _busy; // 'monthly' | 'category' | 'all' | null
+  String? _err;
+
+  Future<void> _run(String kind) async {
+    final lang = I18n.of(context);
+    setState(() {
+      _busy = kind;
+      _err = null;
+    });
+    try {
+      // 接 utils/export.dart 真函数(替代 Future.delayed 占位)。
+      // ExportService 在 native 端通过 share_plus 弹系统分享面板保存;
+      // web/desktop 端会抛 UnsupportedError(提示后续走 dart:html 下载)。
+      final svc = ref.read(exportServiceProvider);
+      switch (kind) {
+        case 'monthly':
+          await svc.exportMonthly();
+          break;
+        case 'category':
+          await svc.exportByCategory();
+          break;
+        case 'all':
+          await svc.exportAll();
+          break;
+      }
+      if (!mounted) return;
+      ref.read(toastControllerProvider.notifier).show(
+            lang.t('settings.data.exportDesc'),
+          );
+    } catch (e) {
+      if (!mounted) return;
+      setState(() {
+        _err = e is ApiException ? e.message : '$e';
+      });
+    } finally {
+      if (mounted) setState(() => _busy = null);
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final lang = I18n.of(context);
+    final c = context.appColors;
+    String label(String key, String fallback) => _busy == key
+        ? lang.t('settings.data.exporting')
+        : lang.t(fallback);
+
+    return Container(
+      padding: const EdgeInsets.all(AppSpacing.lg),
+      decoration: BoxDecoration(
+        color: c.bgCard,
+        borderRadius: BorderRadius.circular(AppRadius.md),
+        border: Border.all(color: c.divider),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.stretch,
+        children: [
+          Row(
+            children: [
+              const _IconCircle(child: Icon(Icons.dataset_outlined, size: 18)),
+              const SizedBox(width: AppSpacing.md),
+              Text(
+                lang.t('settings.data.title'),
+                style: TextStyle(
+                  color: c.text,
+                  fontSize: 15,
+                  fontWeight: FontWeight.w600,
+                ),
+              ),
+            ],
+          ),
+          const SizedBox(height: AppSpacing.lg),
+          Row(
+            children: [
+              Expanded(
+                child: _ExportBtn(
+                  busy: _busy == 'monthly',
+                  icon: Icons.calendar_month,
+                  label: label('monthly', 'settings.data.exportMonthly'),
+                  disabled: _busy != null,
+                  onTap: () => _run('monthly'),
+                ),
+              ),
+              const SizedBox(width: AppSpacing.md),
+              Expanded(
+                child: _ExportBtn(
+                  busy: _busy == 'category',
+                  icon: Icons.folder_outlined,
+                  label: label('category', 'settings.data.exportCategory'),
+                  disabled: _busy != null,
+                  onTap: () => _run('category'),
+                ),
+              ),
+              const SizedBox(width: AppSpacing.md),
+              Expanded(
+                child: _ExportBtn(
+                  busy: _busy == 'all',
+                  icon: Icons.check_circle_outline,
+                  iconColor: c.primary,
+                  label: label('all', 'settings.data.exportAll'),
+                  disabled: _busy != null,
+                  onTap: () => _run('all'),
+                ),
+              ),
+            ],
+          ),
+          const SizedBox(height: AppSpacing.md),
+          Text(
+            _err != null
+                ? '${lang.t('settings.data.exportFailPrefix')}$_err'
+                : lang.t('settings.data.exportDesc'),
+            style: TextStyle(color: c.textVariant, fontSize: 12),
+            textAlign: TextAlign.center,
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+class _ExportBtn extends StatelessWidget {
+  const _ExportBtn({
+    required this.busy,
+    required this.icon,
+    required this.label,
+    required this.disabled,
+    required this.onTap,
+    this.iconColor,
+  });
+  final bool busy;
+  final IconData icon;
+  final String label;
+  final bool disabled;
+  final VoidCallback onTap;
+  final Color? iconColor;
+
+  @override
+  Widget build(BuildContext context) {
+    final c = context.appColors;
+    return Opacity(
+      opacity: disabled ? 0.5 : 1,
+      child: InkWell(
+        onTap: disabled ? null : onTap,
+        borderRadius: BorderRadius.circular(AppRadius.md),
+        child: Container(
+          padding: const EdgeInsets.symmetric(vertical: AppSpacing.xl),
+          decoration: BoxDecoration(
+            color: c.surface,
+            borderRadius: BorderRadius.circular(AppRadius.md),
+            border: Border.all(color: c.divider),
+          ),
+          child: Column(
+            children: [
+              busy
+                  ? const SizedBox(
+                      width: 24,
+                      height: 24,
+                      child: CircularProgressIndicator(strokeWidth: 2),
+                    )
+                  : Icon(
+                      icon,
+                      size: 32,
+                      color: iconColor ?? c.textVariant,
+                    ),
+              const SizedBox(height: AppSpacing.sm),
+              Text(
+                label,
+                style: TextStyle(color: c.text, fontSize: 12),
+                textAlign: TextAlign.center,
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+}
+
+// ===== 关于轻账卡(对齐 uniapp .about-card:ℹ️ + Q logo + 版本 + 链接) =====
+
+class _AboutCard extends ConsumerWidget {
+  const _AboutCard();
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final lang = I18n.of(context);
+    final c = context.appColors;
     final future = ref.read(versionApiProvider).getSystemVersion();
-    return FutureBuilder<SystemVersion>(
-      future: future,
-      builder: (context, snap) {
-        final v = snap.data?.version ?? lang.t('settings.versionFallback');
-        return ListTile(
-          leading: const Icon(Icons.info_outline),
-          title: Text(lang.t('settings.about.currentVersion')),
-          trailing: Text(v, style: TextStyle(color: context.appColors.textVariant)),
-        );
-      },
+    return Container(
+      padding: const EdgeInsets.all(AppSpacing.lg),
+      decoration: BoxDecoration(
+        color: c.bgCard,
+        borderRadius: BorderRadius.circular(AppRadius.md),
+        border: Border.all(color: c.divider),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.stretch,
+        children: [
+          Row(
+            children: [
+              // 蓝实心 info icon(对齐 uniapp .mat-icon primary-icon style font-size:22px)
+              Icon(Icons.info, size: 22, color: c.primary),
+              const SizedBox(width: AppSpacing.sm),
+              Text(
+                lang.t('settings.about.title'),
+                style: TextStyle(
+                  color: c.text,
+                  fontSize: 15,
+                  fontWeight: FontWeight.w600,
+                ),
+              ),
+            ],
+          ),
+          const SizedBox(height: AppSpacing.lg),
+          FutureBuilder<SystemVersion>(
+            future: future,
+            builder: (context, snap) {
+              String ver;
+              String status;
+              if (snap.connectionState == ConnectionState.waiting) {
+                ver = 'QingZhang v…';
+                status = lang.t('settings.about.fetchingVersion');
+              } else if (snap.hasError || !snap.hasData) {
+                ver = 'QingZhang v—';
+                status = lang.t('settings.about.versionUnavailable');
+              } else {
+                ver = 'QingZhang v${snap.data!.version}';
+                status = lang.t('settings.about.currentVersion');
+              }
+              return Row(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Container(
+                    width: 56,
+                    height: 64,
+                    decoration: BoxDecoration(
+                      color: c.primaryLight,
+                      borderRadius: BorderRadius.circular(AppRadius.sm),
+                    ),
+                    alignment: Alignment.center,
+                    child: Text(
+                      'Q',
+                      style: TextStyle(
+                        color: c.primary,
+                        fontSize: 28,
+                        fontWeight: FontWeight.w700,
+                      ),
+                    ),
+                  ),
+                  const SizedBox(width: AppSpacing.md),
+                  Expanded(
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Text(
+                          ver,
+                          style: TextStyle(
+                            color: c.text,
+                            fontSize: 15,
+                            fontWeight: FontWeight.w600,
+                          ),
+                        ),
+                        const SizedBox(height: 2),
+                        Text(
+                          status,
+                          style: TextStyle(
+                            color: c.textVariant,
+                            fontSize: 12,
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                ],
+              );
+            },
+          ),
+          const SizedBox(height: AppSpacing.lg),
+          const Divider(height: 1),
+          const SizedBox(height: AppSpacing.md),
+          Row(
+            children: [
+              Text(
+                lang.t('settings.about.terms'),
+                style: TextStyle(color: c.primary, fontSize: 13),
+              ),
+              const SizedBox(width: AppSpacing.xl),
+              Text(
+                lang.t('settings.about.privacy'),
+                style: TextStyle(color: c.primary, fontSize: 13),
+              ),
+            ],
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+// ===== 账号安全卡(对齐 uniapp .security-card:🛡️ + 描述 + 右下退出按钮) =====
+
+class _SecurityCard extends ConsumerWidget {
+  const _SecurityCard();
+
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    final lang = I18n.of(context);
+    final c = context.appColors;
+    return Container(
+      padding: const EdgeInsets.all(AppSpacing.lg),
+      decoration: BoxDecoration(
+        color: c.bgCard,
+        borderRadius: BorderRadius.circular(AppRadius.md),
+        border: Border.all(color: c.divider),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.stretch,
+        children: [
+          Row(
+            children: [
+              // 红实心 shield icon(对齐 uniapp .mat-icon danger-icon style font-size:22px)
+              Icon(Icons.shield, size: 22, color: c.error),
+              const SizedBox(width: AppSpacing.sm),
+              Text(
+                lang.t('settings.accountSecurity.title'),
+                style: TextStyle(
+                  color: c.text,
+                  fontSize: 15,
+                  fontWeight: FontWeight.w600,
+                ),
+              ),
+            ],
+          ),
+          const SizedBox(height: AppSpacing.md),
+          Text(
+            lang.t('settings.accountSecurity.desc'),
+            style: TextStyle(
+              color: c.textVariant,
+              fontSize: 13,
+              height: 1.5,
+            ),
+          ),
+          const SizedBox(height: AppSpacing.lg),
+          Align(
+            alignment: Alignment.centerRight,
+            child: OutlinedButton.icon(
+              onPressed: () async {
+                await ref.read(authControllerProvider.notifier).logout();
+                if (!context.mounted) return;
+                if (context.canPop()) context.pop();
+                context.go(AppRoutes.login);
+              },
+              icon: const Icon(Icons.logout, size: 16),
+              label: Text(lang.t('settings.accountSecurity.logout')),
+              style: OutlinedButton.styleFrom(
+                foregroundColor: c.error,
+                side: BorderSide(color: c.error, width: 1.5),
+                padding: const EdgeInsets.symmetric(
+                  horizontal: AppSpacing.lg,
+                  vertical: AppSpacing.sm,
+                ),
+                shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(AppRadius.sm),
+                ),
+              ),
+            ),
+          ),
+        ],
+      ),
     );
   }
 }
@@ -648,11 +1133,25 @@ class _CategoriesCardState extends ConsumerState<_CategoriesCard> {
                   ),
                 );
               }
-              return Column(
+              return GridView.count(
+                shrinkWrap: true,
+                physics: const NeverScrollableScrollPhysics(),
+                padding: const EdgeInsets.fromLTRB(
+                  AppSpacing.lg,
+                  0,
+                  AppSpacing.lg,
+                  AppSpacing.lg,
+                ),
+                // ponytail: 对齐 uniapp .cat-item { width: 16.66% } = 1/6,
+                //          用 GridView.count(crossAxisCount:6) 模拟 flex-wrap 6 列。
+                crossAxisCount: 6,
+                // 6 列每格很窄(~60px @ 360 屏宽)。dot(36)+4+名称(14)+1+hex(12)+
+                // 3+badge(18)+padding(8) ≈ 96px,宽高比 ≈ 0.62。0.62 给底部
+                // badge 留 ~10px 余量,避免 BOTTOM OVERFLOW 报红。
+                childAspectRatio: 0.62,
                 children: [
                   for (final cat in list)
-                    _CatItemRow(category: cat, onEdit: () => _openEdit(cat)),
-                  const SizedBox(height: AppSpacing.sm),
+                    _CatGridCell(category: cat, onEdit: () => _openEdit(cat)),
                 ],
               );
             },
@@ -700,9 +1199,10 @@ class _CatTabBtn extends StatelessWidget {
   }
 }
 
-/// .cat-item:dot(colored bg + emoji 白字) + name + color hex + preset/edit badge。
-class _CatItemRow extends StatelessWidget {
-  const _CatItemRow({required this.category, required this.onEdit});
+/// .cat-grid-cell:九宫格单格(用户要求 3 列 3 行 — 从 uniapp 原 6 列 flex-wrap
+/// 改为 3 列 grid,内容垂直堆叠)。点击非预设 → 触发 onEdit。
+class _CatGridCell extends StatelessWidget {
+  const _CatGridCell({required this.category, required this.onEdit});
   final Category category;
   final VoidCallback onEdit;
 
@@ -713,93 +1213,91 @@ class _CatItemRow extends StatelessWidget {
     final pres = presentCategory(category);
     final color = _parseHex(pres.color);
     final hasIcon = pres.icon.isNotEmpty;
-    return Padding(
-      padding: const EdgeInsets.fromLTRB(
-        AppSpacing.lg,
-        AppSpacing.xs,
-        AppSpacing.lg,
-        AppSpacing.xs,
-      ),
-      child: Row(
-        children: [
-          Container(
-            width: 36,
-            height: 36,
-            decoration: BoxDecoration(
-              color: color,
-              shape: BoxShape.circle,
-            ),
-            alignment: Alignment.center,
-            child: hasIcon
-                ? Text(
-                    pres.icon,
-                    style: const TextStyle(fontSize: 16, height: 1),
-                  )
-                : null,
-          ),
-          const SizedBox(width: AppSpacing.md),
-          Expanded(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Text(
-                  category.name,
-                  style: TextStyle(
-                    color: c.text,
-                    fontSize: 14,
-                    fontWeight: FontWeight.w500,
-                  ),
-                ),
-                Text(
-                  pres.color.toUpperCase(),
-                  style: TextStyle(color: c.textVariant, fontSize: 11),
-                ),
-              ],
-            ),
-          ),
-          if (category.isPreset)
+    final isPreset = category.isPreset;
+    // ponytail: 白色背景 + 实色填充 → 白卡白点看不见,加一圈 outline 描边
+    //          保可见性(同 uniapp .cat-pick-white)。
+    final isWhiteBg = !hasIcon && color.toString().toUpperCase() == 'FFFFFFFF';
+    return InkWell(
+      onTap: isPreset ? null : onEdit,
+      borderRadius: BorderRadius.circular(AppRadius.sm),
+      child: Padding(
+        padding: const EdgeInsets.symmetric(vertical: 4),
+        child: Column(
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: [
             Container(
-              padding: const EdgeInsets.symmetric(
-                horizontal: AppSpacing.sm,
-                vertical: 2,
+              width: 36,
+              height: 36,
+              decoration: BoxDecoration(
+                // ponytail: 对齐 uniapp `.cat-dot` 浅色背景(color + '22' ≈ 13% alpha)
+                //          + 深色 emoji。原来用实色背景,跟"未设置"那种鲜艳撞色。
+                color: color.withValues(alpha: 0.15),
+                shape: BoxShape.circle,
+                // 纯白底 13% 透明度肉眼看不见,补一圈 divider 边框保可见。
+                border: isWhiteBg ? Border.all(color: c.divider) : null,
               ),
+              alignment: Alignment.center,
+              child: hasIcon
+                  ? Text(
+                      pres.icon,
+                      style: TextStyle(
+                        fontSize: 16,
+                        height: 1,
+                        // emoji 用实色(深色)在浅背景上,跟 uniapp 同款对比度。
+                        color: color,
+                      ),
+                    )
+                  : null,
+            ),
+            const SizedBox(height: 4),
+            Text(
+              category.name,
+              maxLines: 1,
+              overflow: TextOverflow.ellipsis,
+              style: TextStyle(
+                color: c.text,
+                fontSize: 11,
+                fontWeight: FontWeight.w500,
+              ),
+            ),
+            const SizedBox(height: 1),
+            Text(
+              pres.color.toUpperCase(),
+              maxLines: 1,
+              overflow: TextOverflow.ellipsis,
+              style: TextStyle(color: c.textVariant, fontSize: 9),
+            ),
+            const SizedBox(height: 3),
+            Container(
+              padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 1),
               decoration: BoxDecoration(
                 color: c.surface,
-                borderRadius: BorderRadius.circular(AppRadius.sm),
+                borderRadius: BorderRadius.circular(999),
+                // ponytail: 只有"编辑" pill 加边框(类目自身颜色 40% alpha,
+                //          跟上方圆点视觉绑);"预设" pill 不加边框(看起来更像
+                //          状态徽章而不是可点元素)。
+                border: isPreset
+                    ? null
+                    : Border.all(
+                        color: color.withValues(alpha: 0.4),
+                        width: 0.5,
+                      ),
               ),
               child: Text(
-                lang.t('settings.categories.presetBadge'),
+                isPreset
+                    ? lang.t('settings.categories.presetBadge')
+                    : lang.t('common.edit'),
                 style: TextStyle(
-                  color: c.textVariant,
-                  fontSize: 11,
+                  // 编辑 pill 文字加深(text)跟边框呼应;预设保留 textVariant
+                  // 维持低存在感(只读状态)。
+                  color: isPreset ? c.textVariant : c.text,
+                  fontSize: 9,
                   fontWeight: FontWeight.w500,
                 ),
               ),
-            )
-          else
-            Material(
-              color: c.primary,
-              borderRadius: BorderRadius.circular(AppRadius.sm),
-              child: InkWell(
-                borderRadius: BorderRadius.circular(AppRadius.sm),
-                onTap: onEdit,
-                child: Container(
-                  padding: const EdgeInsets.symmetric(
-                    horizontal: AppSpacing.md,
-                    vertical: 4,
-                  ),
-                  child: Text(
-                    lang.t('common.edit'),
-                    style: const TextStyle(
-                      color: Colors.white,
-                      fontSize: 11,
-                      fontWeight: FontWeight.w600,
-                    ),
-                  ),
-                ),
-              ),
             ),
-        ],
+          ],
+        ),
       ),
     );
   }
@@ -937,15 +1435,23 @@ class _CategoryEditorDialogState extends State<_CategoryEditorDialog> {
                   ),
                 ),
                 const SizedBox(height: AppSpacing.md),
-                // icon picker
+                // icon picker — 对齐 uniapp `.icon-picker-grid { grid-template-columns: repeat(6, 1fr); gap: 12rpx }`
                 Text(
                   lang.t('settings.categories.field.icon'),
                   style: TextStyle(color: c.textVariant, fontSize: 12),
                 ),
                 const SizedBox(height: 6),
-                Wrap(
-                  spacing: 6,
-                  runSpacing: 6,
+                GridView.count(
+                  shrinkWrap: true,
+                  physics: const NeverScrollableScrollPhysics(),
+                  crossAxisCount: 6,
+                  mainAxisSpacing: 6,
+                  crossAxisSpacing: 6,
+                  // ponytail: aspect-ratio 1:1 让格子随 6 列宽度自动计算高度(uniapp
+                  //          .icon-pick { aspect-ratio: 1/1; min-height: 72rpx })。
+                  //          dialog 已经 ConstrainedBox(maxWidth:420),减去 padding
+                  //          ~384 / 6 = 64 ≈ 64,跟 uniapp 72rpx≈36px 接近。
+                  childAspectRatio: 1,
                   children: [
                     for (final ic in _kIconChoices)
                       _IconPick(
@@ -957,16 +1463,28 @@ class _CategoryEditorDialogState extends State<_CategoryEditorDialog> {
                       ),
                   ],
                 ),
-                const SizedBox(height: AppSpacing.md),
-                // color picker
+                // ponytail: 字段提示(uniapp .field-hint,硬编码「不选图标 = 纯色填充」)。
+                //          写在 icon 网格下、color label 上,提醒没 icon 时走纯色填充逻辑。
+                const Padding(
+                  padding: EdgeInsets.only(top: 6, bottom: AppSpacing.md),
+                  child: Text(
+                    '不选图标 = 纯色填充',
+                    style: TextStyle(fontSize: 12, color: Color(0xFF6B7280)),
+                  ),
+                ),
+                // color picker — 对齐 uniapp `.color-picker-grid { grid-template-columns: repeat(7, 1fr); gap: 10rpx }`
                 Text(
                   lang.t('settings.categories.field.color'),
                   style: TextStyle(color: c.textVariant, fontSize: 12),
                 ),
                 const SizedBox(height: 6),
-                Wrap(
-                  spacing: 6,
-                  runSpacing: 6,
+                GridView.count(
+                  shrinkWrap: true,
+                  physics: const NeverScrollableScrollPhysics(),
+                  crossAxisCount: 7,
+                  mainAxisSpacing: 5,
+                  crossAxisSpacing: 5,
+                  childAspectRatio: 1,
                   children: [
                     for (final col in _kColorChoices)
                       _ColorPick(
@@ -1046,21 +1564,30 @@ class _IconPick extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final c = context.appColors;
-    return Material(
+    // ponytail: 对齐 uniapp `.icon-pick` 默认 2rpx divider 边框 + 选中 border 换
+  //          primary 蓝(背景同步走 activeColor,emoji 颜色随 glyphIsWhite 切换)。
+  return Material(
       color: selected ? activeColor : c.surface,
-      borderRadius: BorderRadius.circular(AppRadius.sm),
+      borderRadius: BorderRadius.circular(6),
       child: InkWell(
-        borderRadius: BorderRadius.circular(AppRadius.sm),
+        borderRadius: BorderRadius.circular(6),
         onTap: onTap,
         child: Container(
-          width: 36,
-          height: 36,
+          decoration: BoxDecoration(
+            borderRadius: BorderRadius.circular(6),
+            border: Border.all(
+              color: selected ? c.primary : c.divider,
+              width: 2,
+            ),
+          ),
           alignment: Alignment.center,
           child: Text(
             icon,
             style: TextStyle(
-              fontSize: 16,
-              color: selected ? (glyphIsWhite ? Colors.white : const Color(0xFF1A202C)) : c.text,
+              fontSize: 20,
+              color: selected
+                  ? (glyphIsWhite ? Colors.white : const Color(0xFF1A202C))
+                  : c.text,
             ),
           ),
         ),
@@ -1084,32 +1611,35 @@ class _ColorPick extends StatelessWidget {
   Widget build(BuildContext context) {
     final c = context.appColors;
     final isWhite = hex.toUpperCase() == '#FFFFFF';
+    // ponytail: 对齐 uniapp `.color-picker-grid { grid-template-columns: repeat(7, 1fr);
+    //          aspect-ratio: 1/1; min-height: 64rpx }`。去固定 32×32,让 circle 由
+    //          BoxShape.circle 自动内切 grid cell(每格 ~50px,内 circle ~46px)。
     return Material(
       color: Colors.transparent,
       child: InkWell(
-        borderRadius: BorderRadius.circular(20),
         onTap: onTap,
-        child: Container(
-          width: 32,
-          height: 32,
-          decoration: BoxDecoration(
-            color: _parseHex(hex),
-            shape: BoxShape.circle,
-            border: Border.all(
-              color: selected
-                  ? c.text
-                  : (isWhite ? c.divider : Colors.transparent),
-              width: selected ? 2 : 1,
+        child: Padding(
+          padding: const EdgeInsets.all(2),
+          child: Container(
+            decoration: BoxDecoration(
+              color: _parseHex(hex),
+              shape: BoxShape.circle,
+              border: Border.all(
+                color: selected
+                    ? c.text
+                    : (isWhite ? c.divider : Colors.transparent),
+                width: selected ? 2 : 1,
+              ),
             ),
+            alignment: Alignment.center,
+            child: selected
+                ? Icon(
+                    Icons.check,
+                    size: 18,
+                    color: isWhite ? c.text : Colors.white,
+                  )
+                : null,
           ),
-          alignment: Alignment.center,
-          child: selected
-              ? Icon(
-                  Icons.check,
-                  size: 18,
-                  color: isWhite ? c.text : Colors.white,
-                )
-              : null,
         ),
       ),
     );

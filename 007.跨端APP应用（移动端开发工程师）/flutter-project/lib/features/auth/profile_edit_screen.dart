@@ -1,5 +1,5 @@
 import 'dart:convert';
-import 'dart:io';
+import 'dart:typed_data';
 
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
@@ -11,11 +11,12 @@ import '../../core/api/models.dart';
 import '../../core/i18n/locale_provider.dart';
 import '../../core/router/app_router.dart';
 import '../../core/theme/tokens.dart';
+import '../shared/app_header.dart';
 import '../shared/auth_controller.dart';
 import '../shared/providers.dart';
-import '../shared/toast_controller.dart';
 
-/// 对齐 pages/profile/edit.vue — 头像 / 昵称 / 性别 / 年龄 / 修改密码。
+/// 对齐 uniapp pages/profile/edit.vue — 头像 / 昵称 / 性别 / 年龄 / 修改密码。
+/// 卡片结构(标题 + 描述 + 字段 + 内联提示 + 右下保存按钮)按 uniapp 同款视觉重建。
 class ProfileEditScreen extends ConsumerStatefulWidget {
   const ProfileEditScreen({super.key});
 
@@ -32,11 +33,21 @@ class _ProfileEditScreenState extends ConsumerState<ProfileEditScreen> {
   Gender? _gender;
   bool _saving = false;
   bool _changingPw = false;
-  // 头像预览:本地文件路径(用于 Image.file 渲染);保存后清空。
-  String? _avatarLocalPath;
+  // 头像预览 — 跨平台 bytes(用于 Image.memory),base64 dataURL 用于提交。
+  // ponytail: 之前 _avatarLocalPath + File().readAsBytes() 在 web 炸,
+  //          dart:io 在 Flutter Web 不可用(跟 export.dart 那个 _Namespace 错
+  //          同款)。改用 XFile.readAsBytes()(image_picker 自带 web 适配,
+  //          底层走 Blob 读取)+ Image.memory 渲染,完全脱离 dart:io。
+  Uint8List? _avatarBytes;
   String? _avatarBase64;
   bool _savingAvatar = false;
   final _picker = ImagePicker();
+
+  // ponytail: 内联 ok/err 提示替代 toast(uniapp 同款)。每段一组,_Kind=ok 表
+  //          示成功提示,err 表示校验/后端错误。保存动作会把前一段提示清掉。
+  _Msg? _avatarMsg;
+  _Msg? _profileMsg;
+  _Msg? _pwdMsg;
 
   @override
   void initState() {
@@ -61,19 +72,22 @@ class _ProfileEditScreenState extends ConsumerState<ProfileEditScreen> {
     final lang = I18n.of(context);
     final name = _nameCtrl.text.trim();
     if (name.isEmpty) {
-      ref.read(toastControllerProvider.notifier).show(lang.t('profileEdit.nameRequired'));
+      setState(() => _profileMsg = _Msg.err(lang.t('profileEdit.nameRequired')));
       return;
     }
     int? age;
     if (_ageCtrl.text.trim().isNotEmpty) {
       final parsed = int.tryParse(_ageCtrl.text.trim());
       if (parsed == null || parsed < 0 || parsed > 150) {
-        ref.read(toastControllerProvider.notifier).show(lang.t('profileEdit.ageInvalid'));
+        setState(() => _profileMsg = _Msg.err(lang.t('profileEdit.ageInvalid')));
         return;
       }
       age = parsed;
     }
-    setState(() => _saving = true);
+    setState(() {
+      _saving = true;
+      _profileMsg = null;
+    });
     try {
       await ref.read(usersApiProvider).updateProfile(
             UpdateProfileInput(
@@ -84,14 +98,23 @@ class _ProfileEditScreenState extends ConsumerState<ProfileEditScreen> {
           );
       await ref.read(authControllerProvider.notifier).me();
       if (!mounted) return;
-      ref.read(toastControllerProvider.notifier).show(lang.t('profileEdit.profileSaved'));
-      if (context.canPop()) context.pop();
+      setState(() {
+        _saving = false;
+        _profileMsg = _Msg.ok(lang.t('profileEdit.profileSaved'));
+      });
+      // ponytail: uniapp 用 goBack() 留在本页(展示"资料已保存"提示);
+      //          Flutter 之前 context.pop() 直接跳走,提示一闪就消失。保留
+      //          在本页,用户能直接看到 ok 提示。
     } catch (e) {
       if (!mounted) return;
-      setState(() => _saving = false);
-      ref.read(toastControllerProvider.notifier).show(
-            '${lang.t('profileEdit.saveFailDefault')} ${e is ApiException ? e.message : '$e'}',
-          );
+      setState(() {
+        _saving = false;
+        _profileMsg = _Msg.err(
+          e is ApiException
+              ? e.message
+              : '${lang.t('profileEdit.saveFailDefault')} $e',
+        );
+      });
     }
   }
 
@@ -101,30 +124,25 @@ class _ProfileEditScreenState extends ConsumerState<ProfileEditScreen> {
     final newPw = _newPwCtrl.text;
     final confirm = _confirmPwCtrl.text;
     if (old.isEmpty || newPw.isEmpty || confirm.isEmpty) {
-      ref.read(toastControllerProvider.notifier).show(
-            lang.t('profileEdit.passwordFillAll'),
-          );
+      setState(() => _pwdMsg = _Msg.err(lang.t('profileEdit.passwordFillAll')));
       return;
     }
     if (newPw.length < 8) {
-      ref.read(toastControllerProvider.notifier).show(
-            lang.t('profileEdit.passwordTooShort'),
-          );
+      setState(() => _pwdMsg = _Msg.err(lang.t('profileEdit.passwordTooShort')));
       return;
     }
     if (newPw != confirm) {
-      ref.read(toastControllerProvider.notifier).show(
-            lang.t('profileEdit.passwordMismatch'),
-          );
+      setState(() => _pwdMsg = _Msg.err(lang.t('profileEdit.passwordMismatch')));
       return;
     }
     if (newPw == old) {
-      ref.read(toastControllerProvider.notifier).show(
-            lang.t('profileEdit.passwordSame'),
-          );
+      setState(() => _pwdMsg = _Msg.err(lang.t('profileEdit.passwordSame')));
       return;
     }
-    setState(() => _changingPw = true);
+    setState(() {
+      _changingPw = true;
+      _pwdMsg = null;
+    });
     try {
       await ref
           .read(usersApiProvider)
@@ -133,14 +151,22 @@ class _ProfileEditScreenState extends ConsumerState<ProfileEditScreen> {
       // 对齐 uniapp handleChangePassword:改密后旧 token 视为失效 → 清掉并跳登录页。
       await ref.read(authControllerProvider.notifier).logout();
       if (!mounted) return;
+      // 清空密码字段避免回退到本页时看到残留值
+      _oldPwCtrl.clear();
+      _newPwCtrl.clear();
+      _confirmPwCtrl.clear();
       if (context.canPop()) context.pop();
       context.go(AppRoutes.login);
     } catch (e) {
       if (!mounted) return;
-      setState(() => _changingPw = false);
-      ref.read(toastControllerProvider.notifier).show(
-            '${lang.t('profileEdit.passwordChangeFailDefault')} ${e is ApiException ? e.message : '$e'}',
-          );
+      setState(() {
+        _changingPw = false;
+        _pwdMsg = _Msg.err(
+          e is ApiException
+              ? e.message
+              : '${lang.t('profileEdit.passwordChangeFailDefault')} $e',
+        );
+      });
     }
   }
 
@@ -154,21 +180,28 @@ class _ProfileEditScreenState extends ConsumerState<ProfileEditScreen> {
     );
     if (picked == null) return; // user cancelled
     try {
-      final bytes = await File(picked.path).readAsBytes();
+      // ponytail: 用 XFile.readAsBytes() 而不是 File(picked.path).readAsBytes()
+      //          —— image_picker 在 web 端 picked.path 是 blob:http://... URL,
+      //          不是真实路径,File() 来自 dart:io,在 web 编译期就不存在
+      //          (报 Unsupported operation: _Namespace)。XFile.readAsBytes()
+      //          自带 web Blob 读取实现,跨平台通用。
+      final bytes = await picked.readAsBytes();
       final b64 = 'data:image/jpeg;base64,${base64Encode(bytes)}';
       if (!mounted) return;
       setState(() {
-        _avatarLocalPath = picked.path;
+        _avatarBytes = bytes;
         _avatarBase64 = b64;
+        _avatarMsg = _Msg.ok(lang.t('profileEdit.avatarPreviewReady'));
       });
-      ref.read(toastControllerProvider.notifier).show(
-            lang.t('profileEdit.avatarPreviewReady'),
-          );
     } catch (e) {
       if (!mounted) return;
-      ref.read(toastControllerProvider.notifier).show(
-            '${lang.t('profileEdit.avatarReadFail')} ${e is ApiException ? e.message : '$e'}',
-          );
+      setState(() {
+        _avatarMsg = _Msg.err(
+          e is ApiException
+              ? e.message
+              : '${lang.t('profileEdit.avatarReadFail')} $e',
+        );
+      });
     }
   }
 
@@ -176,12 +209,13 @@ class _ProfileEditScreenState extends ConsumerState<ProfileEditScreen> {
     final lang = I18n.of(context);
     final b64 = _avatarBase64;
     if (b64 == null) {
-      ref.read(toastControllerProvider.notifier).show(
-            lang.t('profileEdit.avatarSelectFile'),
-          );
+      setState(() => _avatarMsg = _Msg.err(lang.t('profileEdit.avatarSelectFile')));
       return;
     }
-    setState(() => _savingAvatar = true);
+    setState(() {
+      _savingAvatar = true;
+      _avatarMsg = null;
+    });
     try {
       await ref
           .read(usersApiProvider)
@@ -189,20 +223,23 @@ class _ProfileEditScreenState extends ConsumerState<ProfileEditScreen> {
       await ref.read(authControllerProvider.notifier).me();
       if (!mounted) return;
       setState(() {
-        _avatarLocalPath = null;
+        _avatarBytes = null;
         _avatarBase64 = null;
         _savingAvatar = false;
+        _avatarMsg = _Msg.ok(lang.t('profileEdit.avatarUpdated'));
       });
-      ref.read(toastControllerProvider.notifier).show(
-            lang.t('profileEdit.avatarUpdated'),
-          );
-      if (context.canPop()) context.pop();
+      // 保留在本页展示"头像已更新",uniapp 同样 goBack 前先 set msg。
+      // 注:头像改动立刻生效(_avatarLocalPath 已清),用户能直接看到新头像。
     } catch (e) {
       if (!mounted) return;
-      setState(() => _savingAvatar = false);
-      ref.read(toastControllerProvider.notifier).show(
-            '${lang.t('profileEdit.saveFailDefault')} ${e is ApiException ? e.message : '$e'}',
-          );
+      setState(() {
+        _savingAvatar = false;
+        _avatarMsg = _Msg.err(
+          e is ApiException
+              ? e.message
+              : '${lang.t('profileEdit.saveFailDefault')} $e',
+        );
+      });
     }
   }
 
@@ -212,199 +249,216 @@ class _ProfileEditScreenState extends ConsumerState<ProfileEditScreen> {
     final auth = ref.watch(authControllerProvider);
     final c = context.appColors;
     return Scaffold(
-      appBar: AppBar(
-        title: Text(lang.t('profileEdit.title')),
-        leading: BackButton(onPressed: () => context.pop()),
+      appBar: AppHeader(
+        title: lang.t('profileEdit.title'),
+        back: true,
       ),
       body: ListView(
-        padding: const EdgeInsets.all(AppSpacing.lg),
+        padding: const EdgeInsets.fromLTRB(
+          AppSpacing.lg,
+          AppSpacing.lg,
+          AppSpacing.lg,
+          AppSpacing.xl,
+        ),
         children: [
-          // 头像(uniapp avatar section:大圆 + 上传按钮 + 保存按钮)
+          // ===== 头像卡 =====
           _SectionCard(
             title: lang.t('profileEdit.avatarSection'),
+            desc: lang.t('profileEdit.avatarDesc'),
             children: [
-              Padding(
-                padding: const EdgeInsets.all(AppSpacing.lg),
-                child: Column(
-                  children: [
-                    Text(
-                      lang.t('profileEdit.avatarDesc'),
-                      style: TextStyle(color: c.textVariant, fontSize: 12),
+              // ponytail: 头像区居中(uniapp .avatar-center:flex column align-items
+              //          center gap:24rpx),"上传新头像" 是 outline 按钮,跟截图一致。
+              Column(
+                children: [
+                  const SizedBox(height: AppSpacing.sm),
+                  Container(
+                    width: 120,
+                    height: 120,
+                    decoration: BoxDecoration(
+                      color: c.primaryLight,
+                      shape: BoxShape.circle,
                     ),
-                    const SizedBox(height: AppSpacing.lg),
-                    Container(
-                      width: 120,
-                      height: 120,
-                      decoration: BoxDecoration(
-                        color: c.primaryLight,
-                        shape: BoxShape.circle,
-                      ),
-                      clipBehavior: Clip.antiAlias,
-                      alignment: Alignment.center,
-                      child: _avatarLocalPath != null
-                          ? Image.file(
-                              File(_avatarLocalPath!),
-                              fit: BoxFit.cover,
-                              width: 120,
-                              height: 120,
-                            )
-                          : (auth.user?.avatar != null &&
-                                  auth.user!.avatar!.isNotEmpty)
-                              ? Image.network(
-                                  auth.user!.avatar!,
-                                  fit: BoxFit.cover,
-                                  width: 120,
-                                  height: 120,
-                                  errorBuilder: (_, __, ___) => Text(
-                                    '👤',
-                                    style: TextStyle(fontSize: 60, color: c.primary),
-                                  ),
-                                )
-                              : Text(
+                    clipBehavior: Clip.antiAlias,
+                    alignment: Alignment.center,
+                    child: _avatarBytes != null
+                        ? Image.memory(
+                            _avatarBytes!,
+                            fit: BoxFit.cover,
+                            width: 120,
+                            height: 120,
+                          )
+                        : (auth.user?.avatar != null &&
+                                auth.user!.avatar!.isNotEmpty)
+                            ? Image.network(
+                                auth.user!.avatar!,
+                                fit: BoxFit.cover,
+                                width: 120,
+                                height: 120,
+                                errorBuilder: (_, __, ___) => Text(
                                   '👤',
-                                  style: TextStyle(fontSize: 60, color: c.primary),
+                                  style: TextStyle(
+                                    fontSize: 60,
+                                    color: c.primary,
+                                  ),
                                 ),
+                              )
+                            : Text(
+                                '👤',
+                                style: TextStyle(
+                                  fontSize: 60,
+                                  color: c.primary,
+                                ),
+                              ),
+                  ),
+                  const SizedBox(height: AppSpacing.lg),
+                  // ponytail: uniapp .btn-outline 是 inline-flex + padding 0 32rpx,
+                  //          wrap 在文字宽度(Material 默认 OutlinedButton.icon
+                  //          会因 minimumSize.fromHeight 把 width 撑成全宽)。
+                  //          这里去 minimumSize,用 padding 控制垂直高度,
+                  //          让按钮只占文字宽度居中。
+                  OutlinedButton.icon(
+                    onPressed: _pickAvatar,
+                    icon: const Text(
+                      '⬆️',
+                      style: TextStyle(fontSize: 18),
                     ),
-                    const SizedBox(height: AppSpacing.lg),
-                    OutlinedButton.icon(
-                      onPressed: _pickAvatar,
-                      icon: const Text('⬆️'),
-                      label: Text(lang.t('profileEdit.uploadAvatar')),
-                      style: OutlinedButton.styleFrom(
-                        minimumSize: const Size.fromHeight(44),
-                        side: BorderSide(color: c.divider),
+                    label: Text(lang.t('profileEdit.uploadAvatar')),
+                    style: OutlinedButton.styleFrom(
+                      padding: const EdgeInsets.symmetric(
+                        horizontal: AppSpacing.lg,
+                        vertical: AppSpacing.sm,
+                      ),
+                      side: BorderSide(color: c.divider),
+                      shape: RoundedRectangleBorder(
+                        borderRadius: BorderRadius.circular(AppRadius.sm),
                       ),
                     ),
-                    const SizedBox(height: AppSpacing.lg),
-                    FilledButton(
-                      onPressed:
-                          (_savingAvatar || _avatarBase64 == null) ? null : _saveAvatar,
-                      style: FilledButton.styleFrom(
-                        minimumSize: const Size.fromHeight(48),
-                      ),
-                      child: Text(
-                        _savingAvatar
-                            ? lang.t('profileEdit.saving')
-                            : lang.t('profileEdit.saveAvatar'),
-                      ),
-                    ),
+                  ),
+                  if (_avatarMsg != null) ...[
+                    const SizedBox(height: AppSpacing.md),
+                    _MsgBadge(msg: _avatarMsg!),
                   ],
+                ],
+              ),
+              const SizedBox(height: AppSpacing.lg),
+              // 卡片底部:分割线 + 右下保存按钮(uniapp .card-footer)。
+              Container(
+                height: 1,
+                color: c.divider,
+              ),
+              const SizedBox(height: AppSpacing.md),
+              Align(
+                alignment: Alignment.centerRight,
+                child: _PrimaryButton(
+                  label: lang.t('profileEdit.saveAvatar'),
+                  busy: _savingAvatar,
+                  disabled: _savingAvatar || _avatarBase64 == null,
+                  onTap: _saveAvatar,
                 ),
               ),
             ],
           ),
           const SizedBox(height: AppSpacing.lg),
+          // ===== 个人资料卡 =====
           _SectionCard(
             title: lang.t('profileEdit.profileSection'),
+            desc: lang.t('profileEdit.profileDesc'),
             children: [
-              Padding(
-                padding: const EdgeInsets.all(AppSpacing.lg),
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.stretch,
-                  children: [
-                    TextField(
-                      controller: _nameCtrl,
-                      decoration: InputDecoration(
-                        labelText: lang.t('profileEdit.displayName'),
-                        hintText: lang.t('profileEdit.displayNamePlaceholder'),
-                        border: const OutlineInputBorder(),
-                      ),
-                    ),
-                    const SizedBox(height: AppSpacing.md),
-                    DropdownButtonFormField<Gender>(
-                      initialValue: _gender,
-                      decoration: InputDecoration(
-                        labelText: lang.t('profileEdit.gender'),
-                        border: const OutlineInputBorder(),
-                      ),
-                      items: Gender.values
-                          .map(
-                            (g) => DropdownMenuItem(
-                              value: g,
-                              child: Text(lang.t('profileEdit.gender.${g.name}')),
-                            ),
-                          )
-                          .toList(),
-                      onChanged: (g) => setState(() => _gender = g),
-                    ),
-                    const SizedBox(height: AppSpacing.md),
-                    TextField(
-                      controller: _ageCtrl,
-                      keyboardType: TextInputType.number,
-                      decoration: InputDecoration(
-                        labelText: lang.t('profileEdit.age'),
-                        hintText: lang.t('profileEdit.agePlaceholder'),
-                        border: const OutlineInputBorder(),
-                      ),
-                    ),
-                    const SizedBox(height: AppSpacing.md),
-                    FilledButton(
-                      onPressed: _saving ? null : _saveProfile,
-                      style: FilledButton.styleFrom(
-                        minimumSize: const Size.fromHeight(48),
-                      ),
-                      child: Text(
-                        _saving
-                            ? lang.t('profileEdit.saving')
-                            : lang.t('profileEdit.saveProfile'),
-                      ),
-                    ),
-                  ],
+              _Field(
+                label: lang.t('profileEdit.displayName'),
+                child: _IconInput(
+                  icon: '👤',
+                  controller: _nameCtrl,
+                  hint: lang.t('profileEdit.displayNamePlaceholder'),
+                ),
+              ),
+              const SizedBox(height: AppSpacing.lg),
+              _Field(
+                label: lang.t('profileEdit.gender'),
+                child: _GenderRow(
+                  current: _gender,
+                  maleLabel: lang.t('profileEdit.gender.male'),
+                  femaleLabel: lang.t('profileEdit.gender.female'),
+                  onChange: (g) => setState(() => _gender = g),
+                ),
+              ),
+              const SizedBox(height: AppSpacing.lg),
+              _Field(
+                label: lang.t('profileEdit.age'),
+                child: _IconInput(
+                  icon: '🎂',
+                  controller: _ageCtrl,
+                  hint: lang.t('profileEdit.agePlaceholder'),
+                  keyboardType: TextInputType.number,
+                ),
+              ),
+              if (_profileMsg != null) ...[
+                const SizedBox(height: AppSpacing.md),
+                _MsgBadge(msg: _profileMsg!),
+              ],
+              const SizedBox(height: AppSpacing.lg),
+              Container(height: 1, color: c.divider),
+              const SizedBox(height: AppSpacing.md),
+              Align(
+                alignment: Alignment.centerRight,
+                child: _PrimaryButton(
+                  label: lang.t('profileEdit.saveProfile'),
+                  busy: _saving,
+                  disabled: _saving,
+                  onTap: _saveProfile,
                 ),
               ),
             ],
           ),
           const SizedBox(height: AppSpacing.lg),
+          // ===== 安全设置卡 =====
           _SectionCard(
             title: lang.t('profileEdit.securitySection'),
+            desc: lang.t('profileEdit.securityDesc'),
             children: [
-              Padding(
-                padding: const EdgeInsets.all(AppSpacing.lg),
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.stretch,
-                  children: [
-                    TextField(
-                      controller: _oldPwCtrl,
-                      obscureText: true,
-                      decoration: InputDecoration(
-                        labelText: lang.t('profileEdit.oldPassword'),
-                        hintText: lang.t('profileEdit.oldPasswordPlaceholder'),
-                        border: const OutlineInputBorder(),
-                      ),
-                    ),
-                    const SizedBox(height: AppSpacing.md),
-                    TextField(
-                      controller: _newPwCtrl,
-                      obscureText: true,
-                      decoration: InputDecoration(
-                        labelText: lang.t('profileEdit.newPassword'),
-                        hintText: lang.t('profileEdit.newPasswordPlaceholder'),
-                        border: const OutlineInputBorder(),
-                      ),
-                    ),
-                    const SizedBox(height: AppSpacing.md),
-                    TextField(
-                      controller: _confirmPwCtrl,
-                      obscureText: true,
-                      decoration: InputDecoration(
-                        labelText: lang.t('profileEdit.confirmPassword'),
-                        hintText: lang.t('profileEdit.confirmPasswordPlaceholder'),
-                        border: const OutlineInputBorder(),
-                      ),
-                    ),
-                    const SizedBox(height: AppSpacing.md),
-                    FilledButton(
-                      onPressed: _changingPw ? null : _changePassword,
-                      style: FilledButton.styleFrom(
-                        minimumSize: const Size.fromHeight(48),
-                      ),
-                      child: Text(
-                        _changingPw
-                            ? lang.t('profileEdit.saving')
-                            : lang.t('profileEdit.savePassword'),
-                      ),
-                    ),
-                  ],
+              _Field(
+                label: lang.t('profileEdit.oldPassword'),
+                child: _IconInput(
+                  icon: '🔒',
+                  controller: _oldPwCtrl,
+                  hint: lang.t('profileEdit.oldPasswordPlaceholder'),
+                  obscure: true,
+                ),
+              ),
+              const SizedBox(height: AppSpacing.lg),
+              _Field(
+                label: lang.t('profileEdit.newPassword'),
+                child: _IconInput(
+                  icon: '🔑',
+                  controller: _newPwCtrl,
+                  hint: lang.t('profileEdit.newPasswordPlaceholder'),
+                  obscure: true,
+                ),
+              ),
+              const SizedBox(height: AppSpacing.lg),
+              _Field(
+                label: lang.t('profileEdit.confirmPassword'),
+                child: _IconInput(
+                  icon: '🛡️',
+                  controller: _confirmPwCtrl,
+                  hint: lang.t('profileEdit.confirmPasswordPlaceholder'),
+                  obscure: true,
+                ),
+              ),
+              if (_pwdMsg != null) ...[
+                const SizedBox(height: AppSpacing.md),
+                _MsgBadge(msg: _pwdMsg!),
+              ],
+              const SizedBox(height: AppSpacing.lg),
+              Container(height: 1, color: c.divider),
+              const SizedBox(height: AppSpacing.md),
+              Align(
+                alignment: Alignment.centerRight,
+                child: _PrimaryButton(
+                  label: lang.t('profileEdit.savePassword'),
+                  busy: _changingPw,
+                  disabled: _changingPw,
+                  onTap: _changePassword,
                 ),
               ),
             ],
@@ -415,15 +469,68 @@ class _ProfileEditScreenState extends ConsumerState<ProfileEditScreen> {
   }
 }
 
+// ===== 内联提示(对齐 uniapp .msg / .msg-ok / .msg-err) =====
+
+class _Msg {
+  const _Msg(this.kind, this.text);
+  factory _Msg.ok(String t) => _Msg(true, t);
+  factory _Msg.err(String t) => _Msg(false, t);
+  final bool kind; // true=ok, false=err
+  final String text;
+}
+
+class _MsgBadge extends StatelessWidget {
+  const _MsgBadge({required this.msg});
+  final _Msg msg;
+
+  @override
+  Widget build(BuildContext context) {
+    final c = context.appColors;
+    final ok = msg.kind;
+    return Container(
+      width: double.infinity,
+      padding: const EdgeInsets.symmetric(
+        horizontal: AppSpacing.md,
+        vertical: AppSpacing.sm,
+      ),
+      decoration: BoxDecoration(
+        // ponytail: tokens 里没有 secondaryContainer/errorContainer,沿用
+        //          primaryLight(成功)/error 13% alpha(失败),跟整套卡片
+        //          视觉一致。
+        color: ok
+            ? c.primaryLight
+            : c.error.withValues(alpha: 0.12),
+        borderRadius: BorderRadius.circular(AppSpacing.sm),
+      ),
+      child: Text(
+        msg.text,
+        style: TextStyle(
+          color: ok ? c.primary : c.error,
+          fontSize: 12,
+        ),
+      ),
+    );
+  }
+}
+
+// ===== 卡片容器(对齐 uniapp .card + .section-header { title 16 w700 + desc 13 variant }) =====
+
 class _SectionCard extends StatelessWidget {
-  const _SectionCard({required this.title, required this.children});
+  const _SectionCard({
+    required this.title,
+    required this.desc,
+    required this.children,
+  });
   final String title;
+  final String desc;
   final List<Widget> children;
 
   @override
   Widget build(BuildContext context) {
     final c = context.appColors;
     return Container(
+      // ponytail: padding 16 → 12 对齐 uniapp .card padding: 24rpx ≈ 12px。
+      padding: const EdgeInsets.all(12),
       decoration: BoxDecoration(
         color: c.bgCard,
         borderRadius: BorderRadius.circular(AppRadius.md),
@@ -432,24 +539,317 @@ class _SectionCard extends StatelessWidget {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.stretch,
         children: [
-          Padding(
-            padding: const EdgeInsets.fromLTRB(
-              AppSpacing.lg,
-              AppSpacing.md,
-              AppSpacing.lg,
-              AppSpacing.xs,
+          // ponytail: title 16 w700 + desc 12 variant 紧贴(uniapp .section-title
+          //          font-size:32rpx = 16px w700;.section-desc font-size:26rpx
+          //          ≈ 13px variant)。
+          Text(
+            title,
+            style: TextStyle(
+              color: c.text,
+              fontSize: 16,
+              fontWeight: FontWeight.w700,
             ),
-            child: Text(
-              title,
-              style: TextStyle(
-                color: c.textVariant,
-                fontSize: 13,
-                fontWeight: FontWeight.w500,
+          ),
+          const SizedBox(height: 4),
+          Text(
+            desc,
+            style: TextStyle(color: c.textVariant, fontSize: 12),
+          ),
+          // ponytail: 20rpx ≈ 10px(uniapp .section-header margin-bottom:20rpx),
+          //          之前 AppSpacing.lg=16 偏大。
+          const SizedBox(height: 10),
+          ...children,
+        ],
+      ),
+    );
+  }
+}
+
+// ===== 字段(label + 子控件,uniapp .field) =====
+
+class _Field extends StatelessWidget {
+  const _Field({required this.label, required this.child});
+  final String label;
+  final Widget child;
+
+  @override
+  Widget build(BuildContext context) {
+    final c = context.appColors;
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        // label 16 w600(uniapp .field-label font-size:32rpx w600)
+        Text(
+          label,
+          style: TextStyle(
+            color: c.text,
+            fontSize: 14,
+            fontWeight: FontWeight.w600,
+          ),
+        ),
+        const SizedBox(height: 6),
+        child,
+      ],
+    );
+  }
+}
+
+// ===== 自定义 input(对齐 uniapp .input-wrap + .input-icon-box + .text-input) =====
+
+class _IconInput extends StatelessWidget {
+  const _IconInput({
+    required this.icon,
+    required this.controller,
+    required this.hint,
+    this.obscure = false,
+    this.keyboardType,
+  });
+  final String icon;
+  final TextEditingController controller;
+  final String hint;
+  final bool obscure;
+  final TextInputType? keyboardType;
+
+  @override
+  Widget build(BuildContext context) {
+    final c = context.appColors;
+    return Container(
+      // ponytail: 高度 48 → 44 对齐 uniapp .text-input height: 88rpx ≈ 44px。
+      height: 44,
+      decoration: BoxDecoration(
+        color: c.bg,
+        borderRadius: BorderRadius.circular(AppRadius.sm),
+        border: Border.all(color: c.divider),
+      ),
+      child: Stack(
+        children: [
+          // ponytail: leading 44px icon 盒(uniapp .input-icon-box width:88rpx≈44px)
+          Positioned(
+            left: 0,
+            top: 0,
+            bottom: 0,
+            width: 44,
+            child: Center(
+              child: Text(
+                icon,
+                style: const TextStyle(fontSize: 20, height: 1),
               ),
             ),
           ),
-          ...children,
+          // TextField 走 prefixIcon 槽位,自动占 44px 宽不重叠
+          TextField(
+            controller: controller,
+            obscureText: obscure,
+            keyboardType: keyboardType,
+            style: TextStyle(color: c.text, fontSize: 14),
+            decoration: InputDecoration(
+              hintText: hint,
+              hintStyle: TextStyle(color: c.textVariant, fontSize: 14),
+              border: InputBorder.none,
+              enabledBorder: InputBorder.none,
+              focusedBorder: InputBorder.none,
+              isDense: true,
+              // ponytail: vertical:14 让 14px 文字视觉中心对齐 emoji 视觉中心。
+              //          没设 vertical 时 TextField 默认 baseline 渲染,文字顶到
+              //          Container 顶部,emoji 在几何中心(22px),看起来文字偏高。
+              //          14 + textHeight(17) + 14 ≈ 45,略超 44,Flutter 让
+              //          isDense 折叠到最小 → 文字视觉中心 y≈21,跟 emoji y=22
+              //          基本对齐。
+              contentPadding: const EdgeInsets.symmetric(
+                horizontal: AppSpacing.md,
+                vertical: 14,
+              ),
+              prefixIconConstraints: const BoxConstraints.tightFor(
+                width: 44,
+                height: 44,
+              ),
+              // 用 prefixIcon 占据空间让文本从 44px 后开始,emoji 自己再画一层
+              prefixIcon: const SizedBox.shrink(),
+            ),
+          ),
+          // 覆盖在 prefixIcon 位置的真实 emoji(避开 TextField prefixIcon 槽位
+          // 强制 IconButton,emoji 会变形)。Stack + Positioned 控制准确位置。
+          Positioned(
+            left: 0,
+            top: 0,
+            bottom: 0,
+            width: 44,
+            child: IgnorePointer(
+              child: Center(
+                child: Text(
+                  icon,
+                  style: const TextStyle(fontSize: 20, height: 1),
+                ),
+              ),
+            ),
+          ),
         ],
+      ),
+    );
+  }
+}
+
+// ===== 性别两段(对齐 uniapp .gender-row + .gender-btn) =====
+
+class _GenderRow extends StatelessWidget {
+  const _GenderRow({
+    required this.current,
+    required this.maleLabel,
+    required this.femaleLabel,
+    required this.onChange,
+  });
+  final Gender? current;
+  final String maleLabel;
+  final String femaleLabel;
+  final ValueChanged<Gender> onChange;
+
+  @override
+  Widget build(BuildContext context) {
+    return Row(
+      children: [
+        Expanded(
+          child: _GenderBtn(
+            label: maleLabel,
+            icon: '♂',
+            active: current == Gender.male,
+            onTap: () => onChange(Gender.male),
+          ),
+        ),
+        const SizedBox(width: AppSpacing.md),
+        Expanded(
+          child: _GenderBtn(
+            label: femaleLabel,
+            icon: '♀',
+            active: current == Gender.female,
+            onTap: () => onChange(Gender.female),
+          ),
+        ),
+      ],
+    );
+  }
+}
+
+class _GenderBtn extends StatelessWidget {
+  const _GenderBtn({
+    required this.label,
+    required this.icon,
+    required this.active,
+    required this.onTap,
+  });
+  final String label;
+  final String icon;
+  final bool active;
+  final VoidCallback onTap;
+
+  @override
+  Widget build(BuildContext context) {
+    final c = context.appColors;
+    return Material(
+      color: active ? c.primaryLight : c.bg,
+      borderRadius: BorderRadius.circular(AppRadius.sm),
+      child: InkWell(
+        borderRadius: BorderRadius.circular(AppRadius.sm),
+        onTap: onTap,
+        child: Container(
+          // ponytail: 高度 48 → 44 对齐 uniapp .gender-btn height: 88rpx。
+          height: 44,
+          alignment: Alignment.center,
+          decoration: BoxDecoration(
+            borderRadius: BorderRadius.circular(AppRadius.sm),
+            border: Border.all(
+              color: active ? c.primary : c.divider,
+              width: active ? 2 : 1,
+            ),
+          ),
+          child: Row(
+            mainAxisAlignment: MainAxisAlignment.center,
+            children: [
+              Text(
+                icon,
+                style: TextStyle(
+                  fontSize: 20,
+                  height: 1,
+                  // ponytail: uniapp .gender-btn 默认 color: var(--c-text),
+                  //          .mat-icon 不覆盖 color,符号继承按钮文字色。
+                  //          之前 textVariant(浅灰)在截图里偏淡,改 text。
+                  color: active ? c.primary : c.text,
+                ),
+              ),
+              const SizedBox(width: 6),
+              Text(
+                label,
+                style: TextStyle(
+                  color: active ? c.primary : c.text,
+                  fontSize: 14,
+                  fontWeight: active ? FontWeight.w600 : FontWeight.w500,
+                ),
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+}
+
+// ===== 主按钮(对齐 uniapp .btn-primary:primary bg + 白字 + 右下 + 忙时转圈) =====
+
+class _PrimaryButton extends StatelessWidget {
+  const _PrimaryButton({
+    required this.label,
+    required this.busy,
+    required this.disabled,
+    required this.onTap,
+  });
+  final String label;
+  final bool busy;
+  final bool disabled;
+  final VoidCallback onTap;
+
+  @override
+  Widget build(BuildContext context) {
+    final c = context.appColors;
+    return Opacity(
+      opacity: disabled ? 0.6 : 1.0,
+      child: Material(
+        color: c.primary,
+        borderRadius: BorderRadius.circular(AppRadius.sm),
+        child: InkWell(
+          borderRadius: BorderRadius.circular(AppRadius.sm),
+          onTap: disabled ? null : onTap,
+          child: Container(
+            // ponytail: 高度 48px(uniapp .btn-primary height:80rpx ≈ 40px;
+            //          Flutter 上 40 偏矮放不下 16px 字 + spinner,提到 48)。
+            padding: const EdgeInsets.symmetric(
+              horizontal: AppSpacing.lg,
+              vertical: AppSpacing.sm,
+            ),
+            child: Row(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                if (busy) ...[
+                  const SizedBox(
+                    width: 14,
+                    height: 14,
+                    child: CircularProgressIndicator(
+                      strokeWidth: 2,
+                      valueColor: AlwaysStoppedAnimation(Colors.white),
+                    ),
+                  ),
+                  const SizedBox(width: AppSpacing.sm),
+                ],
+                Text(
+                  label,
+                  style: const TextStyle(
+                    color: Colors.white,
+                    fontSize: 14,
+                    fontWeight: FontWeight.w600,
+                  ),
+                ),
+              ],
+            ),
+          ),
+        ),
       ),
     );
   }

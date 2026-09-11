@@ -10,6 +10,7 @@ import '../../core/api/reports_api.dart';
 import '../../core/api/users_api.dart';
 import '../../core/api/version_api.dart';
 import '../../core/storage/prefs.dart';
+import '../../core/utils/export.dart';
 import 'book_controller.dart';
 
 /// 全局 ApiClient — 单例,由 main 注入 baseUrl + prefs 后用 override。
@@ -25,6 +26,15 @@ final categoriesApiProvider = Provider<CategoriesApi>((ref) => CategoriesApi(ref
 final recordsApiProvider = Provider<RecordsApi>((ref) => RecordsApi(ref.watch(apiClientProvider)));
 final reportsApiProvider = Provider<ReportsApi>((ref) => ReportsApi(ref.watch(apiClientProvider)));
 final versionApiProvider = Provider<VersionApi>((ref) => VersionApi(ref.watch(apiClientProvider)));
+
+/// Excel 导出服务 — 我的页 / 数据管理用。
+final exportServiceProvider = Provider<ExportService>((ref) {
+  return ExportService(
+    records: ref.watch(recordsApiProvider),
+    accounts: ref.watch(accountsApiProvider),
+    categories: ref.watch(categoriesApiProvider),
+  );
+});
 
 /// Prefs 单例 — 由 main 注入 Prefs.getInstance()。
 final prefsProvider = Provider<Prefs>((ref) {

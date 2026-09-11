@@ -115,6 +115,31 @@
         }
         return _origWarn.apply(console, arguments);
       };
+
+      // === 过滤 CanvasKit WebGL shader 编译错误噪音 ===
+      // canvaskit.js:177 在每次 shader 编译失败时会 console.error 多行:
+      //   "Errors:" / "(unknown error)" / "Shader compilation error"
+      //   / 完整 GLSL ES 300 shader 源码 + "---" 分隔。
+      // 通常是 GPU driver / 浏览器 ANGLE 后端 / WebGL 扩展缺失导致编译拒收,
+      // 跟字体/网络无关。真因排查:chrome://gpu 看 WebGL2 状态;
+      // 启动 Chrome 加 --use-gl=swiftshader 或 --disable-gpu 走软渲染兜底。
+      // 这里只过滤噪音不让 console 刷屏,不掩盖真错误。
+      var _origErr = console.error.bind(console);
+      console.error = function () {
+        // canvaskit 一次性输出 30+ 行 arguments,遍历所有找关键字
+        for (var i = 0; i < arguments.length; i++) {
+          var a = arguments[i];
+          if (typeof a === 'string' && a.indexOf('Shader compilation error') !== -1) {
+            return; // 整条吞掉
+          }
+          // canvaskit 还会在 error 对象 .message 里报同样的事
+          if (a && a.message && typeof a.message === 'string' &&
+              a.message.indexOf('Shader compilation error') !== -1) {
+            return;
+          }
+        }
+        return _origErr.apply(console, arguments);
+      };
     })();
   </script>
   <!--

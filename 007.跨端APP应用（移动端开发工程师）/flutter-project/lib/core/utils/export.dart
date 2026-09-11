@@ -1,14 +1,16 @@
-import 'dart:io';
 import 'dart:typed_data';
 
 import 'package:excel/excel.dart';
-import 'package:path_provider/path_provider.dart';
-import 'package:share_plus/share_plus.dart';
 
 import '../api/accounts_api.dart';
 import '../api/categories_api.dart';
 import '../api/models.dart';
 import '../api/records_api.dart';
+// ponytail: 平台分流 — web 走 dart:html Blob 下载,android/ios 走 share_plus。
+//          dart.library.html 编译期检查,web build 才把 _share_web.dart 编进去;
+//          否则 _share_io.dart 编进去。这样 export.dart 自身不用 kIsWeb 分支,
+//          也不需要把 dart:html import 在非 web 编译时报错。
+import '_share_io.dart' if (dart.library.html) '_share_web.dart';
 
 /// 对齐 utils/export.ts — Excel 导出(月报 / 按分类 / 全部)。
 /// Web 平台:返回字节流,由调用方通过 dart:html 触发下载。
@@ -109,17 +111,8 @@ class ExportService {
           },
       ];
 
-  Future<void> _shareBytes(Uint8List bytes, String filename) async {
-    if (Platform.isAndroid || Platform.isIOS) {
-      final dir = await getTemporaryDirectory();
-      final f = File('${dir.path}/$filename');
-      await f.writeAsBytes(bytes);
-      await Share.shareXFiles([XFile(f.path)], text: filename);
-    } else {
-      // Web / desktop fallback — 调用方处理。
-      throw UnsupportedError('Use writeBytes on this platform');
-    }
-  }
+  Future<void> _shareBytes(Uint8List bytes, String filename) =>
+      writeBytesForExport(bytes, filename);
 
   /// 导出本月报表。
   Future<void> exportMonthly() async {

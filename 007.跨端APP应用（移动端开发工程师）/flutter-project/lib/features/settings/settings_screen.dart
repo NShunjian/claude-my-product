@@ -174,11 +174,17 @@ class _UserCard extends StatelessWidget {
           const SizedBox(height: AppSpacing.lg),
           SizedBox(
             width: double.infinity,
+            height: 50,
             child: OutlinedButton(
               onPressed: () => context.push(AppRoutes.profileEdit),
               style: OutlinedButton.styleFrom(
                 side: BorderSide(color: c.divider),
-                padding: const EdgeInsets.symmetric(vertical: AppSpacing.md),
+                // ponytail: 高度直接钉 50px(用户指定)。去掉 Material 默认 48px
+                //          tap target 撑高,uniapp .btn-outline 总高约 38px,
+                //          这里用户要求对齐 50。
+                tapTargetSize: MaterialTapTargetSize.shrinkWrap,
+                minimumSize: const Size(0, 50),
+                padding: EdgeInsets.zero,
                 shape: RoundedRectangleBorder(
                   borderRadius: BorderRadius.circular(AppRadius.sm),
                 ),

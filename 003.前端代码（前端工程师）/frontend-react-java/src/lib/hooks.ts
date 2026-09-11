@@ -84,11 +84,11 @@ export const RECORDS_CHANGED_EVENT = 'qingzhang:records-changed'
 /** 账本变更事件名:创建/删除/邀请成员/切账本成功后 dispatch;hook 监听后 reload */
 export const BOOK_CHANGED_EVENT = 'qingzhang:book-changed'
 
-export function useAccounts() {
+export function useAccounts(opts: { includeArchived?: boolean } = {}) {
   const { currentBook } = useCurrentBook()
   return useAsync<Account[]>(
-    () => accountsApi.listAccounts({ bookId: currentBook?.uuid }),
-    [currentBook?.uuid],
+    () => accountsApi.listAccounts({ bookId: currentBook?.uuid, includeArchived: opts.includeArchived }),
+    [currentBook?.uuid, opts.includeArchived],
     [RECORDS_CHANGED_EVENT, 'qingzhang:book-changed'],
   )
 }

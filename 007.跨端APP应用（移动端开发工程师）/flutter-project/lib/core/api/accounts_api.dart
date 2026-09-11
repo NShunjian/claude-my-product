@@ -5,10 +5,16 @@ class AccountsApi {
   AccountsApi(this._c);
   final ApiClient _c;
 
-  Future<List<Account>> listAccounts({String? bookId}) async {
+  Future<List<Account>> listAccounts({
+    String? bookId,
+    bool includeArchived = false,
+  }) async {
+    final q = <String, String>{};
+    if (bookId != null) q['bookId'] = bookId;
+    if (includeArchived) q['includeArchived'] = 'true';
     final env = await _c.get<Map<String, dynamic>>(
       '/api/accounts',
-      query: bookId != null ? {'bookId': bookId} : null,
+      query: q.isEmpty ? null : q,
     );
     final items = (env['items'] as List? ?? []).cast<Map<String, dynamic>>();
     return items.map(Account.fromJson).toList();
@@ -36,4 +42,10 @@ class AccountsApi {
   }
 
   Future<void> deleteAccount(String id) => _c.delete('/api/accounts/$id');
+
+  /// 归档账户 —— 隐藏不显示,records / balance / 报表全部保留
+  Future<void> archiveAccount(String id) => _c.post('/api/accounts/$id/archive');
+
+  /// 取消归档
+  Future<void> unarchiveAccount(String id) => _c.delete('/api/accounts/$id/archive');
 }

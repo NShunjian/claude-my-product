@@ -227,6 +227,7 @@ class Account {
     required this.balance,
     required this.currency,
     required this.isDefault,
+    required this.isArchived,
     required this.sortOrder,
     this.note,
     required this.createdAt,
@@ -240,6 +241,8 @@ class Account {
   final double balance;
   final String currency;
   final bool isDefault;
+  /// 已归档账户：true 表示隐藏,records 仍生效、报表仍计入
+  final bool isArchived;
   final int sortOrder;
   final String? note;
   final String createdAt;
@@ -253,6 +256,7 @@ class Account {
         balance: _numToDouble(json['balance']),
         currency: json['currency'] as String? ?? 'CNY',
         isDefault: json['isDefault'] as bool? ?? false,
+        isArchived: json['isArchived'] as bool? ?? false,
         sortOrder: json['sortOrder'] as int? ?? 0,
         note: json['note'] as String?,
         createdAt: json['createdAt'] as String,

@@ -34,6 +34,9 @@ public class AccountsService {
     private static final int CODE_ACCOUNT_HAS_RECORDS     = 3002;
     private static final int CODE_CURRENCY_MISMATCH       = 3003;
     private static final int CODE_ACCOUNT_BOOK_NOT_FOUND  = 3031;
+    private static final int CODE_ACCOUNT_ALREADY_ARCHIVED = 3032;
+    private static final int CODE_ACCOUNT_NOT_ARCHIVED    = 3033;
+    private static final int CODE_ACCOUNT_BOOK_DELETED    = 3034;
 
     private final AccountMapper accountMapper;
     private final BooksService booksService;
@@ -43,12 +46,17 @@ public class AccountsService {
         this.booksService = booksService;
     }
 
-    /** 列表:可按 bookId uuid 过滤(bookId 为空/blank 时返回用户所有账本下的账户)。 */
-    public List<AccountResponse> list(long userId, String bookUuid) {
+    /**
+     * 列表:可按 bookId uuid 过滤(bookId 为空/blank 时返回用户所有账本下的账户)。
+     * includeArchived=false(默认)时,只返回未归档账户;
+     * includeArchived=true 时,返回全部(含已归档)。
+     */
+    public List<AccountResponse> list(long userId, String bookUuid, boolean includeArchived) {
         Long bookId = resolveBookId(userId, bookUuid);
         var q = Wrappers.<Account>lambdaQuery()
                 .eq(Account::getUserId, userId)
                 .eq(bookId != null, Account::getBookId, bookId)
+                .eq(!includeArchived, Account::getIsArchived, (byte) 0)
                 .orderByAsc(Account::getSortOrder);
         return accountMapper.selectList(q).stream()
                 .map(this::toResponseFromAccount)
@@ -154,6 +162,37 @@ public class AccountsService {
         accountMapper.deleteById(a.getId());
     }
 
+    /**
+     * 归档账户。归档不影响 records、不影响 current_balance、不影响报表。
+     * 只是把账户从 UI 列表默认隐藏,需要查 includeArchived=true 才能看到。
+     */
+    @Transactional(rollbackFor = Exception.class)
+    public void archive(long userId, String uuid) {
+        Account a = mustOwned(userId, uuid);
+        if (a.getIsArchived() != null && a.getIsArchived() == 1) {
+            throw new BizException(CODE_ACCOUNT_ALREADY_ARCHIVED, "账户已归档");
+        }
+        a.setIsArchived((byte) 1);
+        a.setUpdatedAt(Instant.now());
+        accountMapper.updateById(a);
+    }
+
+    /**
+     * 取消归档。若账户已被软删,无法恢复,要求先恢复账本。
+     */
+    @Transactional(rollbackFor = Exception.class)
+    public void unarchive(long userId, String uuid) {
+        Account a = mustOwned(userId, uuid);
+        if (a.getIsArchived() == null || a.getIsArchived() == 0) {
+            throw new BizException(CODE_ACCOUNT_NOT_ARCHIVED, "账户未归档");
+        }
+        // 必须 ownBook 检查:取消归档前要求所属 book 没被软删
+        booksService.mustAccessibleBookById(userId, a.getBookId());
+        a.setIsArchived((byte) 0);
+        a.setUpdatedAt(Instant.now());
+        accountMapper.updateById(a);
+    }
+
     // ---- internal ----
 
     private Account mustOwned(long userId, String uuid) {
@@ -194,6 +233,7 @@ public class AccountsService {
                     a.getUuid(), a.getName(), a.getType(), a.getIcon(),
                     a.getInitialBalance(), BigDecimal.ZERO, a.getCurrency(),
                     a.getIsDefault() != null && a.getIsDefault() == 1,
+                    a.getIsArchived() != null && a.getIsArchived() == 1,
                     a.getSortOrder(), a.getNote(), a.getCreatedAt()
             );
         }
@@ -210,6 +250,7 @@ public class AccountsService {
                 b.getBalance(),
                 b.getCurrency(),
                 b.getIsDefault() != null && b.getIsDefault() == 1,
+                b.getIsArchived() != null && b.getIsArchived() == 1,
                 b.getSortOrder(),
                 b.getNote(),
                 b.getCreatedAt()

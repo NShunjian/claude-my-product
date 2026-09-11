@@ -98,6 +98,7 @@ export function toAccount(a: ApiAccount): Account {
     subtitle: pres.subtitle,
     themeKey: pres.themeKey,
     balance: numToDouble(a.balance),
+    isArchived: !!a.isArchived,
     ...(pres.creditLimit ? { creditLimit: pres.creditLimit } : {}),
   }
 }

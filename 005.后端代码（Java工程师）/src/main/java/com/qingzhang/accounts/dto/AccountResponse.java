@@ -17,6 +17,7 @@ public record AccountResponse(
         BigDecimal balance,
         String currency,
         Boolean isDefault,
+        Boolean isArchived,
         Integer sortOrder,
         String note,
         Instant createdAt

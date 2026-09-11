@@ -187,6 +187,7 @@ describe('finance-mappers', () => {
         balance: 100,
         currency: 'CNY',
         isDefault: true,
+        isArchived: false,
         sortOrder: 0,
         note: null,
         createdAt: '2026-08-20T00:00:00.000Z',
@@ -209,6 +210,7 @@ describe('finance-mappers', () => {
         balance: -500,
         currency: 'CNY',
         isDefault: false,
+        isArchived: false,
         sortOrder: 4,
         note: null,
         createdAt: '2026-08-20T00:00:00.000Z',
@@ -225,7 +227,7 @@ describe('finance-mappers', () => {
       const as: ApiAccount[] = [
         {
           id: 'a1', name: '微信支付', type: 'wallet', icon: 'payments',
-          initialBalance: 0, balance: 0, currency: 'CNY', isDefault: true,
+          initialBalance: 0, balance: 0, currency: 'CNY', isDefault: true, isArchived: false,
           sortOrder: 0, note: null, createdAt: '2026-08-20T00:00:00.000Z',
         },
       ]

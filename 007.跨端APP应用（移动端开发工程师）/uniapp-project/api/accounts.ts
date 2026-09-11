@@ -12,6 +12,8 @@ export interface Account {
   balance: number
   currency: string
   isDefault: boolean
+  /** 已归档账户：true 表示隐藏,records 仍生效、报表仍计入 */
+  isArchived: boolean
   sortOrder: number
   note: string | null
   createdAt: string
@@ -50,9 +52,10 @@ export interface AccountEnvelope {
   account: Account
 }
 
-export async function listAccounts(params: { bookId?: string } = {}): Promise<Account[]> {
+export async function listAccounts(params: { bookId?: string; includeArchived?: boolean } = {}): Promise<Account[]> {
   const sp = new URLSearchParams()
   if (params.bookId) sp.set('bookId', params.bookId)
+  if (params.includeArchived) sp.set('includeArchived', 'true')
   const qs = sp.toString()
   const res = await request<ListAccountsResponse>(`/api/accounts${qs ? `?${qs}` : ''}`)
   return res.items
@@ -81,4 +84,14 @@ export async function updateAccount(id: string, input: UpdateAccountInput): Prom
 
 export async function deleteAccount(id: string): Promise<void> {
   await request<{ ok: true }>(`/api/accounts/${id}`, { method: 'DELETE' })
+}
+
+/** 归档账户 —— 隐藏不显示,records / balance / 报表全部保留 */
+export async function archiveAccount(id: string): Promise<void> {
+  await request<{ ok: true }>(`/api/accounts/${id}/archive`, { method: 'POST' })
+}
+
+/** 取消归档 */
+export async function unarchiveAccount(id: string): Promise<void> {
+  await request<{ ok: true }>(`/api/accounts/${id}/archive`, { method: 'DELETE' })
 }

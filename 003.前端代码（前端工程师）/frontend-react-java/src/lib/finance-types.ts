@@ -40,6 +40,7 @@ export interface Account {
   themeKey: ThemeKey
   balance: number
   isDefault?: boolean
+  isArchived?: boolean
   creditLimit?: string
   icon?: string
   type?: 'cash' | 'debit' | 'credit' | 'wallet' | 'investment' | 'other'

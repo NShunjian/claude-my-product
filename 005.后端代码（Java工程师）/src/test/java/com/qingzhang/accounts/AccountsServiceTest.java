@@ -96,7 +96,7 @@ class AccountsServiceTest {
         when(accountMapper.findBalanceById(anyLong(), anyLong()))
             .thenReturn(toBalance(a)).thenReturn(toBalance(b));
 
-        List<AccountResponse> list = service.list(USER_ID, null);
+        List<AccountResponse> list = service.list(USER_ID, null, false);
 
         assertThat(list).hasSize(2);
         assertThat(list.get(0).name()).isEqualTo("微信支付");
@@ -118,7 +118,7 @@ class AccountsServiceTest {
         when(accountMapper.selectList(any())).thenReturn(List.of(a));
         when(accountMapper.findBalanceById(anyLong(), anyLong())).thenReturn(toBalance(a));
 
-        List<AccountResponse> list = service.list(USER_ID, bookUuid);
+        List<AccountResponse> list = service.list(USER_ID, bookUuid, false);
 
         assertThat(list).hasSize(1);
         assertThat(list.get(0).name()).isEqualTo("家庭现金");

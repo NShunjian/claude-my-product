@@ -13,6 +13,7 @@ function makeAccount(overrides: Partial<ApiAccount> = {}): ApiAccount {
     balance: 0,
     currency: 'CNY',
     isDefault: false,
+    isArchived: false,
     sortOrder: 0,
     note: null,
     createdAt: '2026-08-20T00:00:00.000Z',

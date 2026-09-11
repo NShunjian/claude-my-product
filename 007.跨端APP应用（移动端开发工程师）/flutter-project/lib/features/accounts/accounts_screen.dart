@@ -14,13 +14,16 @@ import '../shared/app_header.dart';
 import '../shared/providers.dart';
 import '../shared/toast_controller.dart';
 
-/// 对齐 pages/zhanghu/index.vue — 账户列表 + 删除 + 新增。
+/// 对齐 pages/zhanghu/index.vue — 账户列表 + 归档/删除/新增。
 class AccountsScreen extends ConsumerStatefulWidget {
   const AccountsScreen({super.key});
 
   @override
   ConsumerState<AccountsScreen> createState() => _AccountsScreenState();
 }
+
+/// 0=active only, 1=all(活跃+归档), 2=archived only。默认 active。
+enum _FilterMode { active, all, archived }
 
 class _AccountsScreenState extends ConsumerState<AccountsScreen> {
   late Future<List<Account>> _future;
@@ -30,6 +33,7 @@ class _AccountsScreenState extends ConsumerState<AccountsScreen> {
   //          snap.data,reload 时旧 list 不消失(顶部加 LinearProgressIndicator
   //          表示在拉新)。
   List<Account>? _data;
+  _FilterMode _filter = _FilterMode.active;
 
   @override
   void initState() {
@@ -37,20 +41,120 @@ class _AccountsScreenState extends ConsumerState<AccountsScreen> {
     _future = _load();
     // ponytail: 切到 accounts tab 时重拉(3)。next>prev 才触发,初始 0 不触发空拉。
     ref.listenManual<int>(tabRefreshSignalProvider(3), (prev, next) {
-      if (prev != null && next > prev) {
-        final f = _load();
-        setState(() {
-          _future = f;
-        });
-      }
+      if (prev != null && next > prev) _reload();
     });
+  }
+
+  void _reload() {
+    final f = _load();
+    setState(() => _future = f);
   }
 
   Future<List<Account>> _load() async {
     final bookId = ref.read(currentBookIdProvider);
-    return ref
-        .read(accountsApiProvider)
-        .listAccounts(bookId: bookId.isEmpty ? null : bookId);
+    return ref.read(accountsApiProvider).listAccounts(
+          bookId: bookId.isEmpty ? null : bookId,
+          includeArchived: true,
+        );
+  }
+
+  // ponytail: Flutter 没原生 action sheet,uniapp showActionSheet 在这里是
+  //          showModalBottomSheet + 几行 ListTile。同一份菜单根据账户是
+  //          归档/活跃 切换项:archived 看「取消归档 + 删除」,active 看
+  //          「归档 + 删除」。已软删的账户(将来从后端拿到 isDeleted 字段时)
+  //          干脆不展示菜单 —— 概要阶段只接了 archived。
+  Future<void> _showActions(Account a) async {
+    final lang = I18n.of(context);
+    final items = a.isArchived
+        ? [lang.t('accounts.unarchive'), lang.t('common.delete')]
+        : [lang.t('accounts.archive'), lang.t('common.delete')];
+    final picked = await showModalBottomSheet<int>(
+      context: context,
+      builder: (ctx) => SafeArea(
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            for (var i = 0; i < items.length; i++)
+              ListTile(
+                title: Text(items[i]),
+                onTap: () => Navigator.of(ctx).pop(i),
+              ),
+          ],
+        ),
+      ),
+    );
+    if (picked == null) return;
+    if (a.isArchived) {
+      // [unarchive, delete]
+      if (picked == 0) return _confirmUnarchive(a);
+      if (picked == 1) return _confirmDelete(a);
+    } else {
+      // [archive, delete]
+      if (picked == 0) return _confirmArchive(a);
+      if (picked == 1) return _confirmDelete(a);
+    }
+  }
+
+  Future<void> _confirmArchive(Account a) async {
+    final lang = I18n.of(context);
+    final ok = await showDialog<bool>(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        content: Text(lang.t('accounts.archiveConfirm', {'name': a.name})),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.of(ctx).pop(false),
+            child: Text(lang.t('common.cancel')),
+          ),
+          TextButton(
+            onPressed: () => Navigator.of(ctx).pop(true),
+            child: Text(lang.t('common.confirm')),
+          ),
+        ],
+      ),
+    );
+    if (ok != true) return;
+    try {
+      await ref.read(accountsApiProvider).archiveAccount(a.id);
+      if (!mounted) return;
+      ref.read(toastControllerProvider.notifier).show(lang.t('accounts.archiveSuccess'));
+      _reload();
+    } catch (e) {
+      if (!mounted) return;
+      final msg = e is ApiException ? e.message : '$e';
+      ref.read(toastControllerProvider.notifier).show(msg);
+    }
+  }
+
+  Future<void> _confirmUnarchive(Account a) async {
+    final lang = I18n.of(context);
+    final ok = await showDialog<bool>(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        content: Text(lang.t('accounts.unarchiveConfirm', {'name': a.name})),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.of(ctx).pop(false),
+            child: Text(lang.t('common.cancel')),
+          ),
+          TextButton(
+            onPressed: () => Navigator.of(ctx).pop(true),
+            child: Text(lang.t('common.confirm')),
+          ),
+        ],
+      ),
+    );
+    if (ok != true) return;
+    try {
+      await ref.read(accountsApiProvider).unarchiveAccount(a.id);
+      if (!mounted) return;
+      ref.read(toastControllerProvider.notifier).show(lang.t('accounts.unarchiveSuccess'));
+      _reload();
+    } catch (e) {
+      if (!mounted) return;
+      final msg = e is ApiException ? e.message : '$e';
+      ref.read(toastControllerProvider.notifier).show(msg);
+    }
   }
 
   Future<void> _confirmDelete(Account a) async {
@@ -78,10 +182,7 @@ class _AccountsScreenState extends ConsumerState<AccountsScreen> {
       // ponytail: setState 必须是同步闭包,之前 `setState(() => _future =
       //          _load())` 把 Future 当作闭包返回值,Flutter 拒绝执行,导致
       //          卡片不消失。改成显式两步:先拿 Future,再 setState 赋值。
-      final f = _load();
-      setState(() {
-        _future = f;
-      });
+      _reload();
     } catch (e) {
       if (!mounted) return;
       // ponytail: 之前 catch 直接 toast '$e',把 ApiException 的 toString()
@@ -104,9 +205,8 @@ class _AccountsScreenState extends ConsumerState<AccountsScreen> {
       appBar: AppHeader(title: lang.t('accounts.title'), back: false),
       body: RefreshIndicator(
         onRefresh: () async {
-          final f = _load();
-          setState(() => _future = f);
-          await f;
+          _reload();
+          await _future;
         },
         child: FutureBuilder<List<Account>>(
           future: _future,
@@ -142,10 +242,15 @@ class _AccountsScreenState extends ConsumerState<AccountsScreen> {
             }
             // 已有数据(包括刷新中的 stale snapshot)→ 渲染数据,顶部加进度条
             final list = _data!;
+            final visible = switch (_filter) {
+              _FilterMode.active => list.where((a) => !a.isArchived).toList(),
+              _FilterMode.archived => list.where((a) => a.isArchived).toList(),
+              _FilterMode.all => list,
+            };
             final isReloading =
                 snap.connectionState != ConnectionState.done;
             final total =
-                list.fold<double>(0, (sum, a) => sum + a.balance);
+                visible.fold<double>(0, (sum, a) => sum + a.balance);
             return Column(
               children: [
                 if (isReloading)
@@ -164,7 +269,17 @@ class _AccountsScreenState extends ConsumerState<AccountsScreen> {
                         onAdd: () => context.push(AppRoutes.accountNew),
                       ),
                       const SizedBox(height: AppSpacing.md),
-                      if (list.isEmpty)
+                      _FilterChips(
+                        mode: _filter,
+                        onChanged: (m) => setState(() => _filter = m),
+                        labels: (
+                          active: lang.t('accounts.filter.active'),
+                          all: lang.t('accounts.filter.all'),
+                          archived: lang.t('accounts.filter.archivedOnly'),
+                        ),
+                      ),
+                      const SizedBox(height: AppSpacing.md),
+                      if (visible.isEmpty)
                         Padding(
                           padding: const EdgeInsets.symmetric(
                             vertical: AppSpacing.xl,
@@ -187,12 +302,12 @@ class _AccountsScreenState extends ConsumerState<AccountsScreen> {
                           crossAxisSpacing: AppSpacing.md,
                           childAspectRatio: 1.35,
                           children: [
-                            for (final a in list)
+                            for (final a in visible)
                               _AccountCard(
                                 account: a,
                                 onTap: () {},
-                                onLongPress: () => _confirmDelete(a),
-                                onMore: () => _confirmDelete(a),
+                                onLongPress: () => _showActions(a),
+                                onMore: () => _showActions(a),
                               ),
                           ],
                         ),
@@ -204,6 +319,57 @@ class _AccountsScreenState extends ConsumerState<AccountsScreen> {
           },
         ),
       ),
+    );
+  }
+}
+
+class _FilterChips extends StatelessWidget {
+  const _FilterChips({
+    required this.mode,
+    required this.onChanged,
+    required this.labels,
+  });
+  final _FilterMode mode;
+  final ValueChanged<_FilterMode> onChanged;
+  final ({String active, String all, String archived}) labels;
+
+  @override
+  Widget build(BuildContext context) {
+    final c = context.appColors;
+    Widget chip(_FilterMode m, String text) {
+      final selected = mode == m;
+      return InkWell(
+        borderRadius: BorderRadius.circular(999),
+        onTap: () => onChanged(m),
+        child: Container(
+          padding: const EdgeInsets.symmetric(
+            horizontal: AppSpacing.md,
+            vertical: AppSpacing.sm,
+          ),
+          decoration: BoxDecoration(
+            color: selected ? c.primary : c.bgCard,
+            borderRadius: BorderRadius.circular(999),
+            border: Border.all(color: c.divider),
+          ),
+          child: Text(
+            text,
+            style: TextStyle(
+              color: selected ? Colors.white : c.textVariant,
+              fontSize: 12,
+            ),
+          ),
+        ),
+      );
+    }
+
+    return Row(
+      children: [
+        chip(_FilterMode.active, labels.active),
+        const SizedBox(width: AppSpacing.sm),
+        chip(_FilterMode.all, labels.all),
+        const SizedBox(width: AppSpacing.sm),
+        chip(_FilterMode.archived, labels.archived),
+      ],
     );
   }
 }
@@ -316,96 +482,125 @@ class _AccountCard extends StatelessWidget {
   Widget build(BuildContext context) {
     final c = context.appColors;
     final pres = presentAccount(account);
-    return Material(
-      color: c.bgCard,
-      borderRadius: BorderRadius.circular(AppRadius.lg),
-      child: InkWell(
-        onTap: onTap,
-        onLongPress: onLongPress,
+    return Opacity(
+      opacity: account.isArchived ? 0.5 : 1.0,
+      child: Material(
+        color: c.bgCard,
         borderRadius: BorderRadius.circular(AppRadius.lg),
-        child: Container(
-          // ponytail: 卡片内边距 md→lg(12→16),uniapp 截图里图标圆圈距卡边
-          //          有明显留白,Flutter 之前 12 略紧。
-          padding: const EdgeInsets.all(AppSpacing.lg),
-          decoration: BoxDecoration(
-            border: Border.all(color: c.divider),
-            borderRadius: BorderRadius.circular(AppRadius.lg),
-          ),
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            mainAxisAlignment: MainAxisAlignment.spaceBetween,
-            children: [
-              Row(
-                mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                children: [
-                  Container(
-                    width: 40,
-                    height: 40,
-                    decoration: BoxDecoration(
-                      color: pres.background,
-                      shape: BoxShape.circle,
-                    ),
-                    // ponytail: 之前用 Icon(pres.icon) 渲染 MaterialIcons,
-                    //          跟 uniapp themeMap 用 emoji 字符直接渲染的方
-                    //          案不同步,uniapp 截图里 🎂/💵/🏦 都是 emoji,
-                    //          改成 Text 渲染 emoji 字符串 + colored fg。
-                    child: Center(
-                      child: Text(
-                        pres.iconText,
-                        style: TextStyle(
-                          color: pres.foreground,
-                          fontSize: 20,
-                          height: 1.0,
+        child: InkWell(
+          onTap: onTap,
+          onLongPress: onLongPress,
+          borderRadius: BorderRadius.circular(AppRadius.lg),
+          child: Container(
+            // ponytail: 卡片内边距 md→lg(12→16),uniapp 截图里图标圆圈距卡边
+            //          有明显留白,Flutter 之前 12 略紧。
+            padding: const EdgeInsets.all(AppSpacing.lg),
+            decoration: BoxDecoration(
+              border: Border.all(color: c.divider),
+              borderRadius: BorderRadius.circular(AppRadius.lg),
+            ),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              mainAxisAlignment: MainAxisAlignment.spaceBetween,
+              children: [
+                Row(
+                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                  children: [
+                    Container(
+                      width: 40,
+                      height: 40,
+                      decoration: BoxDecoration(
+                        color: pres.background,
+                        shape: BoxShape.circle,
+                      ),
+                      // ponytail: 之前用 Icon(pres.icon) 渲染 MaterialIcons,
+                      //          跟 uniapp themeMap 用 emoji 字符直接渲染的方
+                      //          案不同步,uniapp 截图里 🎂/💵/🏦 都是 emoji,
+                      //          改成 Text 渲染 emoji 字符串 + colored fg。
+                      child: Center(
+                        child: Text(
+                          pres.iconText,
+                          style: TextStyle(
+                            color: pres.foreground,
+                            fontSize: 20,
+                            height: 1.0,
+                          ),
                         ),
                       ),
                     ),
-                  ),
-                  // ponytail: 卡片右上角更多菜单图标 — uniapp 截图是个小图标,
-                  //          之前用 text '⋮' 在某些字体下渲染不一致,改用 Material
-                  //          Icons.more_vert(三竖点),更清晰且跨平台一致。
-                  InkWell(
-                    onTap: onMore,
-                    borderRadius: BorderRadius.circular(20),
-                    child: Padding(
-                      padding: const EdgeInsets.all(AppSpacing.xs),
-                      child: Icon(
-                        Icons.more_vert,
-                        color: c.textVariant,
-                        size: 18,
+                    // ponytail: 卡片右上角更多菜单图标 — uniapp 截图是个小图标,
+                    //          之前用 text '⋮' 在某些字体下渲染不一致,改用 Material
+                    //          Icons.more_vert(三竖点),更清晰且跨平台一致。
+                    InkWell(
+                      onTap: onMore,
+                      borderRadius: BorderRadius.circular(20),
+                      child: Padding(
+                        padding: const EdgeInsets.all(AppSpacing.xs),
+                        child: Icon(
+                          Icons.more_vert,
+                          color: c.textVariant,
+                          size: 18,
+                        ),
                       ),
                     ),
-                  ),
-                ],
-              ),
-              Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Text(
-                    account.name,
-                    style: TextStyle(
-                      color: c.text,
-                      fontSize: 14,
-                      fontWeight: FontWeight.w600,
-                    ),
-                    overflow: TextOverflow.ellipsis,
-                  ),
-                  const SizedBox(height: 2),
-                  Text(
-                    typeOfAccount(account.type),
-                    style: TextStyle(color: c.textVariant, fontSize: 11),
-                    overflow: TextOverflow.ellipsis,
-                  ),
-                ],
-              ),
-              Text(
-                formatAmount(account.balance, withSymbol: true),
-                style: TextStyle(
-                  color: account.balance < 0 ? c.error : c.text,
-                  fontSize: 14,
-                  fontWeight: FontWeight.w700,
+                  ],
                 ),
-              ),
-            ],
+                Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Row(
+                      children: [
+                        Flexible(
+                          child: Text(
+                            account.name,
+                            style: TextStyle(
+                              color: c.text,
+                              fontSize: 14,
+                              fontWeight: FontWeight.w600,
+                            ),
+                            overflow: TextOverflow.ellipsis,
+                          ),
+                        ),
+                        if (account.isArchived) ...[
+                          const SizedBox(width: 6),
+                          Container(
+                            padding: const EdgeInsets.symmetric(
+                              horizontal: 6,
+                              vertical: 1,
+                            ),
+                            decoration: BoxDecoration(
+                              color: c.divider,
+                              borderRadius: BorderRadius.circular(4),
+                            ),
+                            child: Text(
+                              I18n.of(context).t('accounts.archivedBadge'),
+                              style: TextStyle(
+                                color: c.textVariant,
+                                fontSize: 10,
+                              ),
+                            ),
+                          ),
+                        ],
+                      ],
+                    ),
+                    const SizedBox(height: 2),
+                    Text(
+                      typeOfAccount(account.type),
+                      style: TextStyle(color: c.textVariant, fontSize: 11),
+                      overflow: TextOverflow.ellipsis,
+                    ),
+                  ],
+                ),
+                Text(
+                  formatAmount(account.balance, withSymbol: true),
+                  style: TextStyle(
+                    color: account.balance < 0 ? c.error : c.text,
+                    fontSize: 14,
+                    fontWeight: FontWeight.w700,
+                  ),
+                ),
+              ],
+            ),
           ),
         ),
       ),

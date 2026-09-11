@@ -5,7 +5,7 @@ import { useBookStore } from '@/stores/book'
 import { useAuthStore } from '@/stores/auth'
 import { useToastStore } from '@/stores/toast'
 import { useLanguage } from '@/i18n/useLanguage'
-import { listAccounts, deleteAccount } from '@/api/accounts'
+import { listAccounts, deleteAccount, archiveAccount, unarchiveAccount } from '@/api/accounts'
 import { formatAmount } from '@/utils/finance'
 import type { Account } from '@/api/accounts'
 import AppHeader from '@/components/AppHeader.vue'
@@ -16,11 +16,24 @@ const auth = useAuthStore()
 const toast = useToastStore()
 const { t } = useLanguage()
 
+/** 0=active only, 1=all(活跃+归档), 2=archived only。默认 active。 */
+type FilterMode = 'active' | 'all' | 'archived'
+const filterMode = ref<FilterMode>('active')
+
 const accounts = ref<Account[]>([])
 const loading = ref(false)
 const error = ref<string | null>(null)
 
-const totalBalance = computed(() => accounts.value.reduce((s, a) => s + (a.balance ?? 0), 0))
+const visibleAccounts = computed(() => {
+  if (filterMode.value === 'all') return accounts.value
+  if (filterMode.value === 'archived') return accounts.value.filter(a => a.isArchived)
+  return accounts.value.filter(a => !a.isArchived)
+})
+
+const totalBalance = computed(() =>
+  // 资产净值按当前可见账户求和(active 模式 = 跟首页口径一致)
+  visibleAccounts.value.reduce((s, a) => s + (a.balance ?? 0), 0)
+)
 
 // iconName 之前是 Material Symbols ligature 字符串(chat_bubble / credit_card 等),
 // 没加载字体时会渲染成 "credit_card" 这种英文乱码 —— settings 自定义分类踩过同样的坑。
@@ -39,7 +52,10 @@ async function load() {
   loading.value = true
   error.value = null
   try {
-    accounts.value = (await listAccounts({ bookId: book.current.uuid })).filter((a): a is Account => !!a && !!a.id)
+    // 一次拉全量(active + archived),前端按 filterMode 切片。
+    // 后端 includeArchived=true 才能拿到 archived=1,默认是 false。
+    accounts.value = (await listAccounts({ bookId: book.current.uuid, includeArchived: true }))
+      .filter((a): a is Account => !!a && !!a.id)
   } catch (e: any) {
     error.value = e?.message ?? ''
   } finally {
@@ -70,6 +86,59 @@ function subtitleOf(acc: Account): string {
 }
 
 function confirmDelete(acc: Account) {
+  uni.showActionSheet({
+    itemList: acc.isArchived
+      ? [t('accounts.unarchive'), t('common.delete')]
+      : [t('accounts.archive'), t('common.delete')],
+    success: async (res) => {
+      if (acc.isArchived) {
+        // 归档账户的菜单:0=取消归档, 1=删除
+        if (res.tapIndex === 0) return confirmUnarchive(acc)
+        if (res.tapIndex === 1) return doDelete(acc)
+      } else {
+        // 活跃账户的菜单:0=归档, 1=删除
+        if (res.tapIndex === 0) return confirmArchive(acc)
+        if (res.tapIndex === 1) return doDelete(acc)
+      }
+    },
+  })
+}
+
+function confirmArchive(acc: Account) {
+  uni.showModal({
+    title: t('common.confirm'),
+    content: t('accounts.archiveConfirm').replace('{name}', acc.name),
+    success: async (res) => {
+      if (!res.confirm) return
+      try {
+        await archiveAccount(acc.id)
+        acc.isArchived = true
+        toast.show(t('accounts.archiveSuccess'))
+      } catch (e: any) {
+        toast.show(e?.message ?? t('common.error'))
+      }
+    },
+  })
+}
+
+function confirmUnarchive(acc: Account) {
+  uni.showModal({
+    title: t('common.confirm'),
+    content: t('accounts.unarchiveConfirm').replace('{name}', acc.name),
+    success: async (res) => {
+      if (!res.confirm) return
+      try {
+        await unarchiveAccount(acc.id)
+        acc.isArchived = false
+        toast.show(t('accounts.unarchiveSuccess'))
+      } catch (e: any) {
+        toast.show(e?.message ?? t('common.error'))
+      }
+    },
+  })
+}
+
+function doDelete(acc: Account) {
   uni.showModal({
     title: t('common.confirm'),
     content: t('accounts.deleteConfirm'),
@@ -106,15 +175,40 @@ onShow(load)
           </view>
         </view>
 
+        <!-- Filter chips -->
+        <view class="filter-row">
+          <view
+            class="chip"
+            :class="{ active: filterMode === 'active' }"
+            @tap="filterMode = 'active'"
+          >{{ t('accounts.filter.active') }}</view>
+          <view
+            class="chip"
+            :class="{ active: filterMode === 'all' }"
+            @tap="filterMode = 'all'"
+          >{{ t('accounts.filter.all') }}</view>
+          <view
+            class="chip"
+            :class="{ active: filterMode === 'archived' }"
+            @tap="filterMode = 'archived'"
+          >{{ t('accounts.filter.archivedOnly') }}</view>
+        </view>
+
         <!-- Error -->
         <view v-if="error" class="error-box">{{ t('accounts.loadErrorPrefix') }}{{ error }}</view>
 
         <!-- Account list -->
         <view class="list">
           <view v-if="loading" class="empty">{{ t('accounts.loading') }}</view>
-          <view v-else-if="accounts.length === 0" class="empty">{{ t('accounts.empty') }}</view>
+          <view v-else-if="visibleAccounts.length === 0" class="empty">{{ t('accounts.empty') }}</view>
           <view v-else class="grid">
-            <view v-for="(acc, idx) in accounts" :key="acc?.id ?? `acc-${idx}`" class="acc-card" @longpress="confirmDelete(acc)">
+            <view
+              v-for="(acc, idx) in visibleAccounts"
+              :key="acc?.id ?? `acc-${idx}`"
+              class="acc-card"
+              :class="{ archived: acc.isArchived }"
+              @longpress="confirmDelete(acc)"
+            >
               <view class="acc-top">
                 <view class="acc-icon" :style="{ background: getTheme(acc).iconBg }">
                   <text class="icon-text" :style="{ color: getTheme(acc).iconColor }">{{ getTheme(acc).iconName }}</text>
@@ -124,7 +218,10 @@ onShow(load)
                 </view>
               </view>
               <view class="acc-body">
-                <text class="acc-name">{{ acc.name }}</text>
+                <view class="name-row">
+                  <text class="acc-name">{{ acc.name }}</text>
+                  <text v-if="acc.isArchived" class="archived-badge">{{ t('accounts.archivedBadge') }}</text>
+                </view>
                 <text class="acc-sub">{{ subtitleOf(acc) }}</text>
               </view>
               <!-- 真实余额:formatAmount(toLocaleString) 会自动给负数加 '-',不再 Math.abs -->
@@ -160,18 +257,24 @@ onShow(load)
 .net-amount.expense { color: var(--c-error); }
 .add-btn { display: flex; align-items: center; gap: 8rpx; margin-top: 12rpx; background: var(--c-primary); color: #fff; border-radius: 12rpx; padding: 16rpx 24rpx; font-size: 28rpx; font-weight: 600; }
 .add-icon { font-size: 32rpx; }
+.filter-row { display: flex; gap: 12rpx; }
+.chip { padding: 12rpx 24rpx; border-radius: 999rpx; background: var(--c-bg-card); border: 1px solid var(--c-divider); color: var(--c-text-variant); font-size: 24rpx; }
+.chip.active { background: var(--c-primary); color: #fff; border-color: var(--c-primary); }
 .error-box { background: #FFEBEE; color: #C62828; border-radius: 12rpx; padding: 20rpx; font-size: 26rpx; }
 .empty { text-align: center; padding: 80rpx; color: var(--c-text-variant); font-size: 28rpx; }
 .list { }
 .grid { display: grid; grid-template-columns: 1fr 1fr; gap: 16rpx; }
 .acc-card { background: var(--c-bg-card); border-radius: 16rpx; padding: 24rpx; display: flex; flex-direction: column; gap: 12rpx; border: 1px solid var(--c-divider); }
+.acc-card.archived { opacity: 0.5; }
 .acc-top { display: flex; justify-content: space-between; align-items: flex-start; }
 .acc-icon { width: 80rpx; height: 80rpx; border-radius: 50%; display: flex; align-items: center; justify-content: center; }
 .icon-text { font-size: 32rpx; }
 .acc-more { padding: 8rpx; }
 .more-icon { font-size: 32rpx; color: var(--c-text-variant); }
 .acc-body { display: flex; flex-direction: column; gap: 4rpx; }
+.name-row { display: flex; align-items: center; gap: 8rpx; flex-wrap: wrap; }
 .acc-name { font-size: 28rpx; font-weight: 600; color: var(--c-text); }
+.archived-badge { font-size: 20rpx; color: var(--c-text-variant); background: var(--c-divider); padding: 2rpx 10rpx; border-radius: 8rpx; }
 .acc-sub { font-size: 22rpx; color: var(--c-text-variant); }
 .acc-balance { font-size: 28rpx; font-weight: 700; color: var(--c-text); }
 .acc-balance.expense { color: var(--c-error); }

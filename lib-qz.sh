@@ -66,6 +66,70 @@ qz_wait_port() {
   return 1
 }
 
+# === Docker daemon 等待(ping 一次 docker info)===
+qz_wait_docker_daemon() {
+  local timeout=${1:-120}
+  for i in $(seq 1 "$timeout"); do
+    if docker info >/dev/null 2>&1; then
+      echo "  ✓ Docker daemon 已就绪 (等 ${i}s)"
+      return 0
+    fi
+    sleep 1
+  done
+  echo "  ✗ Docker daemon ${timeout}s 内未就绪"
+  echo "    提示:打开 Docker Desktop 后重试"
+  return 1
+}
+
+# === 拉起 Docker Desktop(macOS;其它平台跳过)===
+# 已在跑就直接 return;不在跑就 open -a Docker,然后 qz_wait_docker_daemon。
+qz_ensure_docker_desktop() {
+  if docker info >/dev/null 2>&1; then
+    return 0
+  fi
+  if [[ "$(uname)" != "Darwin" ]]; then
+    echo "  ✗ Docker daemon 不在运行,本脚本只在 macOS 自动启动 Docker Desktop"
+    echo "    请手动启动 Docker Desktop 后重试"
+    return 1
+  fi
+  echo "  → 启动 Docker Desktop ..."
+  open -a Docker
+  qz_wait_docker_daemon 120 || return 1
+}
+
+# === MySQL pre-flight:V1.2 起 backend 启动前的硬前置 ===
+# 链路:3307 没监听 → 起 Docker Desktop → docker compose up -d mysql → 等端口。
+# 幂等:任何一步已经在跑就直接通过。
+# 失败提示要够清楚(用户已经踩过这个坑)。
+qz_ensure_mysql() {
+  if lsof -nP -iTCP:3307 -sTCP:LISTEN -t >/dev/null 2>&1; then
+    echo "  ✓ MySQL 已就绪 :3307"
+    return 0
+  fi
+  echo "  (MySQL :3307 未监听,准备拉起)"
+
+  qz_ensure_docker_desktop || return 1
+
+  echo "  → docker compose up -d mysql ..."
+  ( cd "$ROOT" && docker compose up -d mysql ) || {
+    echo "  ✗ docker compose 失败"
+    return 1
+  }
+
+  for i in $(seq 1 120); do
+    if lsof -nP -iTCP:3307 -sTCP:LISTEN -t >/dev/null 2>&1; then
+      echo "  ✓ MySQL 端口就绪 :3307 (等 ${i}s)"
+      # 多等 3s 让 InnoDB buffer pool / performance_schema 完成初始化,
+      # 否则 HikariCP 第一次握手可能拿到半初始化连接。
+      sleep 3
+      return 0
+    fi
+    sleep 1
+  done
+  echo "  ✗ MySQL 端口 120s 内未就绪,看 docker logs qingzhang-mysql"
+  return 1
+}
+
 # === 后端 ===
 qz_start_backend() {
   if pid=$(port_pid $BACKEND_PORT); then
@@ -73,6 +137,10 @@ qz_start_backend() {
     return 0
   fi
   echo "  (后端 :$BACKEND_PORT 无监听,准备启动)"
+
+  # V1.2 起:启动前先确保 MySQL 在跑。HikariCP fail-fast,MySQL 不通 → 进程立刻
+  # 退出 → 4001 永不监听 → 表现为"启动超时"。这是 90s 超时的根因,不是端口探测问题。
+  qz_ensure_mysql || return 1
 
   echo "  → 编译 + 启动后端 (Spring Boot, Java 21 bytecode)..."
   mkdir -p "$BACKEND_DIR/target/classes"
@@ -100,7 +168,8 @@ qz_start_backend() {
   ( cd "$BACKEND_DIR" && \
     nohup java -cp "$CP" com.qingzhang.QingZhangApplication \
       > "$BACKEND_LOG" 2>&1 & echo $! > "$BACKEND_PIDFILE" )
-  qz_wait_port $BACKEND_PORT "后端" 90 "$BACKEND_LOG"
+  # V1.2:180s 兜底 Flyway 迁移 + Tomcat 启动(MySQL 冷启动后还要跑 V10)。
+  qz_wait_port $BACKEND_PORT "后端" 180 "$BACKEND_LOG"
 }
 
 # === 前端 ===

@@ -216,16 +216,8 @@ class _AccountsScreenState extends ConsumerState<AccountsScreen> {
             if (snap.hasData && !identical(snap.data, _data)) {
               _data = snap.data;
             }
-            // 首次加载还没数据 → 整页占位
+            // 首次加载还没数据 → 骨架屏(对齐 home/transactions 体验)。
             if (_data == null) {
-              if (snap.connectionState != ConnectionState.done) {
-                return Center(
-                  child: Text(
-                    lang.t('accounts.loading'),
-                    style: TextStyle(color: c.textVariant),
-                  ),
-                );
-              }
               if (snap.hasError) {
                 return ListView(
                   children: [
@@ -239,6 +231,7 @@ class _AccountsScreenState extends ConsumerState<AccountsScreen> {
                   ],
                 );
               }
+              return const _AccountsSkeleton();
             }
             // 已有数据(包括刷新中的 stale snapshot)→ 渲染数据,顶部加进度条
             final list = _data!;
@@ -604,6 +597,106 @@ class _AccountCard extends StatelessWidget {
           ),
         ),
       ),
+    );
+  }
+}
+
+/// 骨架屏 —— 首次 _data==null 时渲染。模仿账户页真实布局:净资产卡 +
+/// 筛选 chips + 2 列网格(4 个账户卡占位)。
+class _AccountsSkeleton extends StatelessWidget {
+  const _AccountsSkeleton();
+
+  @override
+  Widget build(BuildContext context) {
+    final c = context.appColors;
+    final base = c.divider;
+    final high = c.textVariant.withValues(alpha: 0.15);
+    Widget bar(double w, {double h = 14, Color? color}) => Container(
+          width: w,
+          height: h,
+          decoration: BoxDecoration(
+            color: color ?? high,
+            borderRadius: BorderRadius.circular(4),
+          ),
+        );
+    Widget card({Widget? child}) => Container(
+          // ponytail: 不写 height,Container 自适应 Column intrinsic 高度,
+          //          避免 "BOTTOM OVERFLOWED BY N PIXELS"(home/transactions 同款)。
+          decoration: BoxDecoration(
+            color: c.bgCard,
+            borderRadius: BorderRadius.circular(8),
+            border: Border.all(color: base),
+          ),
+          padding: const EdgeInsets.all(12),
+          child: child ?? const SizedBox.shrink(),
+        );
+    return ListView(
+      padding: const EdgeInsets.all(AppSpacing.lg),
+      children: [
+        card(
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              bar(80, h: 12),
+              const SizedBox(height: 12),
+              bar(180, h: 28),
+              const SizedBox(height: 12),
+              bar(120, h: 12),
+            ],
+          ),
+        ),
+        const SizedBox(height: AppSpacing.md),
+        Row(
+          children: [
+            for (int i = 0; i < 3; i++) ...[
+              Container(
+                width: 70,
+                height: 28,
+                decoration: BoxDecoration(
+                  color: high,
+                  borderRadius: BorderRadius.circular(14),
+                ),
+              ),
+              if (i < 2) const SizedBox(width: 8),
+            ],
+          ],
+        ),
+        const SizedBox(height: AppSpacing.md),
+        GridView.count(
+          crossAxisCount: 2,
+          shrinkWrap: true,
+          physics: const NeverScrollableScrollPhysics(),
+          mainAxisSpacing: AppSpacing.md,
+          crossAxisSpacing: AppSpacing.md,
+          childAspectRatio: 1.1,
+          children: [
+            for (int i = 0; i < 4; i++)
+              card(
+                child: Column(
+                  mainAxisSize: MainAxisSize.min,
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Container(
+                      width: 36,
+                      height: 36,
+                      decoration: BoxDecoration(
+                        color: high,
+                        shape: BoxShape.circle,
+                      ),
+                    ),
+                    const SizedBox(height: 8),
+                    bar(double.infinity, h: 12),
+                    const SizedBox(height: 6),
+                    bar(80, h: 10),
+                    const Spacer(),
+                    bar(100, h: 14),
+                  ],
+                ),
+              ),
+          ],
+        ),
+      ],
     );
   }
 }

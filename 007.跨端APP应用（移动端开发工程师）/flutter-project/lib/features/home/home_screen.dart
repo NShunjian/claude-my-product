@@ -136,21 +136,12 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
             if (snap.hasData && !identical(snap.data, _data)) {
               _data = snap.data;
             }
-            // 首次加载还没数据 → 显示整页 loading 占位
+            // 首次加载还没数据 → 骨架屏(对齐交易页体验:页面结构立即出现)。
+            // ponytail: 之前是整页 padding+loading text,等 records API 期间整个
+            //          页面只有一行文字。骨架让 _Greeting/_Assets/_Expense/_Income/
+            //          _Balance 占位立即出现,records + report 4 个 API 完成后
+            //          平滑替换。
             if (_data == null) {
-              if (snap.connectionState != ConnectionState.done) {
-                return ListView(
-                  children: [
-                    Padding(
-                      padding: const EdgeInsets.all(AppSpacing.xl),
-                      child: Text(
-                        lang.t('home.loading'),
-                        style: TextStyle(color: c.textVariant),
-                      ),
-                    ),
-                  ],
-                );
-              }
               if (snap.hasError) {
                 return ListView(
                   children: [
@@ -164,6 +155,7 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
                   ],
                 );
               }
+              return const _HomeSkeleton();
             }
             // 已有数据(包括刷新中的 stale snapshot)→ 渲染数据,顶部加进度条表示在重新拉取
             final data = _data!;
@@ -951,5 +943,125 @@ class _DayGroupBlock extends StatelessWidget {
       if (a.id == id) return a;
     }
     return null;
+  }
+}
+
+/// 骨架屏 —— 首次 _data==null 时渲染。模仿首页真实布局:greeting 行 +
+/// assets 卡 + expense/income/balance 三卡 + 最近交易卡占位。
+/// ponytail: card 不写 height,让 Container 自适应 Column intrinsic,避免
+///          "BOTTOM OVERFLOWED BY N PIXELS"(固定高度 + 子元素总和超出)。
+class _HomeSkeleton extends StatelessWidget {
+  const _HomeSkeleton();
+
+  @override
+  Widget build(BuildContext context) {
+    final c = context.appColors;
+    final base = c.divider;
+    final high = c.textVariant.withValues(alpha: 0.15);
+    Widget bar(double w, {double h = 14, Color? color}) => Container(
+          width: w,
+          height: h,
+          decoration: BoxDecoration(
+            color: color ?? high,
+            borderRadius: BorderRadius.circular(4),
+          ),
+        );
+    Widget card({Widget? child}) => Container(
+          decoration: BoxDecoration(
+            color: c.bgCard,
+            borderRadius: BorderRadius.circular(8),
+            border: Border.all(color: base),
+          ),
+          padding: const EdgeInsets.all(12),
+          child: child ?? const SizedBox.shrink(),
+        );
+    return ListView(
+      padding: const EdgeInsets.fromLTRB(12, 12, 12, 12),
+      children: [
+        Row(
+          mainAxisAlignment: MainAxisAlignment.spaceBetween,
+          children: [
+            bar(140, h: 18),
+            bar(80, h: 14),
+          ],
+        ),
+        const SizedBox(height: 10),
+        card(child: Column(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            bar(100, h: 12),
+            const SizedBox(height: 12),
+            bar(180, h: 28),
+            const SizedBox(height: 12),
+            bar(140, h: 12),
+          ],
+        )),
+        const SizedBox(height: 10),
+        card(child: Column(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            bar(60, h: 12),
+            const SizedBox(height: 10),
+            bar(120, h: 22),
+          ],
+        )),
+        const SizedBox(height: 10),
+        card(child: Column(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            bar(60, h: 12),
+            const SizedBox(height: 10),
+            bar(120, h: 22),
+          ],
+        )),
+        const SizedBox(height: 10),
+        card(child: Column(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            bar(60, h: 12),
+            const SizedBox(height: 10),
+            bar(120, h: 22),
+          ],
+        )),
+        const SizedBox(height: 10),
+        card(child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            for (int i = 0; i < 5; i++) ...[
+              if (i > 0) Divider(height: 1, thickness: 1, color: base),
+              Padding(
+                padding: const EdgeInsets.symmetric(vertical: 10),
+                child: Row(
+                  children: [
+                    Container(
+                      width: 32, height: 32,
+                      decoration: BoxDecoration(
+                        color: high,
+                        shape: BoxShape.circle,
+                      ),
+                    ),
+                    const SizedBox(width: 10),
+                    Expanded(child: Column(
+                      mainAxisSize: MainAxisSize.min,
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        bar(double.infinity, h: 12),
+                        const SizedBox(height: 6),
+                        bar(100, h: 10),
+                      ],
+                    )),
+                    bar(70, h: 14),
+                  ],
+                ),
+              ),
+            ],
+          ],
+        )),
+      ],
+    );
   }
 }

@@ -29,6 +29,11 @@ class TransactionsScreen extends ConsumerStatefulWidget {
 
 class _TransactionsScreenState extends ConsumerState<TransactionsScreen> {
   late Future<_TxData> _future;
+  // ponytail: stale-while-revalidate — _data 保留最后一次成功数据,build 永远
+  //          用 _data 渲染(直到下次 _load 完成)。但 page 重建(initState 重跑)
+  //          时 _data 默认 null,会闪一次 loading —— 所以下面 initState 从
+  //          txCacheProvider 拿历史缓存立刻填上,首次进来也有数据可显示。
+  _TxData? _data;
   String _month = formatLocalMonth(DateTime.now());
   String _categoryId = 'all'; // 'all' = 所有分类
   String _accountId = 'all'; // 'all' = 所有账户
@@ -54,6 +59,17 @@ class _TransactionsScreenState extends ConsumerState<TransactionsScreen> {
         ref.read(pendingTxMonthProvider.notifier).state = null;
       });
     }
+    // ponytail: 用 txCacheProvider 历史缓存立刻填 _data,切 tab 时直接渲染旧数据,
+    //          不闪 spinner。命中失败才走 _load 等待。Riverpod StateProvider 跨
+    //          page 重建保留(IndexedStack 切走分支 widget 不销毁,保险用)。
+    final cached = ref.read(txCacheProvider)[_month];
+    if (cached != null) {
+      _data = _TxData(
+        records: cached.records.cast<Record>(),
+        categories: cached.categories.cast<Category>(),
+        accounts: cached.accounts.cast<Account>(),
+      );
+    }
     _future = _load();
     // 监听 quickAdd 保存 + 弹窗关闭,任一发生都触发流水页重拉。
     // 跟 home_screen 一致 — 详见那边注释。
@@ -62,6 +78,16 @@ class _TransactionsScreenState extends ConsumerState<TransactionsScreen> {
           (next.savedAt != prev.savedAt || (prev.show && !next.show))) {
         // Future 必须先算出再传进 setState — 用箭头 () => _future = _load()
         // 会让 setState 收到 Future 返回值而抛错。
+        final f = _load();
+        setState(() {
+          _future = f;
+        });
+      }
+    });
+    // ponytail: 切到 transactions tab 时重拉。next>prev 才触发,初始 0 不触发空拉;
+    //          月份已切的视图仍走 _onMonthChanged。
+    ref.listenManual<int>(tabRefreshSignalProvider(1), (prev, next) {
+      if (prev != null && next > prev) {
         final f = _load();
         setState(() {
           _future = f;
@@ -86,28 +112,108 @@ class _TransactionsScreenState extends ConsumerState<TransactionsScreen> {
 
   Future<_TxData> _load() async {
     final bookId = ref.read(currentBookIdProvider);
+    // ponytail: categories/accounts 走全局 provider(categoriesStateProvider +
+    //          accountsStateProvider),这里只 await records。categories/accounts
+    //          通常比 records 早回来,首次进来 records 还在拉时它们已就位,
+    //          _data 用本地全局状态填好,records 完事覆盖整段 _data,UI 平滑刷新。
     final records = await ref.read(recordsApiProvider).listRecords(
           q: RecordsQuery(
             month: _month,
             bookId: bookId.isEmpty ? null : bookId,
           ),
         );
-    final categories = await ref.read(categoriesApiProvider).listCategories();
-    final accounts = await ref.read(accountsApiProvider).listAccounts(
-          bookId: bookId.isEmpty ? null : bookId,
-        );
     records.sort((a, b) {
       final byDate = b.recordDate.compareTo(a.recordDate);
       if (byDate != 0) return byDate;
       return b.createdAt.compareTo(a.createdAt);
     });
+    final categories = _readCategories();
+    final accounts = _readAccounts(bookId);
+    // ponytail: 把成功数据回写 txCacheProvider,下次切回 transactions tab 时
+    //          initState 立刻命中,不等 _load。
+    final cache = Map<String, TxCacheEntry>.from(ref.read(txCacheProvider));
+    cache[_month] = TxCacheEntry(
+      records: records,
+      categories: categories,
+      accounts: accounts,
+    );
+    ref.read(txCacheProvider.notifier).state = cache;
     return _TxData(records: records, categories: categories, accounts: accounts);
+  }
+
+  /// 从全局 categoriesStateProvider 读 categories;为空则同步 fire-and-forget
+  /// 触发拉取,后续 initState 也能感知(provider watch 重建)。
+  List<Category> _readCategories() {
+    final state = ref.read(categoriesStateProvider);
+    if (state.items.isEmpty) {
+      // fire-and-forget: 不 await,首次 _load 不阻塞等它
+      _kickCategoriesRefresh();
+      return const [];
+    }
+    return state.items.cast<Category>();
+  }
+
+  Future<void> _kickCategoriesRefresh() async {
+    try {
+      final cats = await ref.read(categoriesApiProvider).listCategories();
+      ref.read(categoriesStateProvider.notifier).state = CategoriesState(
+        items: cats,
+        bookId: '',
+      );
+      // ponytail: 写回后重建 _data 让 transactions 页面刷新。判断当前 _data
+      //          是首条 records 已就位但 categories 为空的情况,合并更新。
+      if (mounted && _data != null) {
+        setState(() {
+          _data = _TxData(
+            records: _data!.records,
+            categories: cats,
+            accounts: _data!.accounts,
+          );
+        });
+      }
+    } catch (_) { /* 容忍 — 后续 reload 会再拉 */ }
+  }
+
+  List<Account> _readAccounts(String bookId) {
+    final list = ref.read(accountsStateProvider(bookId));
+    if (list.isEmpty) {
+      _kickAccountsRefresh(bookId);
+      return const [];
+    }
+    return list.cast<Account>();
+  }
+
+  Future<void> _kickAccountsRefresh(String bookId) async {
+    try {
+      final accs = await ref.read(accountsApiProvider).listAccounts(
+            bookId: bookId.isEmpty ? null : bookId,
+          );
+      ref.read(accountsStateProvider(bookId).notifier).state = accs;
+      if (mounted && _data != null) {
+        setState(() {
+          _data = _TxData(
+            records: _data!.records,
+            categories: _data!.categories,
+            accounts: accs,
+          );
+        });
+      }
+    } catch (_) { /* 容忍 */ }
   }
 
   void _onMonthChanged(String m) {
     if (m == _month) return;
     setState(() {
       _month = m;
+      // ponytail: 切月份时也尝试命中缓存,跨月份切换也不闪 loading。
+      final cached = ref.read(txCacheProvider)[m];
+      _data = cached == null
+          ? null
+          : _TxData(
+              records: cached.records.cast<Record>(),
+              categories: cached.categories.cast<Category>(),
+              accounts: cached.accounts.cast<Account>(),
+            );
       _future = _load();
     });
   }
@@ -170,16 +276,14 @@ class _TransactionsScreenState extends ConsumerState<TransactionsScreen> {
       body: FutureBuilder<_TxData>(
         future: _future,
         builder: (context, snap) {
-          // 首次加载还没数据 → 整页占位
-          if (!snap.hasData) {
-            if (snap.connectionState != ConnectionState.done) {
-              return Center(
-                child: Text(
-                  lang.t('transactions.loading'),
-                  style: TextStyle(color: c.textVariant),
-                ),
-              );
-            }
+          // 同步新数据到 _data(引用相等即停止更新,避免重复 setState)。
+          if (snap.hasData && !identical(snap.data, _data)) {
+            _data = snap.data;
+          }
+          // 首次加载还没数据 → 骨架屏(filter/balance/list 占位灰块)。
+          // 用户反馈 "切换页面时不要空白等 loading" —— 骨架让 UI 立刻出现,
+          // 视觉上等同 "立即渲染",数据回来平滑替换。
+          if (_data == null) {
             if (snap.hasError) {
               return Center(
                 child: Text(
@@ -188,8 +292,10 @@ class _TransactionsScreenState extends ConsumerState<TransactionsScreen> {
                 ),
               );
             }
+            return _TransactionsSkeleton();
           }
-          final data = snap.data!;
+          final data = _data!;
+          final isReloading = snap.connectionState != ConnectionState.done;
           // 客户端按 categoryId / accountId 过滤 — 跟 uniapp filteredRecords 对齐。
           final filtered = data.records.where((r) {
             if (_categoryId != 'all' && r.categoryId != _categoryId) {
@@ -209,16 +315,27 @@ class _TransactionsScreenState extends ConsumerState<TransactionsScreen> {
           final monthNet = monthIncome - monthExpense;
           final groups = _groupByDate(filtered);
 
-          return RefreshIndicator(
-            onRefresh: () async {
-              final f = _load();
-              setState(() => _future = f);
-              await f;
-            },
-            child: ListView(
-              // uniapp .scroll-area { padding: 0 24rpx 24rpx } → 12dp
-              padding: const EdgeInsets.fromLTRB(12, 12, 12, 12),
-              children: [
+          return Column(
+            children: [
+              // ponytail: 重载中(切 tab / quickAdd save / 手动下拉)显示顶部进度条,
+              //          已有 _data 仍渲染,避免闪 loading。首次没数据时 _data==null
+              //          上面已经早 return,这里 isReloading 一定有 _data 可显示。
+              if (isReloading)
+                const LinearProgressIndicator(
+                  minHeight: 2,
+                  backgroundColor: Color(0x00000000),
+                ),
+              Expanded(
+                child: RefreshIndicator(
+                  onRefresh: () async {
+                    final f = _load();
+                    setState(() => _future = f);
+                    await f;
+                  },
+                  child: ListView(
+                    // uniapp .scroll-area { padding: 0 24rpx 24rpx } → 12dp
+                    padding: const EdgeInsets.fromLTRB(12, 12, 12, 12),
+                    children: [
                 // uniapp .filter-row { display:column; gap:16rpx; margin-top:20rpx }
                 _FilterCard(
                   ref: ref,
@@ -251,9 +368,12 @@ class _TransactionsScreenState extends ConsumerState<TransactionsScreen> {
                   accounts: data.accounts,
                   onDelete: _confirmDelete,
                   empty: filtered.isEmpty,
+              ),
+                    ],
+                  ),
                 ),
-              ],
-            ),
+              ),
+            ],
           );
         },
       ),
@@ -1018,5 +1138,127 @@ class _DayGroupBlock extends StatelessWidget {
       if (a.id == id) return a;
     }
     return null;
+  }
+}
+
+/// 骨架屏 —— 首次 _data==null 时渲染,filter / balance / list 用灰块占位。
+/// ponytail: 视觉上等同"立即有 UI",数据回来平滑替换。
+class _TransactionsSkeleton extends StatelessWidget {
+  @override
+  Widget build(BuildContext context) {
+    final c = context.appColors;
+    final base = c.divider;
+    final high = c.textVariant.withValues(alpha: 0.15);
+    Widget bar(double w, {double h = 14, Color? color}) => Container(
+          width: w,
+          height: h,
+          decoration: BoxDecoration(
+            color: color ?? high,
+            borderRadius: BorderRadius.circular(4),
+          ),
+        );
+    Widget block({Widget? child}) => Container(
+          // ponytail: 不写 height,让 Container 自适应 Column 高度。
+          //          之前固定 height + Column intrinsic 子元素超出会
+          //          "BOTTOM OVERFLOWED BY N PIXELS"。骨架不要求跟真实
+          //          高度完全一致,自适应即可。
+          decoration: BoxDecoration(
+            color: c.bgCard,
+            borderRadius: BorderRadius.circular(8),
+            border: Border.all(color: base),
+          ),
+          padding: const EdgeInsets.all(12),
+          child: child ?? const SizedBox.shrink(),
+        );
+    return ListView(
+      padding: const EdgeInsets.fromLTRB(12, 12, 12, 12),
+      children: [
+        block(child: Column(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            bar(80, h: 14),
+            const SizedBox(height: 12),
+            Row(children: [
+              Expanded(child: Container(
+                height: 36,
+                decoration: BoxDecoration(
+                  color: high,
+                  borderRadius: BorderRadius.circular(6),
+                ),
+              )),
+              const SizedBox(width: 6),
+              Expanded(child: Container(
+                height: 36,
+                decoration: BoxDecoration(
+                  color: high,
+                  borderRadius: BorderRadius.circular(6),
+                ),
+              )),
+              const SizedBox(width: 6),
+              Expanded(child: Container(
+                height: 36,
+                decoration: BoxDecoration(
+                  color: high,
+                  borderRadius: BorderRadius.circular(6),
+                ),
+              )),
+            ]),
+          ],
+        )),
+        const SizedBox(height: 8),
+        block(child: Column(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            bar(80, h: 13, color: c.primary.withValues(alpha: 0.2)),
+            const SizedBox(height: 12),
+            bar(160, h: 28),
+            const SizedBox(height: 12),
+            Row(
+              mainAxisAlignment: MainAxisAlignment.spaceBetween,
+              children: [
+                bar(80, h: 12),
+                bar(80, h: 12),
+              ],
+            ),
+          ],
+        )),
+        const SizedBox(height: 8),
+        block(child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            for (int i = 0; i < 4; i++) ...[
+              if (i > 0) Divider(height: 1, thickness: 1, color: base),
+              Padding(
+                padding: const EdgeInsets.symmetric(vertical: 12),
+                child: Row(
+                  children: [
+                    Container(
+                      width: 36, height: 36,
+                      decoration: BoxDecoration(
+                        color: high,
+                        shape: BoxShape.circle,
+                      ),
+                    ),
+                    const SizedBox(width: 12),
+                    Expanded(child: Column(
+                      mainAxisSize: MainAxisSize.min,
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        bar(double.infinity, h: 12),
+                        const SizedBox(height: 6),
+                        bar(120, h: 10),
+                      ],
+                    )),
+                    bar(70, h: 14),
+                  ],
+                ),
+              ),
+            ],
+          ],
+        )),
+      ],
+    );
   }
 }

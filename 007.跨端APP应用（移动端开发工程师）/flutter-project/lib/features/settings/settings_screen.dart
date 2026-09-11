@@ -1104,17 +1104,30 @@ class _CategoriesCardState extends ConsumerState<_CategoriesCard> {
               //          reload 时保留旧数据,顶部加进度条,跟 home / accounts
               //          风格一致;否则 reload 期间列表整体替换成 spinner。
               if (!snap.hasData) {
+                // ponytail: 骨架占位 — 模仿真实 cat-grid 的 6/7 列网格,
+                // 6 个圆角方块占位,数据回来平滑替换。避免空白 spinner。
                 return Padding(
-                  padding: const EdgeInsets.all(AppSpacing.lg),
-                  child: Center(
-                    child: SizedBox(
-                      width: 16,
-                      height: 16,
-                      child: CircularProgressIndicator(
-                        strokeWidth: 2,
-                        color: c.primary,
-                      ),
-                    ),
+                  padding: const EdgeInsets.symmetric(
+                    horizontal: AppSpacing.lg,
+                  ),
+                  child: GridView.count(
+                    crossAxisCount: 6,
+                    shrinkWrap: true,
+                    physics: const NeverScrollableScrollPhysics(),
+                    mainAxisSpacing: AppSpacing.sm,
+                    crossAxisSpacing: AppSpacing.sm,
+                    childAspectRatio: 1,
+                    children: [
+                      for (int i = 0; i < 12; i++)
+                        Container(
+                          decoration: BoxDecoration(
+                            color: c.textVariant.withValues(alpha: 0.15),
+                            borderRadius: BorderRadius.circular(
+                              AppRadius.sm,
+                            ),
+                          ),
+                        ),
+                    ],
                   ),
                 );
               }

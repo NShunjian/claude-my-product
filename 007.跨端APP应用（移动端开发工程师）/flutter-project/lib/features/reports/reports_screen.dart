@@ -338,10 +338,9 @@ class _MonthlyTabState extends ConsumerState<_MonthlyTab> {
     return FutureBuilder<MonthlyReport>(
       future: _future,
       builder: (context, snap) {
+        // 骨架屏:首次 snap 还没数据 → 渲染 KPI/图表/分类汇总占位,
+        // 避免居中 spinner 空白等(对齐 home/transactions/accounts)。
         if (!snap.hasData) {
-          if (snap.connectionState != ConnectionState.done) {
-            return Center(child: Text(lang.t('common.loading')));
-          }
           if (snap.hasError) {
             return Center(
               child: Text(
@@ -350,6 +349,7 @@ class _MonthlyTabState extends ConsumerState<_MonthlyTab> {
               ),
             );
           }
+          return const _ReportsSkeleton();
         }
         final r = snap.data!;
         final isReloading = snap.connectionState != ConnectionState.done;
@@ -461,10 +461,8 @@ class _YearlyTabState extends ConsumerState<_YearlyTab> {
     return FutureBuilder<YearlyReport>(
       future: _future,
       builder: (context, snap) {
+        // 骨架屏:对齐 home/transactions/accounts,首次无数据不空白。
         if (!snap.hasData) {
-          if (snap.connectionState != ConnectionState.done) {
-            return Center(child: Text(lang.t('common.loading')));
-          }
           if (snap.hasError) {
             return Center(
               child: Text(
@@ -473,6 +471,7 @@ class _YearlyTabState extends ConsumerState<_YearlyTab> {
               ),
             );
           }
+          return const _ReportsSkeleton();
         }
         final r = snap.data!;
         final isReloading = snap.connectionState != ConnectionState.done;
@@ -1965,6 +1964,125 @@ class _BarTip extends StatelessWidget {
           ),
         ),
       ),
+    );
+  }
+}
+/// 骨架屏 —— 首次 snap 没数据时渲染,月报和年报共用。模仿真实布局:
+/// 月报 = KPI 卡(收入/支出/结余/日均)+ 趋势/分类图表卡 + 分类汇总。
+/// 年报 = KPI 卡 + 趋势图表 + 12 个月柱图 + 分类汇总。这里只做月报风格的
+/// 通用骨架(年报复用同一视觉),分类汇总做 5 行占位。
+class _ReportsSkeleton extends StatelessWidget {
+  const _ReportsSkeleton();
+
+  @override
+  Widget build(BuildContext context) {
+    final c = context.appColors;
+    final base = c.divider;
+    final high = c.textVariant.withValues(alpha: 0.15);
+    Widget bar(double w, {double h = 14, Color? color}) => Container(
+          width: w,
+          height: h,
+          decoration: BoxDecoration(
+            color: color ?? high,
+            borderRadius: BorderRadius.circular(4),
+          ),
+        );
+    Widget card({Widget? child}) => Container(
+          // ponytail: 不写 height,Container 自适应 Column intrinsic 高度,
+          //          避免 "BOTTOM OVERFLOWED BY N PIXELS"(home/transactions 同款)。
+          decoration: BoxDecoration(
+            color: c.bgCard,
+            borderRadius: BorderRadius.circular(8),
+            border: Border.all(color: base),
+          ),
+          padding: const EdgeInsets.all(12),
+          child: child ?? const SizedBox.shrink(),
+        );
+    return ListView(
+      padding: const EdgeInsets.all(AppSpacing.md),
+      children: [
+        // KPI 卡(3 列: 收入 / 支出 / 结余)
+        Row(
+          children: [
+            for (int i = 0; i < 3; i++) ...[
+              Expanded(child: card(child: Column(
+                mainAxisSize: MainAxisSize.min,
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  bar(50, h: 10),
+                  const SizedBox(height: 10),
+                  bar(double.infinity, h: 22),
+                ],
+              ))),
+              if (i < 2) const SizedBox(width: AppSpacing.sm),
+            ],
+          ],
+        ),
+        const SizedBox(height: AppSpacing.md),
+        // 趋势图卡(220px,内部 5 根柱) — 这里需要固定 220px 给 Expanded 柱子占空间,
+        // 之前的 card(h: 220, ...) 用 Container.height,改成 SizedBox 包 card。
+        SizedBox(
+          height: 220,
+          child: card(child: Column(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              bar(80, h: 12),
+              const SizedBox(height: 16),
+              Expanded(child: Row(
+                crossAxisAlignment: CrossAxisAlignment.end,
+                children: [
+                  for (int i = 0; i < 5; i++) ...[
+                    Expanded(child: Container(
+                      height: 40 + (i * 18).toDouble(),
+                      margin: const EdgeInsets.symmetric(horizontal: 6),
+                      decoration: BoxDecoration(
+                        color: high,
+                        borderRadius: BorderRadius.circular(4),
+                      ),
+                    )),
+                  ],
+                ],
+              )),
+            ],
+          )),
+        ),
+        const SizedBox(height: AppSpacing.md),
+        // 分类汇总(5 行:圆形 icon + 文字 + 数字)
+        card(child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            for (int i = 0; i < 5; i++) ...[
+              if (i > 0) Divider(height: 1, thickness: 1, color: base),
+              Padding(
+                padding: const EdgeInsets.symmetric(vertical: 10),
+                child: Row(
+                  children: [
+                    Container(
+                      width: 28, height: 28,
+                      decoration: BoxDecoration(
+                        color: high,
+                        shape: BoxShape.circle,
+                      ),
+                    ),
+                    const SizedBox(width: 10),
+                    Expanded(child: Column(
+                      mainAxisSize: MainAxisSize.min,
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        bar(double.infinity, h: 12),
+                        const SizedBox(height: 6),
+                        bar(80, h: 10),
+                      ],
+                    )),
+                    bar(70, h: 14),
+                  ],
+                ),
+              ),
+            ],
+          ],
+        )),
+      ],
     );
   }
 }

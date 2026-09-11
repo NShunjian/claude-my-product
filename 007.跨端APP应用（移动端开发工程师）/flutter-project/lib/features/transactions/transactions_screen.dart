@@ -330,7 +330,12 @@ class _TransactionsScreenState extends ConsumerState<TransactionsScreen> {
                 child: RefreshIndicator(
                   onRefresh: () async {
                     final f = _load();
-                    setState(() => _future = f);
+                    // ponytail: 块体闭包,不能写 `() => _future = f` — 箭头函
+                    //          数返回 Future f,setState debug 模式 assert
+                    //          throw,markNeedsBuild 永远不被调用,UI 不刷新。
+                    setState(() {
+                      _future = f;
+                    });
                     await f;
                   },
                   child: ListView(

@@ -9,7 +9,6 @@ import '../../core/router/app_router.dart';
 import '../../core/theme/tokens.dart';
 import '../../core/utils/account_presentation.dart';
 import '../../core/utils/finance.dart';
-import '../../core/utils/tab_refresh_signal.dart';
 import '../shared/app_header.dart';
 import '../shared/providers.dart';
 import '../shared/skeleton_shimmer.dart';
@@ -40,15 +39,27 @@ class _AccountsScreenState extends ConsumerState<AccountsScreen> {
   void initState() {
     super.initState();
     _future = _load();
-    // ponytail: 切到 accounts tab 时重拉(3)。next>prev 才触发,初始 0 不触发空拉。
-    ref.listenManual<int>(tabRefreshSignalProvider(3), (prev, next) {
-      if (prev != null && next > prev) _reload();
-    });
   }
 
   void _reload() {
+    // ponytail: 之前 _reload 写成 setState(() => _future = f) — 箭头函数
+    //          返回赋值表达式值(即 Future f),Flutter setState 在 debug
+    //          模式 assert 检测到 callback 返回 Future 就 throw,导致
+    //          markNeedsBuild 永远不被调用 → _future 字段被改了但 widget
+    //          不知道 rebuild → UI 永远停留在旧 list。切 filter chip 时
+    //          另一个 setState(() => _filter = m)(块体,返回 void)正常
+    //          触发了 rebuild,新数据才显示。
+    //          修复:setState 闭包必须用块体(无返回值)或显式返回 null。
     final f = _load();
-    setState(() => _future = f);
+    setState(() {
+      _future = f;
+    });
+    f.then((list) {
+      if (!mounted) return;
+      setState(() {
+        _data = list;
+      });
+    }).catchError((_) {});
   }
 
   Future<List<Account>> _load() async {
@@ -180,9 +191,6 @@ class _AccountsScreenState extends ConsumerState<AccountsScreen> {
     try {
       await ref.read(accountsApiProvider).deleteAccount(a.id);
       if (!mounted) return;
-      // ponytail: setState 必须是同步闭包,之前 `setState(() => _future =
-      //          _load())` 把 Future 当作闭包返回值,Flutter 拒绝执行,导致
-      //          卡片不消失。改成显式两步:先拿 Future,再 setState 赋值。
       _reload();
     } catch (e) {
       if (!mounted) return;
@@ -198,6 +206,11 @@ class _AccountsScreenState extends ConsumerState<AccountsScreen> {
 
   @override
   Widget build(BuildContext context) {
+    // ponytail: 之前在 build 里 ref.listen tabRefreshSignalProvider(3) 监听
+    //          account_new_screen 保存后推的信号,但 build 内 listen 与
+    //          FutureBuilder rebuild 时序竞争导致 IndexedStack 场景下
+    //          "返回后新账户不显示"。改成 onAdd 处 await push + 显式
+    //          _reload,确定性顺序、无 race,信号监听也就不再需要。
     final lang = I18n.of(context);
     final c = context.appColors;
     return Scaffold(
@@ -260,7 +273,19 @@ class _AccountsScreenState extends ConsumerState<AccountsScreen> {
                         total: total,
                         label: lang.t('accounts.netAssets'),
                         addCta: lang.t('accounts.addCta'),
-                        onAdd: () => context.push(AppRoutes.accountNew),
+                        // ponytail: 用 await push + 显式 _reload 替代 signal 监
+                        //          听 — push 返回 Future 在 pop 时完成,await 后
+                        //          调用 _reload 是确定性顺序,无 race。之前的信
+                        //          号方案(setState _future + context.pop + 异步
+                        //          setState _data)在 IndexedStack 场景下出现
+                        //          "返回后新账户不显示,切 filter chip 才刷出"
+                        //          的 bug,根因是 build/setState 时序与
+                        //          FutureBuilder 内部 previousData 缓存竞争。
+                        onAdd: () async {
+                          await context.push(AppRoutes.accountNew);
+                          if (!mounted) return;
+                          _reload();
+                        },
                       ),
                       const SizedBox(height: AppSpacing.md),
                       _FilterChips(

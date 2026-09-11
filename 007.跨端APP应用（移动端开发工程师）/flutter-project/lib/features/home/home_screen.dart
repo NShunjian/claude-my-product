@@ -127,7 +127,12 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
       body: RefreshIndicator(
         onRefresh: () async {
           final f = _load();
-          setState(() => _future = f);
+          // ponytail: 块体闭包返回 void,不能写 `() => _future = f` — 箭头函
+          //          数返回赋值表达式值(即 Future f),setState debug 模式会
+          //          assert throw,markNeedsBuild 永远不被调用,UI 不刷新。
+          setState(() {
+            _future = f;
+          });
           await f;
         },
         child: FutureBuilder<_HomeData>(

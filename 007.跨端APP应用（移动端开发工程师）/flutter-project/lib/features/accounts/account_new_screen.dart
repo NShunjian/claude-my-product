@@ -7,7 +7,6 @@ import '../../core/api/api_exception.dart';
 import '../../core/api/models.dart';
 import '../../core/i18n/locale_provider.dart';
 import '../../core/theme/tokens.dart';
-import '../../core/utils/tab_refresh_signal.dart';
 import '../shared/app_header.dart';
 import '../shared/providers.dart';
 import '../shared/toast_controller.dart';
@@ -91,6 +90,10 @@ class _AccountNewScreenState extends ConsumerState<AccountNewScreen> {
     }
     setState(() => _submitting = true);
     try {
+      // ponytail: 显式传当前 bookId 下去 —— 不传后端会落到默认账本,
+      //          如果用户当前在非默认账本看账户页,新建的账户不在当前
+      //          列表里 = 用户感觉"没保存成功"。
+      final bookId = ref.read(currentBookIdProvider);
       await ref.read(accountsApiProvider).createAccount(
             CreateAccountInput(
               name: name,
@@ -99,14 +102,16 @@ class _AccountNewScreenState extends ConsumerState<AccountNewScreen> {
               initialBalance: bal,
               currency: 'CNY',
               isDefault: _isDefault,
+              bookId: bookId.isEmpty ? null : bookId,
             ),
           );
       if (!mounted) return;
       ref.read(toastControllerProvider.notifier).show(lang.t('accountAdd.submitAccount'));
-      // ponytail: 通知 accounts tab(3)刷新 — accounts_screen.initState 监
-      //          听 tabRefreshSignalProvider(3),next>prev 才触发 reload。
-      //          push 出来的新建页保存成功,推一下信号让父页 reload。
-      ref.read(tabRefreshSignalProvider(3).notifier).state++;
+      // ponytail: 不再推 tabRefreshSignalProvider(3) — accounts_screen 的
+      //          onAdd 用 await context.push + _reload 拿确定性顺序,无需
+      //          跨页信号。信号机制留下 race(window: save→signal++ 与
+      //          context.pop 间隔几毫秒,正好被 IndexedStack + push 路由
+      //          的 FutureBuilder rebuild 时序吃掉)。
       if (context.canPop()) {
         context.pop(true);
       } else {

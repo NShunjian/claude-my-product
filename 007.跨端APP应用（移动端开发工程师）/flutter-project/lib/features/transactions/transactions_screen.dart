@@ -9,9 +9,9 @@ import '../../core/i18n/locale_provider.dart';
 import '../../core/theme/tokens.dart';
 import '../../core/utils/date_util.dart';
 import '../../core/utils/finance.dart';
-import '../../core/utils/modal_state.dart';
 import '../../core/utils/tab_refresh_signal.dart';
 import '../shared/app_header.dart';
+import '../shared/bottom_sheet_route.dart';
 import '../shared/month_picker.dart';
 import '../shared/providers.dart';
 import '../shared/quick_add_controller.dart';
@@ -379,11 +379,8 @@ class _TransactionsScreenState extends ConsumerState<TransactionsScreen> {
                   onDelete: _confirmDelete,
                   empty: filtered.isEmpty,
               ),
-                      // ponytail: ListView 内容不够长时底部留 80pt 视觉缓冲,
-                      //          内容滑到底也不会紧贴 nav bar;配合 Scaffold
-                      //          backgroundColor: c.surface 形成"灰底+白卡片"
-                      //          视觉层次,消除"一大段空白"错觉。
-                      const SizedBox(height: 80),
+                      // ponytail: 2026-09-11 对齐 reports/settings,去掉 80pt
+                      //          视觉缓冲 — 5 页 ListView 底部都贴 nav bar 上沿。
                     ],
                   ),
                 ),
@@ -654,59 +651,30 @@ Future<_PickerOption?> _showOptionSheet({
   required String title,
   required List<_PickerOption> options,
   required String selectedId,
-}) async {
-  // ponytail: 切换 modalOpenProvider → _TabScaffold 把 bottomNavigationBar
-  //          换成 SizedBox.shrink(),底部 tab bar 真正消失 → picker 任何高度
-  //          都能盖到屏幕底。这是 app 已有的通用机制(quickAdd / 通用 modal
-  //          也用同一 provider),比让 picker 强行盖在 tab bar 上更干净。
-  ref.read(modalOpenProvider.notifier).state = true;
-  try {
-    // ponytail: 用 View.of(context) 而不是 MediaQuery.of(context) — Scaffold
-    //          body 内的 MediaQuery.size.height 被 Scaffold 改写成 body 高度
-    //          (扣掉 appbar + bottomNavigationBar),不是真实屏幕高度。
-    //          View.of 拿到的是 FlutterView 的物理尺寸除以 dpr,跨任何 widget
-    //          位置都是一致的全屏尺寸。
-    final view = View.of(context);
-    final screenHeight = view.physicalSize.height / view.devicePixelRatio;
-    return await showModalBottomSheet<_PickerOption>(
-      context: context,
-      backgroundColor: Colors.transparent,
-      isScrollControlled: true,
-      // ponytail: useSafeArea: false 让 modal 延伸到屏幕底边缘(包括 home
-      //          indicator 区),否则 safe area 之外的位置不被覆盖。
-      useSafeArea: false,
-      builder: (ctx) => _OptionSheet(
-        options: options,
-        selectedId: selectedId,
-        screenHeight: screenHeight,
-      ),
-    );
-  } finally {
-    // ponytail: 用 context.mounted 而不是 ref 生命周期检查 — context 是
-    //          BuildContext(StatelessWidget._FilterCard.build 传入),dispose
-    //          后 mounted=false,避免在 widget 卸载后还写 provider。
-    if (context.mounted) {
-      ref.read(modalOpenProvider.notifier).state = false;
-    }
-  }
+}) {
+  return showAppBottomSheet<_PickerOption>(
+    context,
+    ref: ref,
+    builder: (_) => _OptionSheet(options: options, selectedId: selectedId),
+  );
 }
 
 /// 滚轮选择器:对齐 uniapp MP `<picker mode="selector">` 的 iOS 原生滚轮
 /// 体验 — CupertinoPicker + 上下渐变蒙层。中心 item 黑色 w600,其余 c.textVariant
 /// 灰色,渐变蒙层让边缘 item 自然变淡(用户反馈:"滑动中间高亮,其他就渐变")。
+///
+/// ponytail: 2026-09-12 — 弹出走 bottom_sheet_route.dart 的 showAppBottomSheet
+///          (Navigator.push + 自定 PageRoute,不走 showModalBottomSheet)。
+///          这里 Stack > Positioned(bottom: 0) 锚物理屏底,wheel 底部 ==
+///          屏幕底部,无视 iOS home indicator。
 class _OptionSheet extends StatefulWidget {
   const _OptionSheet({
     required this.options,
     required this.selectedId,
-    required this.screenHeight,
   });
 
   final List<_PickerOption> options;
   final String selectedId;
-  // ponytail: 从外部 context 传入屏幕高度(避免 modal 内 MediaQuery.size.height
-  //          返回 modal 自己的 bounding box,导致 picker 高度计算偏小,tab bar
-  //          不被覆盖)。
-  final double screenHeight;
 
   @override
   State<_OptionSheet> createState() => _OptionSheetState();
@@ -733,174 +701,155 @@ class _OptionSheetState extends State<_OptionSheet> {
   @override
   Widget build(BuildContext context) {
     final c = context.appColors;
-    // ponytail: 高度 35% — modal 顶/底圆角保持,底部平直延伸到屏幕底覆盖 tab bar。
-    //          (tab bar 已通过 modalOpenProvider 隐藏,所以这里只是高度比例的
-    //          视觉调整,不影响覆盖效果。)
-    return Container(
-      // ponytail: 高度 35% 屏高再 -34(header 自然高 46 + 滚轮区 5×40=200,
-      //          总 246 ≈ screenHeight*0.35 - 34)。滚轮区精确 = 200px,
-      //          = CupertinoPicker 的 5 个 itemExtent,内容填满无 buffer
-      //          无裁切,首 item 紧贴 header 下沿(对齐"选择内容顶到红线")。
-      height: widget.screenHeight * 0.35 - 34,
-      decoration: BoxDecoration(
-        // ponytail: 用户反馈"背景设为白色" — picker 强制白底,跟 uniapp 参考一致。
-        color: Colors.white,
-        borderRadius: const BorderRadius.only(
-          topLeft: Radius.circular(AppRadius.lg),
-          topRight: Radius.circular(AppRadius.lg),
-        ),
-        boxShadow: const [
-          BoxShadow(
-            color: Color.fromRGBO(0, 0, 0, 0.18),
-            blurRadius: 16,
-            offset: Offset(0, -4),
-          ),
-        ],
-      ),
-      child: Column(
-        mainAxisSize: MainAxisSize.max,
+    return SizedBox.expand(
+      child: Stack(
         children: [
-          // 顶部条:取消 + 完成(无 title,跟截图一致)。
-          Container(
-            height: 48,
-            padding: const EdgeInsets.symmetric(horizontal: AppSpacing.md),
-            child: Row(
-              mainAxisAlignment: MainAxisAlignment.spaceBetween,
-              children: [
-                GestureDetector(
-                  behavior: HitTestBehavior.opaque,
-                  onTap: () => Navigator.of(context).pop(),
-                  child: Text(
-                    '取消',
-                    style: TextStyle(color: c.textVariant, fontSize: 16),
-                  ),
+          Positioned(
+            left: 0,
+            right: 0,
+            bottom: 0,
+            child: Container(
+              decoration: BoxDecoration(
+                // ponytail: 用户反馈"背景设为白色" — picker 强制白底,跟
+                //          uniapp 参考一致。
+                color: Colors.white,
+                borderRadius: const BorderRadius.vertical(
+                  top: Radius.circular(AppRadius.lg),
                 ),
-                GestureDetector(
-                  behavior: HitTestBehavior.opaque,
-                  onTap: () => Navigator.of(context)
-                      .pop(widget.options[_currentIndex]),
-                  child: Text(
-                    '完成',
-                    style: TextStyle(
-                      color: c.primary,
-                      fontSize: 16,
-                      fontWeight: FontWeight.w600,
-                    ),
+                boxShadow: const [
+                  BoxShadow(
+                    color: Color.fromRGBO(0, 0, 0, 0.18),
+                    blurRadius: 16,
+                    offset: Offset(0, -4),
                   ),
-                ),
-              ],
-            ),
-          ),
-          // 滚轮区:CupertinoPicker + 选中行上下两条横线 + 上下渐变蒙层。
-          // ponytail: 不用 useMagnifier(magnifier 会让中心 item 放大,跟截图里
-          //          均匀字号的视觉不一致);改用文字颜色 + 横线 + 蒙层做出"中间高亮、
-          //          上下渐变"的视觉,跟 iOS native picker 一致。
-          // ponytail: 用 Expanded + LayoutBuilder 让轮区撑满 picker 余下空间
-          //          (35% × screen - 48dp top bar),内容一直延伸到 picker 底。
-          //          横线位置 (h-40)/2 动态居中,适配任意轮区高度。
-          Expanded(
-            child: LayoutBuilder(
-              builder: (context, constraints) {
-                final h = constraints.maxHeight;
-                // ponytail: StackFit.expand 强制 CupertinoPicker 撑满滚轮区
-                //          — 之前 Stack 默认 loose fit,CupertinoPicker 按
-                //          自身 intrinsic 渲染,在 196~200 区间内会有 4px
-                //          不一致(顶部空隙或底部裁切)。expand 强制对齐
-                //          Stack 边界,CupertinoPicker 占满整个滚轮区,首
-                //          item 顶到 picker 上沿 = 顶到红线位置。
-                return Stack(
-                  fit: StackFit.expand,
-                  children: [
-                    // ponytail: 整个 CupertinoPicker 整体上移 40px(一个
-                    //          itemExtent)— 这样选中 item(加粗黑字)从
-                    //          CupertinoPicker 几何中心 跟着上移到滚轮
-                    //          区 y=40-80,正好和下面 Positioned 的横线
-                    //          indicator 对齐,实现"红框选中位置整体往上
-                    //          移一格"。bottom 留 40 给上方让位,顶部
-                    //          -40 超出滚轮区的部分被 Stack clipbehavior
-                    //          默认 hardEdge 裁掉,不可见。
-                    Positioned(
-                      top: -40,
-                      bottom: 40,
-                      left: 0,
-                      right: 0,
-                      child: CupertinoPicker(
-                        itemExtent: 40,
-                        scrollController: _ctrl,
-                        backgroundColor: Colors.white,
-                        // ponytail: CupertinoPicker 自带 selectionOverlay 默认是圆角
-                        //          浅灰矩形,强制 SizedBox.shrink() 去掉,只保留我们
-                        //          自己画的上下两条横线作选中标记。
-                        selectionOverlay: const SizedBox.shrink(),
-                        onSelectedItemChanged: (i) =>
-                            setState(() => _currentIndex = i),
+                ],
+              ),
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  // 顶部条:取消 + 完成(无 title,跟截图一致)。
+                  // ponytail: 不要底部分割线 — 跟 uniapp picker 视觉一致,
+                  //          头部/滚轮区无缝衔接。
+                  Container(
+                    height: 48,
+                    padding: const EdgeInsets.symmetric(horizontal: AppSpacing.md),
+                    child: SelectionContainer.disabled(
+                      child: Row(
+                        mainAxisAlignment: MainAxisAlignment.spaceBetween,
                         children: [
-                          for (int i = 0; i < widget.options.length; i++)
-                            Center(
-                              child: Text(
-                                widget.options[i].name,
-                                style: TextStyle(
-                                  fontSize: 16,
-                                  color: i == _currentIndex
-                                      ? c.text
-                                      : c.textVariant,
-                                  fontWeight: i == _currentIndex
-                                      ? FontWeight.w600
-                                      : FontWeight.w400,
-                                ),
+                          GestureDetector(
+                            behavior: HitTestBehavior.opaque,
+                            onTap: () => Navigator.of(context).pop(),
+                            child: Text(
+                              '取消',
+                              style: TextStyle(
+                                color: c.textVariant,
+                                fontSize: 16,
+                                decoration: TextDecoration.none,
                               ),
                             ),
+                          ),
+                          GestureDetector(
+                            behavior: HitTestBehavior.opaque,
+                            onTap: () => Navigator.of(context)
+                                .pop(widget.options[_currentIndex]),
+                            child: Text(
+                              '完成',
+                              style: TextStyle(
+                                color: c.primary,
+                                fontSize: 16,
+                                fontWeight: FontWeight.w600,
+                                decoration: TextDecoration.none,
+                              ),
+                            ),
+                          ),
                         ],
                       ),
                     ),
-                    // ponytail: 横线位置 (h-40)/2 - 40 = (h-120)/2 —
-                    //          原 (h-40)/2 是滚轮垂直中心(对齐 CupertinoPicker
-                    //          居中的选中 item)。用户反馈"红框往上移一个"→
-                    //          上移一个 itemExtent(40px)。CupertinoPicker 已
-                    //          整体上移 40(见上面 Positioned 包裹),所以
-                    //          这里横线和选中文字仍对齐,只是位置从滚轮正中
-                    //          变成正中再往上一格。
-                    Positioned(
-                      top: (h - 120) / 2,
-                      left: 0,
-                      right: 0,
-                      child: IgnorePointer(
-                        child: Container(
-                          height: 40,
-                          decoration: BoxDecoration(
-                            border: Border(
-                              top: BorderSide(color: c.divider, width: 1),
-                              bottom: BorderSide(color: c.divider, width: 1),
+                  ),
+                  // 滚轮区:固定 220dp(5.5 × itemExtent 40),wheel 底部 =
+                  // Container 底部 = 屏幕底部。C超出/底部让位靠 Stack
+                  // top:-40/bottom:40(裁掉超出滚轮区的部分)。
+                  SizedBox(
+                    height: 220,
+                    child: Stack(
+                      fit: StackFit.expand,
+                      children: [
+                        Positioned(
+                          top: -40,
+                          bottom: 40,
+                          left: 0,
+                          right: 0,
+                          child: CupertinoPicker(
+                            itemExtent: 40,
+                            scrollController: _ctrl,
+                            backgroundColor: Colors.white,
+                            selectionOverlay: const SizedBox.shrink(),
+                            onSelectedItemChanged: (i) =>
+                                setState(() => _currentIndex = i),
+                            children: [
+                              for (int i = 0; i < widget.options.length; i++)
+                                Center(
+                                  child: Text(
+                                    widget.options[i].name,
+                                    style: TextStyle(
+                                      fontSize: 16,
+                                      color: i == _currentIndex
+                                          ? c.text
+                                          : c.textVariant,
+                                      fontWeight: i == _currentIndex
+                                          ? FontWeight.w600
+                                          : FontWeight.w400,
+                                    ),
+                                  ),
+                                ),
+                            ],
+                          ),
+                        ),
+                        // 选中行横线:220 - 120 = 100,/2 = 50。Container 高度 40
+                        // → 上沿 y=50,下沿 y=90,正好对齐整体上移 40 的 Picker
+                        // 中心(90 = 220 - 40 - 90)。
+                        Positioned(
+                          top: 50,
+                          left: 0,
+                          right: 0,
+                          child: IgnorePointer(
+                            child: Container(
+                              height: 40,
+                              decoration: BoxDecoration(
+                                border: Border(
+                                  top: BorderSide(color: c.divider, width: 1),
+                                  bottom: BorderSide(color: c.divider, width: 1),
+                                ),
+                              ),
                             ),
                           ),
                         ),
-                      ),
-                    ),
-                    // 上下渐变蒙层:顶/底用白色 0.85 透明遮罩 → 边缘 item
-                    // 自然变淡。stops 拉到 [0.15, 0.85] 让中间透明区域更大,
-                    // 适配更大的轮区(35% × screen - 48 ≈ 400dp on 1280)。
-                    Positioned.fill(
-                      child: IgnorePointer(
-                        child: Container(
-                          decoration: BoxDecoration(
-                            gradient: LinearGradient(
-                              begin: Alignment.topCenter,
-                              end: Alignment.bottomCenter,
-                              colors: [
-                                Colors.white.withValues(alpha: 0.85),
-                                Colors.white.withValues(alpha: 0.0),
-                                Colors.white.withValues(alpha: 0.0),
-                                Colors.white.withValues(alpha: 0.85),
-                              ],
-                              stops: const [0.0, 0.15, 0.85, 1.0],
+                        // 上下渐变蒙层:边缘 item 自然变淡。
+                        Positioned.fill(
+                          child: IgnorePointer(
+                            child: Container(
+                              decoration: BoxDecoration(
+                                gradient: LinearGradient(
+                                  begin: Alignment.topCenter,
+                                  end: Alignment.bottomCenter,
+                                  colors: [
+                                    Colors.white.withValues(alpha: 0.85),
+                                    Colors.white.withValues(alpha: 0.0),
+                                    Colors.white.withValues(alpha: 0.0),
+                                    Colors.white.withValues(alpha: 0.85),
+                                  ],
+                                  stops: const [0.0, 0.15, 0.85, 1.0],
+                                ),
+                              ),
                             ),
                           ),
                         ),
-                      ),
+                      ],
                     ),
-                  ],
-                );
-              },
+                  ),
+                ],
+              ),
             ),
           ),
         ],

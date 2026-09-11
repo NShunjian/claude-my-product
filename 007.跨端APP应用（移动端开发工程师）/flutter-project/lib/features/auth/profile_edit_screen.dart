@@ -318,10 +318,9 @@ class _ProfileEditScreenState extends ConsumerState<ProfileEditScreen> {
                   //          让按钮只占文字宽度居中。
                   OutlinedButton.icon(
                     onPressed: _pickAvatar,
-                    icon: const Text(
-                      '⬆️',
-                      style: TextStyle(fontSize: 18),
-                    ),
+                    // ponytail: 2026-09-12 — emoji 换 Material Icons,
+                    //          baseline 自动对齐,不需要任何手动微调。
+                    icon: const Icon(Icons.arrow_upward, size: 18),
                     label: Text(lang.t('profileEdit.uploadAvatar')),
                     style: OutlinedButton.styleFrom(
                       padding: const EdgeInsets.symmetric(
@@ -367,7 +366,7 @@ class _ProfileEditScreenState extends ConsumerState<ProfileEditScreen> {
               _Field(
                 label: lang.t('profileEdit.displayName'),
                 child: _IconInput(
-                  icon: '👤',
+                  emojiIcon: '👤',
                   controller: _nameCtrl,
                   hint: lang.t('profileEdit.displayNamePlaceholder'),
                 ),
@@ -386,7 +385,7 @@ class _ProfileEditScreenState extends ConsumerState<ProfileEditScreen> {
               _Field(
                 label: lang.t('profileEdit.age'),
                 child: _IconInput(
-                  icon: '🎂',
+                  emojiIcon: '🎂',
                   controller: _ageCtrl,
                   hint: lang.t('profileEdit.agePlaceholder'),
                   keyboardType: TextInputType.number,
@@ -419,7 +418,7 @@ class _ProfileEditScreenState extends ConsumerState<ProfileEditScreen> {
               _Field(
                 label: lang.t('profileEdit.oldPassword'),
                 child: _IconInput(
-                  icon: '🔒',
+                  emojiIcon: '🔒',
                   controller: _oldPwCtrl,
                   hint: lang.t('profileEdit.oldPasswordPlaceholder'),
                   obscure: true,
@@ -429,7 +428,7 @@ class _ProfileEditScreenState extends ConsumerState<ProfileEditScreen> {
               _Field(
                 label: lang.t('profileEdit.newPassword'),
                 child: _IconInput(
-                  icon: '🔑',
+                  emojiIcon: '🔑',
                   controller: _newPwCtrl,
                   hint: lang.t('profileEdit.newPasswordPlaceholder'),
                   obscure: true,
@@ -439,7 +438,7 @@ class _ProfileEditScreenState extends ConsumerState<ProfileEditScreen> {
               _Field(
                 label: lang.t('profileEdit.confirmPassword'),
                 child: _IconInput(
-                  icon: '🛡️',
+                  emojiIcon: '🛡️',
                   controller: _confirmPwCtrl,
                   hint: lang.t('profileEdit.confirmPasswordPlaceholder'),
                   obscure: true,
@@ -598,13 +597,15 @@ class _Field extends StatelessWidget {
 
 class _IconInput extends StatelessWidget {
   const _IconInput({
-    required this.icon,
+    required this.emojiIcon,
     required this.controller,
     required this.hint,
     this.obscure = false,
     this.keyboardType,
   });
-  final String icon;
+  // ponytail: 2026-09-12 — emoji 字符串(👤 🎂 🔒 🔑 🛡️ 等),emoji 跟
+  //          文字两个 widget 完全独立 vertical center,不再 baseline 绑定。
+  final String emojiIcon;
   final TextEditingController controller;
   final String hint;
   final bool obscure;
@@ -617,71 +618,67 @@ class _IconInput extends StatelessWidget {
       // ponytail: 高度 48 → 44 对齐 uniapp .text-input height: 88rpx ≈ 44px。
       height: 44,
       decoration: BoxDecoration(
-        color: c.bg,
+        // ponytail: 2026-09-12 — 输入框 bg 用 c.surface(#F5F5F5 真浅灰),
+        //          c.bg 是 #FFFFFF 纯白,看不出差别。
+        color: c.surface,
         borderRadius: BorderRadius.circular(AppRadius.sm),
         border: Border.all(color: c.divider),
       ),
-      child: Stack(
+      // ponytail: 2026-09-12 — emoji + TextField 两个 widget 完全独立
+      //          vertical center:
+      //          - emoji 用 SizedBox(22) + Center → emoji glyph visual
+      //          center 自动落在 22 高度的 center,跟 fontSize 解耦。
+      //          - TextField 用 contentPadding.vertical=14 让 14sp 文字
+      //          baseline 居中到 44 容器:文字 glyph 高 ~16,上下各 14。
+      //          两个 widget 各自 Align 到容器垂直中线,不再 baseline 绑。
+      child: Row(
+        crossAxisAlignment: CrossAxisAlignment.center,
         children: [
-          // ponytail: leading 44px icon 盒(uniapp .input-icon-box width:88rpx≈44px)
-          Positioned(
-            left: 0,
-            top: 0,
-            bottom: 0,
-            width: 44,
+          const SizedBox(
+            width: AppSpacing.md,
+          ),
+          SizedBox(
+            width: 22,
             child: Center(
               child: Text(
-                icon,
-                style: const TextStyle(fontSize: 20, height: 1),
-              ),
-            ),
-          ),
-          // TextField 走 prefixIcon 槽位,自动占 44px 宽不重叠
-          TextField(
-            controller: controller,
-            obscureText: obscure,
-            keyboardType: keyboardType,
-            style: TextStyle(color: c.text, fontSize: 14),
-            decoration: InputDecoration(
-              hintText: hint,
-              hintStyle: TextStyle(color: c.textVariant, fontSize: 14),
-              border: InputBorder.none,
-              enabledBorder: InputBorder.none,
-              focusedBorder: InputBorder.none,
-              isDense: true,
-              // ponytail: vertical:14 让 14px 文字视觉中心对齐 emoji 视觉中心。
-              //          没设 vertical 时 TextField 默认 baseline 渲染,文字顶到
-              //          Container 顶部,emoji 在几何中心(22px),看起来文字偏高。
-              //          14 + textHeight(17) + 14 ≈ 45,略超 44,Flutter 让
-              //          isDense 折叠到最小 → 文字视觉中心 y≈21,跟 emoji y=22
-              //          基本对齐。
-              contentPadding: const EdgeInsets.symmetric(
-                horizontal: AppSpacing.md,
-                vertical: 14,
-              ),
-              prefixIconConstraints: const BoxConstraints.tightFor(
-                width: 44,
-                height: 44,
-              ),
-              // 用 prefixIcon 占据空间让文本从 44px 后开始,emoji 自己再画一层
-              prefixIcon: const SizedBox.shrink(),
-            ),
-          ),
-          // 覆盖在 prefixIcon 位置的真实 emoji(避开 TextField prefixIcon 槽位
-          // 强制 IconButton,emoji 会变形)。Stack + Positioned 控制准确位置。
-          Positioned(
-            left: 0,
-            top: 0,
-            bottom: 0,
-            width: 44,
-            child: IgnorePointer(
-              child: Center(
-                child: Text(
-                  icon,
-                  style: const TextStyle(fontSize: 20, height: 1),
+                emojiIcon,
+                style: TextStyle(
+                  fontSize: 18,
+                  color: c.textVariant,
+                  decoration: TextDecoration.none,
+                  height: 1.0,
                 ),
               ),
             ),
+          ),
+          const SizedBox(
+            width: AppSpacing.sm,
+          ),
+          Expanded(
+            child: TextField(
+              controller: controller,
+              obscureText: obscure,
+              keyboardType: keyboardType,
+              style: TextStyle(color: c.text, fontSize: 14, height: 1.15),
+              decoration: InputDecoration(
+                hintText: hint,
+                hintStyle: TextStyle(
+                  color: c.textVariant,
+                  fontSize: 14,
+                  height: 1.15,
+                ),
+                border: InputBorder.none,
+                enabledBorder: InputBorder.none,
+                focusedBorder: InputBorder.none,
+                isDense: true,
+                contentPadding: const EdgeInsets.symmetric(
+                  vertical: 14,
+                ),
+              ),
+            ),
+          ),
+          const SizedBox(
+            width: AppSpacing.md,
           ),
         ],
       ),
@@ -710,7 +707,7 @@ class _GenderRow extends StatelessWidget {
         Expanded(
           child: _GenderBtn(
             label: maleLabel,
-            icon: '♂',
+            icon: Icons.male,
             active: current == Gender.male,
             onTap: () => onChange(Gender.male),
           ),
@@ -719,7 +716,7 @@ class _GenderRow extends StatelessWidget {
         Expanded(
           child: _GenderBtn(
             label: femaleLabel,
-            icon: '♀',
+            icon: Icons.female,
             active: current == Gender.female,
             onTap: () => onChange(Gender.female),
           ),
@@ -737,7 +734,9 @@ class _GenderBtn extends StatelessWidget {
     required this.onTap,
   });
   final String label;
-  final String icon;
+  // ponytail: 同 _IconInput — 从 String emoji 换 IconData,Icon widget
+  //          自带 alphabetic baseline 跟文字精确对齐。
+  final IconData icon;
   final bool active;
   final VoidCallback onTap;
 
@@ -763,17 +762,16 @@ class _GenderBtn extends StatelessWidget {
           ),
           child: Row(
             mainAxisAlignment: MainAxisAlignment.center,
+            crossAxisAlignment: CrossAxisAlignment.center,
             children: [
-              Text(
+              // ponytail: 2026-09-12 — 用 Icon(Material Icons)代替 emoji。
+              //          iOS emoji glyph 没有标准 baseline,任何 Transform.translate
+              //          都无法精确对齐文字 alphabetic baseline。Icon 自带
+              //          baseline,跟文字 14sp 默认对齐,视觉中心点对中心点。
+              Icon(
                 icon,
-                style: TextStyle(
-                  fontSize: 20,
-                  height: 1,
-                  // ponytail: uniapp .gender-btn 默认 color: var(--c-text),
-                  //          .mat-icon 不覆盖 color,符号继承按钮文字色。
-                  //          之前 textVariant(浅灰)在截图里偏淡,改 text。
-                  color: active ? c.primary : c.text,
-                ),
+                size: 18,
+                color: active ? c.primary : c.text,
               ),
               const SizedBox(width: 6),
               Text(

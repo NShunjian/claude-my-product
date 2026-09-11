@@ -234,14 +234,14 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
                   ),
                 Expanded(
                   child: ListView(
-                    // ponytail: bottom = 80 + safeArea 是 nav bar 高度,让最后一张
-                    //          卡能滚到 nav bar 之上不被遮挡(scaffold 不设
-                    //          extendBody,ListView 视口只到 nav bar 上沿)。
-                    padding: EdgeInsets.only(
+                    // ponytail: bottom = 0dp(用户 2026-09-12 指定),最后一项直接
+                    //          贴 nav bar 顶部无视觉缓冲。
+                    //          safeArea 已被外层 Stack 的 Padding 处理。
+                    padding: const EdgeInsets.only(
                       top: AppSpacing.md,
                       left: AppSpacing.md,
                       right: AppSpacing.md,
-                      bottom: 80 + MediaQuery.of(context).padding.bottom,
+                      bottom: 0,
                     ),
                     children: [
                       _GreetingRow(

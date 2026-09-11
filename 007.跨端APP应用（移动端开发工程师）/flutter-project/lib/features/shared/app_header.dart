@@ -1,3 +1,4 @@
+import 'package:flutter/foundation.dart' show kIsWeb, defaultTargetPlatform, TargetPlatform;
 import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
 
@@ -16,15 +17,33 @@ class AppHeader extends StatelessWidget implements PreferredSizeWidget {
   final String title;
   final bool back;
 
-  // 高度 = kToolbarHeight(56) + 1px 底边,uniapp .app-header { border-bottom: 1px }。
+  // ponytail: 三端区分 — mobile 端 toolbarHeight = 44(iOS HIG NavigationBar
+  //          标准值,用户指定);desktop 端走 kToolbarHeight = 56(M3 默认)。
+  //          preferredSize 必须是 const getter,但 Flutter 允许带 context 的
+  //          dynamic getter(不会被 cached 测量),改用 platform 检查。
+  //          参见 [[three-platform-must-specify-target]]。
   @override
-  Size get preferredSize => const Size.fromHeight(kToolbarHeight + 1);
+  Size get preferredSize {
+    final isMobile = !kIsWeb &&
+        (defaultTargetPlatform == TargetPlatform.iOS ||
+            defaultTargetPlatform == TargetPlatform.android);
+    final h = isMobile ? 44.0 : kToolbarHeight;
+    return Size.fromHeight(h + 1); // +1 是底部分隔线
+  }
 
   @override
   Widget build(BuildContext context) {
     final c = context.appColors;
+    final isMobile = !kIsWeb &&
+        (defaultTargetPlatform == TargetPlatform.iOS ||
+            defaultTargetPlatform == TargetPlatform.android);
     return AppBar(
-      title: Text(title),
+      toolbarHeight: isMobile ? 44.0 : kToolbarHeight,
+      title: Text(
+        title,
+        // ponytail: mobile 端 title 字号 16(用户指定);desktop 端走 ThemeData 默认。
+        style: isMobile ? const TextStyle(fontSize: 16) : null,
+      ),
       centerTitle: true,
       leading: back
           ? IconButton(

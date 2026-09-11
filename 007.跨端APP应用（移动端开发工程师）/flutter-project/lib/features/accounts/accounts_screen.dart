@@ -270,7 +270,14 @@ class _AccountsScreenState extends ConsumerState<AccountsScreen> {
                   ),
                 Expanded(
                   child: ListView(
-                    padding: const EdgeInsets.all(AppSpacing.lg),
+                    // ponytail: bottom = 0dp(用户 2026-09-12 指定),最后一项直接贴
+                    //          nav bar 顶部无视觉缓冲。AppSpacing.lg 留其他三边。
+                    padding: const EdgeInsets.fromLTRB(
+                      AppSpacing.lg,
+                      AppSpacing.lg,
+                      AppSpacing.lg,
+                      0,
+                    ),
                     children: [
                       _NetCard(
                         total: total,
@@ -333,11 +340,8 @@ class _AccountsScreenState extends ConsumerState<AccountsScreen> {
                               ),
                           ],
                         ),
-                      // ponytail: 账户少的时候 GridView 后留 80pt 缓冲,内容
-                      //          滑到底也不会紧贴 nav bar;配合 Scaffold
-                      //          backgroundColor: c.surface 形成"灰底+白卡片"
-                      //          视觉层次,消除"一大段空白"错觉。
-                      const SizedBox(height: 80),
+                      // ponytail: 2026-09-11 对齐 reports/settings,去掉 80pt 缓冲
+                      //          — 5 页 ListView 底部都贴 nav bar 上沿。
                     ],
                   ),
                 ),

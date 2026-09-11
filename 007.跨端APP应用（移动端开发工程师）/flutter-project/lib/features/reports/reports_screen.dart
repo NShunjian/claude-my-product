@@ -12,9 +12,10 @@ import '../../core/utils/finance.dart';
 import '../../core/utils/tab_refresh_signal.dart';
 import '../shared/app_header.dart';
 import '../shared/charts/donut_chart.dart';
-import '../shared/month_picker.dart';
+import '../shared/month_picker.dart' show MonthPicker;
 import '../shared/providers.dart';
 import '../shared/skeleton_shimmer.dart';
+import '../shared/year_picker.dart';
 
 /// 对齐 pages/reports/monthly.vue — header-row + 月/年 segmented tab +
 /// 月报 KPI(三卡带 footer)+ 折线图 + 双 donut;年报 KPI(三卡)+ 12 月柱状图
@@ -143,6 +144,9 @@ class _Header extends StatelessWidget {
 }
 
 /// 年份选择控件:对齐 uniapp 年报 .year-ctrl(‹ + 年份 + › + picker)。
+/// 视觉对齐 month_picker.dart MonthPicker 同款 pill — Container(bgCard +
+/// radius AppRadius.lg + divider border) + 左右 _StepBtn(Icon chevron)+ 中间
+/// Padding(horizontal:6) + Text。
 class _YearCtrl extends StatelessWidget {
   const _YearCtrl({required this.year, required this.onPicked});
   final int year;
@@ -153,87 +157,75 @@ class _YearCtrl extends StatelessWidget {
     final c = context.appColors;
     final now = DateTime.now().year;
     final options = [for (var i = now - 5; i <= now + 4; i++) i];
-    return Row(
-      children: [
-        _RoundIconBtn(
-          glyph: '‹',
-          onTap: () => onPicked(year - 1),
-        ),
-        const SizedBox(width: AppSpacing.sm),
-        Material(
-          color: c.surface,
-          borderRadius: BorderRadius.circular(8),
-          child: PopupMenuButton<int>(
-            tooltip: '',
-            color: c.bgCard,
-            offset: const Offset(0, 36),
-            onSelected: onPicked,
-            itemBuilder: (ctx) => [
-              for (final y in options)
-                PopupMenuItem<int>(
-                  value: y,
-                  child: Text(
-                    '$y年',
-                    style: TextStyle(
-                      color: y == year ? c.primary : c.text,
-                      fontSize: 13,
-                    ),
-                  ),
-                ),
-            ],
-            child: Container(
-              padding: const EdgeInsets.symmetric(
-                horizontal: AppSpacing.md,
-                vertical: AppSpacing.sm,
-              ),
+    return Container(
+      padding: const EdgeInsets.symmetric(
+        horizontal: AppSpacing.md,
+        vertical: AppSpacing.xs,
+      ),
+      decoration: BoxDecoration(
+        color: c.bgCard,
+        borderRadius: BorderRadius.circular(AppRadius.lg),
+        border: Border.all(color: c.divider, width: 1),
+      ),
+      child: Row(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          _StepBtn(
+            icon: Icons.chevron_left,
+            onTap: () => onPicked(year - 1),
+          ),
+          // ponytail: 2026-09-12 — 直接弹 wheel picker,不要中间 dialog 卡片。
+          //          showYearWheelPicker(新的 year_picker.dart) 内部用
+          //          Navigator.push + 自定义 PageRoute 弹底部滚轮。
+          GestureDetector(
+            behavior: HitTestBehavior.opaque,
+            onTap: () async {
+              final picked = await showYearWheelPicker(
+                context,
+                years: options,
+                initialYear: year,
+              );
+              if (picked != null) onPicked(picked);
+            },
+            child: Padding(
+              padding: const EdgeInsets.symmetric(horizontal: 6),
               child: Text(
                 '$year年',
                 style: TextStyle(
                   color: c.text,
-                  fontSize: 13,
+                  fontSize: 15,
                   fontWeight: FontWeight.w600,
                 ),
               ),
             ),
           ),
-        ),
-        const SizedBox(width: AppSpacing.sm),
-        _RoundIconBtn(
-          glyph: '›',
-          onTap: () => onPicked(year + 1),
-        ),
-      ],
+          _StepBtn(
+            icon: Icons.chevron_right,
+            onTap: () => onPicked(year + 1),
+          ),
+        ],
+      ),
     );
   }
 }
 
-class _RoundIconBtn extends StatelessWidget {
-  const _RoundIconBtn({required this.glyph, required this.onTap});
-  final String glyph;
+/// 对齐 month_picker.dart MonthPicker._StepBtn:InkWell + radius 8 + 28x28
+/// SizedBox + Icon(chevron_left/right, size 20, c.textVariant)。
+class _StepBtn extends StatelessWidget {
+  const _StepBtn({required this.icon, required this.onTap});
+  final IconData icon;
   final VoidCallback onTap;
 
   @override
   Widget build(BuildContext context) {
     final c = context.appColors;
-    return Material(
-      color: c.surface,
-      shape: const CircleBorder(),
-      child: InkWell(
-        customBorder: const CircleBorder(),
-        onTap: onTap,
-        child: Container(
-          width: 28,
-          height: 28,
-          alignment: Alignment.center,
-          child: Text(
-            glyph,
-            style: TextStyle(
-              color: c.textVariant,
-              fontSize: 16,
-              height: 1,
-            ),
-          ),
-        ),
+    return InkWell(
+      onTap: onTap,
+      borderRadius: BorderRadius.circular(8),
+      child: SizedBox(
+        width: 28,
+        height: 28,
+        child: Icon(icon, size: 20, color: c.textVariant),
       ),
     );
   }
@@ -256,8 +248,12 @@ class _SegmentedTabs extends StatelessWidget {
     return Container(
       padding: const EdgeInsets.all(2),
       decoration: BoxDecoration(
-        color: c.surface,
+        // ponytail: 2026-09-12 用户指出 — 原来用 c.surface(浅灰)跟页底同色,
+        //          视觉上 segmented 控件跟页底融为一体看不出边界。改用 c.bgCard
+        //          (白) + 1px border 让容器从灰页底浮起,选中态蓝字 + 白底更突出。
+        color: c.bgCard,
         borderRadius: BorderRadius.circular(8),
+        border: Border.all(color: c.divider, width: 1),
       ),
       child: Row(
         children: [
@@ -270,13 +266,16 @@ class _SegmentedTabs extends StatelessWidget {
                   padding: const EdgeInsets.symmetric(vertical: AppSpacing.md),
                   alignment: Alignment.center,
                   decoration: BoxDecoration(
-                    color: i == current ? c.bgCard : Colors.transparent,
+                    // ponytail: 选中态 — 在白色容器里再加深灰底区分,未选中保
+                    //          持透明透出白底。改 surface 替代 bgCard 之前会让
+                    //          选中跟未选中同样色(都是白),所以改回 surface。
+                    color: i == current ? c.surface : Colors.transparent,
                     borderRadius: BorderRadius.circular(8),
                   ),
                   child: Text(
                     labels[i],
                     style: TextStyle(
-                      color: i == current ? c.primary : c.textVariant,
+                      color: i == current ? c.primary : c.text,
                       fontSize: 13,
                       fontWeight: i == current
                           ? FontWeight.w600

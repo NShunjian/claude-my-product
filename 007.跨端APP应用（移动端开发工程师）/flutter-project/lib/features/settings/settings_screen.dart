@@ -54,6 +54,10 @@ class SettingsScreen extends ConsumerWidget {
     final c = context.appColors;
     final auth = ref.watch(authControllerProvider);
     return Scaffold(
+      // ponytail: 我的页 Scaffold 底色跟其他 4 页统一用 c.surface(浅灰 0xFFF5F5F5)
+      //          形成"白卡片 + 灰页底"视觉,2026-09-12 用户对齐指定。默认 ThemeData
+      //          走 light surfaceContainer 不一致,补显式 backgroundColor。
+      backgroundColor: c.surface,
       appBar: AppHeader(title: lang.t('pageTitle.settings'), back: false),
       body: ListView(
         padding: const EdgeInsets.fromLTRB(
@@ -113,6 +117,12 @@ class _UserCard extends StatelessWidget {
         : lang.t('settings.userCard.age.none');
     final avatarUrl = user?.avatar;
     final hasAvatar = avatarUrl != null && avatarUrl.isNotEmpty;
+    // ponytail: 2026-09-12 — 没 avatar 时显示用户名首字母(原本是 👤 emoji,
+    //          iOS 渲染成人形剪影,视觉太弱看不出"是谁")。.characters 处理
+    //          中文 / emoji surrogate pair,substring(0,1) 会切坏。
+    final initial = displayName.isNotEmpty
+        ? displayName.characters.first.toUpperCase()
+        : '?';
 
     return Container(
       padding: const EdgeInsets.all(AppSpacing.xl),
@@ -139,12 +149,23 @@ class _UserCard extends StatelessWidget {
                       height: 80,
                       fit: BoxFit.cover,
                       errorBuilder: (_, __, ___) => Text(
-                        '👤',
-                        style: TextStyle(fontSize: 40, color: c.primary),
+                        initial,
+                        style: TextStyle(
+                          fontSize: 32,
+                          fontWeight: FontWeight.w600,
+                          color: c.primary,
+                        ),
                       ),
                     ),
                   )
-                : Text('👤', style: TextStyle(fontSize: 40, color: c.primary)),
+                : Text(
+                    initial,
+                    style: TextStyle(
+                      fontSize: 32,
+                      fontWeight: FontWeight.w600,
+                      color: c.primary,
+                    ),
+                  ),
           ),
           const SizedBox(height: AppSpacing.md),
           Text(

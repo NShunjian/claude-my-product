@@ -6,6 +6,7 @@ import '../../core/i18n/lang.dart';
 import '../../core/i18n/locale_provider.dart';
 import '../../core/theme/tokens.dart';
 import '../../core/utils/date_util.dart';
+import '../../core/utils/modal_state.dart';
 
 /// 对齐 components/MonthPicker.vue — 默认 stepper 模式 + compact 弹窗模式。
 class MonthPicker extends ConsumerWidget {
@@ -216,15 +217,10 @@ class _MonthPickerModalState extends State<_MonthPickerModal> {
   /// CupertinoPicker 高亮当前年份 + 放大镜。
   /// showModalBottomSheet 是独立 route,不会被 modal Dialog 遮挡。
   Future<void> _openYearWheel(BuildContext context) async {
-    final picked = await showModalBottomSheet<int>(
-      context: context,
-      backgroundColor: Colors.transparent,
-      barrierColor: Colors.black54,
-      isScrollControlled: true,
-      builder: (ctx) => _YearWheelSheet(
-        years: widget.yearOptions,
-        initialYear: _draftYear,
-      ),
+    final picked = await showYearWheelPicker(
+      context,
+      years: widget.yearOptions,
+      initialYear: _draftYear,
     );
     if (picked != null && mounted) {
       setState(() => _draftYear = picked);
@@ -425,9 +421,67 @@ class _FooterLink extends StatelessWidget {
 
 /// 对齐 uniapp `<picker mode="selector">`:取消/完成 顶部条 + 中间 CupertinoPicker
 /// 滚轮。Flutter web 用 CupertinoPicker 视觉等价于 iOS/Android 原生滚轮 picker
-/// (放大镜高亮当前项)。作为底部 sheet 从屏幕下方弹起。
-class _YearWheelSheet extends StatefulWidget {
-  const _YearWheelSheet({
+/// (放大镜高亮当前项)。
+/// Public helper:跟 _MonthPickerModal 同款 showDialog(居中卡片 280dp),内
+/// 含年份行(点胶囊调 showYearWheelPicker 弹滚轮)+ 完成/取消按钮。复用
+/// _MonthPickerModal 的"dialog 嵌套 sheet"路径,让 wheel 贴屏底(用户截图
+/// 验证:月报 dialog 内 wheel 能正确贴屏底)。
+/// 2026-09-12 用户要求年报页年份选择跟月报一致用滚轮,从 reports_screen.dart 调用。
+Future<int?> showYearPicker(
+  BuildContext context, {
+  required List<int> years,
+  required int initialYear,
+}) {
+  // ponytail: 2026-09-12 — 走跟 _MonthPickerModal 完全一样的路径:
+  //          showDialog 包居中卡片(280dp),卡片内有"年份"胶囊,点胶囊
+  //          触发 showYearWheelPicker。modalOpenProvider 控制 tabbar 隐藏。
+  final container = ProviderScope.containerOf(context);
+  container.read(modalOpenProvider.notifier).state = true;
+  return showDialog<int>(
+    context: context,
+    barrierColor: Colors.black54,
+    barrierDismissible: true,
+    builder: (ctx) => _YearPickerDialog(
+      years: years,
+      initialYear: initialYear,
+    ),
+  ).whenComplete(() {
+    container.read(modalOpenProvider.notifier).state = false;
+  });
+}
+
+/// 内部 helper:被 _MonthPickerModal / _YearPickerDialog 共用,弹底部滚轮
+/// sheet。modalOpenProvider 控制 tabbar 隐藏。
+Future<int?> showYearWheelPicker(
+  BuildContext context, {
+  required List<int> years,
+  required int initialYear,
+}) {
+  final container = ProviderScope.containerOf(context);
+  container.read(modalOpenProvider.notifier).state = true;
+  final c = context.appColors;
+  return showModalBottomSheet<int>(
+    context: context,
+    // ponytail: 2026-09-12 — 对齐 account_new_screen.dart _WheelPickerSheet:
+    //          backgroundColor: bgCard + shape 圆角,sheet 本身不透明,wheel
+    //          底部 = 屏幕底部(没有透明 sheet 漏出 modal barrier 黑区)。
+    backgroundColor: c.bgCard,
+    shape: const RoundedRectangleBorder(
+      borderRadius: BorderRadius.vertical(top: Radius.circular(AppRadius.lg)),
+    ),
+    builder: (ctx) => YearWheelSheet(
+      years: years,
+      initialYear: initialYear,
+    ),
+  ).whenComplete(() {
+    container.read(modalOpenProvider.notifier).state = false;
+  });
+}
+
+/// 对齐 _MonthPickerModal — 居中卡片 280dp,卡片内:
+/// 年份行(点胶囊调 showYearWheelPicker 弹滚轮)+ 完成/取消按钮。
+class _YearPickerDialog extends StatefulWidget {
+  const _YearPickerDialog({
     required this.years,
     required this.initialYear,
   });
@@ -436,10 +490,193 @@ class _YearWheelSheet extends StatefulWidget {
   final int initialYear;
 
   @override
-  State<_YearWheelSheet> createState() => _YearWheelSheetState();
+  State<_YearPickerDialog> createState() => _YearPickerDialogState();
 }
 
-class _YearWheelSheetState extends State<_YearWheelSheet> {
+class _YearPickerDialogState extends State<_YearPickerDialog> {
+  late int _draftYear;
+
+  @override
+  void initState() {
+    super.initState();
+    _draftYear = widget.initialYear;
+  }
+
+  Future<void> _openYearWheel(BuildContext context) async {
+    final picked = await showYearWheelPicker(
+      context,
+      years: widget.years,
+      initialYear: _draftYear,
+    );
+    if (picked != null && mounted) {
+      setState(() => _draftYear = picked);
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final c = context.appColors;
+    final mq = MediaQuery.of(context);
+    final screenH = mq.size.height;
+    final topInset = mq.padding.top;
+    return Material(
+      type: MaterialType.transparency,
+      child: Stack(
+        children: [
+          // 居中卡片 280dp — 跟 _MonthPickerModal 同款,放在屏幕中央
+          Positioned(
+            left: 0,
+            right: 0,
+            top: topInset + (screenH - topInset) * 0.2,
+            child: Center(
+              child: SizedBox(
+                width: 280,
+                child: Container(
+                  padding: const EdgeInsets.all(AppSpacing.lg),
+                  decoration: BoxDecoration(
+                    color: c.bgCard,
+                    borderRadius: BorderRadius.circular(AppRadius.md),
+                    boxShadow: const [
+                      BoxShadow(
+                        color: Color.fromRGBO(0, 0, 0, 0.18),
+                        blurRadius: 16,
+                        offset: Offset(0, 4),
+                      ),
+                    ],
+                  ),
+                  child: Column(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      // 年份行 — 点胶囊弹滚轮
+                      Row(
+                        children: [
+                          Text(
+                            '年份',
+                            style: TextStyle(
+                                color: c.textVariant, fontSize: 14),
+                          ),
+                          const SizedBox(width: AppSpacing.sm),
+                          Expanded(
+                            child: GestureDetector(
+                              onTap: () => _openYearWheel(context),
+                              child: Container(
+                                padding: const EdgeInsets.symmetric(
+                                  horizontal: 10,
+                                  vertical: AppSpacing.sm,
+                                ),
+                                decoration: BoxDecoration(
+                                  border: Border.all(
+                                      color: c.primary, width: 1),
+                                  borderRadius:
+                                      BorderRadius.circular(AppRadius.sm),
+                                ),
+                                child: Row(
+                                  children: [
+                                    Expanded(
+                                      child: Text(
+                                        '$_draftYear',
+                                        style: TextStyle(
+                                          color: c.text,
+                                          fontSize: 14,
+                                          fontWeight: FontWeight.w600,
+                                        ),
+                                      ),
+                                    ),
+                                    Text(
+                                      '▾',
+                                      style: TextStyle(
+                                        color: c.primary,
+                                        fontSize: 12,
+                                      ),
+                                    ),
+                                  ],
+                                ),
+                              ),
+                            ),
+                          ),
+                        ],
+                      ),
+                      const SizedBox(height: AppSpacing.md),
+                      // 底部链接 — 清除 / 完成
+                      Container(
+                        margin: const EdgeInsets.only(top: AppSpacing.xs),
+                        padding: const EdgeInsets.only(top: AppSpacing.xs),
+                        decoration: BoxDecoration(
+                          border: Border(
+                            top:
+                                BorderSide(color: c.divider, width: 1),
+                          ),
+                        ),
+                        child: Row(
+                          mainAxisAlignment:
+                              MainAxisAlignment.spaceBetween,
+                          children: [
+                            GestureDetector(
+                              onTap: () =>
+                                  Navigator.of(context).pop(),
+                              child: Padding(
+                                padding: const EdgeInsets.symmetric(
+                                  horizontal: AppSpacing.md,
+                                  vertical: AppSpacing.xs + 2,
+                                ),
+                                child: Text(
+                                  '清除',
+                                  style: TextStyle(
+                                    color: c.primary,
+                                    fontSize: 14,
+                                    fontWeight: FontWeight.w400,
+                                  ),
+                                ),
+                              ),
+                            ),
+                            GestureDetector(
+                              onTap: () => Navigator.of(context)
+                                  .pop(_draftYear),
+                              child: Padding(
+                                padding: const EdgeInsets.symmetric(
+                                  horizontal: AppSpacing.md,
+                                  vertical: AppSpacing.xs + 2,
+                                ),
+                                child: Text(
+                                  '完成',
+                                  style: TextStyle(
+                                    color: c.primary,
+                                    fontSize: 14,
+                                    fontWeight: FontWeight.w600,
+                                  ),
+                                ),
+                              ),
+                            ),
+                          ],
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+              ),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+class YearWheelSheet extends StatefulWidget {
+  const YearWheelSheet({
+    super.key,
+    required this.years,
+    required this.initialYear,
+  });
+
+  final List<int> years;
+  final int initialYear;
+
+  @override
+  State<YearWheelSheet> createState() => _YearWheelSheetState();
+}
+
+class _YearWheelSheetState extends State<YearWheelSheet> {
   late FixedExtentScrollController _ctrl;
   late int _current;
 
@@ -460,91 +697,77 @@ class _YearWheelSheetState extends State<_YearWheelSheet> {
   @override
   Widget build(BuildContext context) {
     final c = context.appColors;
-    // 底部 sheet — 满宽 + 顶部圆角 + 阴影
+    // ponytail: 2026-09-12 — 对齐 account_new_screen.dart _WheelPickerSheet:
+    //          showModalBottomSheet 已经传 backgroundColor: bgCard + shape
+    //          圆角,sheet 本身不透明且自带顶部圆角。这里只放内容,SafeArea
+    //          让出 home indicator 区。
     return SafeArea(
-      child: Container(
-        decoration: BoxDecoration(
-          color: c.bgCard,
-          borderRadius: const BorderRadius.only(
-            topLeft: Radius.circular(AppRadius.lg),
-            topRight: Radius.circular(AppRadius.lg),
-          ),
-          boxShadow: const [
-            BoxShadow(
-              color: Color.fromRGBO(0, 0, 0, 0.18),
-              blurRadius: 16,
-              offset: Offset(0, -4),
+      child: Column(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          // 取消 / 完成 头部条
+          Container(
+            height: 48,
+            padding: const EdgeInsets.symmetric(
+              horizontal: AppSpacing.md,
             ),
-          ],
-        ),
-        child: Column(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            // 取消 / 完成 头部条(对齐 uniapp 原生 picker 顶部按钮)
-            Container(
-              height: 48,
-              padding: const EdgeInsets.symmetric(
-                horizontal: AppSpacing.md,
+            decoration: BoxDecoration(
+              border: Border(
+                bottom: BorderSide(color: c.divider, width: 1),
               ),
-              decoration: BoxDecoration(
-                border: Border(
-                  bottom: BorderSide(color: c.divider, width: 1),
+            ),
+            child: Row(
+              mainAxisAlignment: MainAxisAlignment.spaceBetween,
+              children: [
+                GestureDetector(
+                  onTap: () => Navigator.of(context).pop(),
+                  child: Text(
+                    '取消',
+                    style: TextStyle(
+                      color: c.textVariant,
+                      fontSize: 16,
+                    ),
+                  ),
                 ),
-              ),
-              child: Row(
-                mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                children: [
-                  GestureDetector(
-                    onTap: () => Navigator.of(context).pop(),
+                GestureDetector(
+                  onTap: () => Navigator.of(context).pop(_current),
+                  child: Text(
+                    '完成',
+                    style: TextStyle(
+                      color: c.primary,
+                      fontSize: 16,
+                      fontWeight: FontWeight.w600,
+                    ),
+                  ),
+                ),
+              ],
+            ),
+          ),
+          SizedBox(
+            height: 220,
+            child: CupertinoPicker(
+              scrollController: _ctrl,
+              itemExtent: 40,
+              useMagnifier: true,
+              magnification: 1.2,
+              backgroundColor: c.bgCard,
+              onSelectedItemChanged: (i) =>
+                  setState(() => _current = widget.years[i]),
+              children: [
+                for (final y in widget.years)
+                  Center(
                     child: Text(
-                      '取消',
+                      '$y',
                       style: TextStyle(
-                        color: c.textVariant,
-                        fontSize: 16,
+                        color: c.text,
+                        fontSize: 20,
                       ),
                     ),
                   ),
-                  GestureDetector(
-                    onTap: () => Navigator.of(context).pop(_current),
-                    child: Text(
-                      '完成',
-                      style: TextStyle(
-                        color: c.primary,
-                        fontSize: 16,
-                        fontWeight: FontWeight.w600,
-                      ),
-                    ),
-                  ),
-                ],
-              ),
+              ],
             ),
-            // 滚轮区:5 个 itemExtent 高度的视窗,中间项放大
-            SizedBox(
-              height: 220,
-              child: CupertinoPicker(
-                scrollController: _ctrl,
-                itemExtent: 40,
-                useMagnifier: true,
-                magnification: 1.2,
-                backgroundColor: c.bgCard,
-                onSelectedItemChanged: (i) =>
-                    setState(() => _current = widget.years[i]),
-                children: [
-                  for (final y in widget.years)
-                    Center(
-                      child: Text(
-                        '$y',
-                        style: TextStyle(
-                          color: c.text,
-                          fontSize: 20,
-                        ),
-                      ),
-                    ),
-                ],
-              ),
-            ),
-          ],
-        ),
+          ),
+        ],
       ),
     );
   }

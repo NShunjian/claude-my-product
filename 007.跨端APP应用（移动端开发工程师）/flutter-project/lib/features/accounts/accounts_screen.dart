@@ -13,6 +13,7 @@ import '../../core/utils/finance.dart';
 import '../shared/app_header.dart';
 import '../shared/mobile_error_state.dart';
 import '../shared/providers.dart';
+import '../shared/pull_to_refresh.dart';
 import '../shared/skeleton_shimmer.dart';
 import '../shared/toast_controller.dart';
 
@@ -222,7 +223,9 @@ class _AccountsScreenState extends ConsumerState<AccountsScreen> {
       //          短内容下方留灰底形成"页底"层次,消除"一大段空白"错觉。
       backgroundColor: c.surface,
       appBar: AppHeader(title: lang.t('accounts.title'), back: false),
-      body: RefreshIndicator(
+      // ponytail: 2026-09-12 — PullToRefresh 替代 RefreshIndicator,阈值 100px。
+      body: PullToRefresh(
+        threshold: 100,
         onRefresh: () async {
           _reload();
           await _future;

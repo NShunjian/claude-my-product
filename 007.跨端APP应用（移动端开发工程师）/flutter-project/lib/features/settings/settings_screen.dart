@@ -14,6 +14,7 @@ import '../shared/auth_controller.dart';
 import '../shared/app_header.dart';
 import '../shared/avatar_image.dart';
 import '../shared/providers.dart';
+import '../shared/pull_to_refresh.dart';
 import '../shared/skeleton_shimmer.dart';
 import '../shared/theme_controller.dart';
 import '../shared/toast_controller.dart';
@@ -80,12 +81,14 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
       //          走 light surfaceContainer 不一致,补显式 backgroundColor。
       backgroundColor: c.surface,
       appBar: AppHeader(title: lang.t('pageTitle.settings'), back: false),
-      // ponytail: 2026-09-12 — 套 RefreshIndicator 让 mobile "我的"页支持下
-      //          拉刷新。切回 tab 时 listenManual 已自动 refetch me(),这里
-      //          给用户一个主动刷新的入口(web 改完 mobile 不用切走再切回)。
+      // ponytail: 2026-09-12 — 用 PullToRefresh 替代 Flutter 内置 RefreshIndicator,
+      //          阈值 100px,避免"轻轻一滑"就触发刷新圈。详见 pull_to_refresh.dart。
+      //          切回 tab 时 listenManual 已自动 refetch me(),这里给用户一个
+      //          主动刷新的入口(web 改完 mobile 不用切走再切回)。
       //          onRefresh 调 me() 拉最新 user + return Future 等 spinner
       //          转完。失败静默 —— me() 内部 try/catch 已容错 401/网络。
-      body: RefreshIndicator(
+      body: PullToRefresh(
+        threshold: 100,
         onRefresh: () => ref.read(authControllerProvider.notifier).me(),
         child: ListView(
           // ponytail: physics: AlwaysScrollable,内容不足以滚动时(短屏)
@@ -1220,10 +1223,17 @@ class _CategoriesCardState extends ConsumerState<_CategoriesCard> {
                 // ponytail: 对齐 uniapp .cat-item { width: 16.66% } = 1/6,
                 //          用 GridView.count(crossAxisCount:6) 模拟 flex-wrap 6 列。
                 crossAxisCount: 6,
-                // 6 列每格很窄(~60px @ 360 屏宽)。dot(36)+4+名称(14)+1+hex(12)+
-                // 3+badge(18)+padding(8) ≈ 96px,宽高比 ≈ 0.62。0.62 给底部
-                // badge 留 ~10px 余量,避免 BOTTOM OVERFLOW 报红。
-                childAspectRatio: 0.62,
+                // ponytail 2026-09-12: iOS 18 模拟器 (iPhone 16 Pro, 屏宽 402) 上 0.62
+                //          算出格高 93.5px,内容 ~96px(带 line-height multiplier 1.2-1.4),
+                //          → 红字 "BOTTOM OVERFLOWED BY 5.7 PIXES"。
+                //          改 0.55 → 105.5px,溢出缩到 3.3 px,但 pill badge
+                //          (fontSize 9 + padding 1×2) 加 line-height 实际占 ~14px,
+                //          累计内容 ~108.8px 仍超 3.3。
+                //          改 0.5 → 116px,留 ~7px 余量;同时行间距 12→16 让两行
+                //          之间有视觉呼吸。
+                childAspectRatio: 0.5,
+                mainAxisSpacing: 16,
+                crossAxisSpacing: 6,
                 children: [
                   for (final cat in list)
                     _CatGridCell(category: cat, onEdit: () => _openEdit(cat)),

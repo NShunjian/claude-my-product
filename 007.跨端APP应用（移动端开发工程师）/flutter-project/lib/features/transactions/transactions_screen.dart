@@ -16,6 +16,7 @@ import '../shared/bottom_sheet_route.dart';
 import '../shared/mobile_error_state.dart';
 import '../shared/month_picker.dart';
 import '../shared/providers.dart';
+import '../shared/pull_to_refresh.dart';
 import '../shared/quick_add_controller.dart';
 import '../shared/skeleton_shimmer.dart';
 import '../shared/toast_controller.dart';
@@ -349,7 +350,10 @@ class _TransactionsScreenState extends ConsumerState<TransactionsScreen> {
                   backgroundColor: Color(0x00000000),
                 ),
               Expanded(
-                child: RefreshIndicator(
+                // ponytail: 2026-09-12 — PullToRefresh 替代 RefreshIndicator,
+                //          阈值 100px,避免轻微过冲触发刷新圈。
+                child: PullToRefresh(
+                  threshold: 100,
                   onRefresh: () async {
                     final f = _load();
                     // ponytail: 块体闭包,不能写 `() => _future = f` — 箭头函

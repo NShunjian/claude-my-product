@@ -16,6 +16,7 @@ import '../shared/app_header.dart';
 import '../shared/auth_controller.dart';
 import '../shared/month_picker.dart';
 import '../shared/providers.dart';
+import '../shared/pull_to_refresh.dart';
 import '../shared/quick_add_controller.dart';
 import '../shared/skeleton_shimmer.dart';
 import '../shared/transaction_row.dart';
@@ -129,7 +130,12 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
       //          形成"页底"层次,白卡片浮在上面 → 消除"一大段空白"错觉。
       backgroundColor: c.surface,
       appBar: AppHeader(title: lang.t('pageTitle.home')),
-      body: RefreshIndicator(
+      body: PullToRefresh(
+        // ponytail: 2026-09-12 — 替换 Flutter 内置 RefreshIndicator。
+        //   Flutter 默认阈值 ~40px,"轻轻一滑"就触发刷新圈,体感烦。
+        //   PullToRefresh.threshold = 100px,需要明确"想刷新"才能触发,
+        //   不到阈值就静默回弹消失。详见 pull_to_refresh.dart 注释。
+        threshold: 100,
         onRefresh: () async {
           final f = _load();
           // ponytail: 块体闭包返回 void,不能写 `() => _future = f` — 箭头函

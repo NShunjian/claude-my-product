@@ -1,32 +1,113 @@
 {
-    "version": "0.2.0",
-    "configurations": [
-        {
-            "name": "Flutter Web (Chrome) - 轻账",
-            "request": "launch",
-            "type": "dart",
-            "cwd": "${workspaceFolder}/007.跨端APP应用（移动端开发工程师）/flutter-project",
-            "program": "lib/main.dart",
-            "args": ["--web-port=5180"]
-        },
-        {
-            "name": "Flutter Web (Phone LAN) - 轻账",
-            "request": "launch",
-            "type": "dart",
-            "cwd": "${workspaceFolder}/007.跨端APP应用（移动端开发工程师）/flutter-project",
-            "program": "lib/main.dart",
-            "deviceId": "chrome",
-            "args": [
-                "--web-port=5180",
-                "--web-hostname=192.168.31.46"
-            ]
-        },
-        {
-            "name": "Attach Chrome to :8080",
-            "request": "launch",
-            "type": "chrome",
-            "url": "http://localhost:8080",
-            "webRoot": "${workspaceFolder}"
-        }
-    ]
+  // VSCode 调试下拉框配置 —— 整个 claude-my-product 工作区共用
+  //
+  // 关键:cwd 必须指向 flutter-project,否则 flutter run 找不到 pubspec.yaml。
+  // 所有新加的配置都按这个模式写,跟现有 Web 配置保持一致。
+  //
+  // 设备 ID 在终端跑 /Users/apple/flutter/bin/flutter devices 查最新列表。
+  // iPhone 真机 UUID 重连无线后可能变,要重新查。
+  //
+  // 三端都配进来,避免每次都要手敲 flutter run -d xxx --dart-define=...
+  // 参考 [[three-platform-must-specify-target]]。
+
+  "version": "0.2.0",
+  "configurations": [
+
+    // ==================== Android ====================
+    {
+      "name": "Android Emulator (10.0.2.2 → 后端)",
+      "request": "launch",
+      "type": "dart",
+      "cwd": "${workspaceFolder}/007.跨端APP应用（移动端开发工程师）/flutter-project",
+      "program": "lib/main.dart",
+      "deviceId": "emulator-5554",
+      "args": ["--dart-define=API_BASE_URL=http://10.0.2.2:4001"]
+    },
+    {
+      "name": "Android 真机 (LAN → 后端)",
+      "request": "launch",
+      "type": "dart",
+      "cwd": "${workspaceFolder}/007.跨端APP应用（移动端开发工程师）/flutter-project",
+      "program": "lib/main.dart",
+      "args": ["--dart-define=API_BASE_URL=http://192.168.31.46:4001"]
+    },
+    {
+      "name": "Android (任意设备,不预设 API 地址)",
+      "request": "launch",
+      "type": "dart",
+      "cwd": "${workspaceFolder}/007.跨端APP应用（移动端开发工程师）/flutter-project",
+      "program": "lib/main.dart"
+      // 不传 --dart-define,走 api_base_url.dart 的默认 fallback
+      //   - Web: 走 window.location.hostname
+      //   - 模拟器: 走 defaultUrl = http://localhost:4001 (会失败,模拟器得用 10.0.2.2)
+      //   - 真机:  走 defaultUrl = http://localhost:4001 (会失败,真机得用 LAN IP)
+      //   ↓ 真正不确定时用这个,App 启动会报错"连不上后端",再切上面两个
+    },
+
+    // ==================== iOS ====================
+    {
+      "name": "iPhone 真机 (LAN → 后端)",
+      "request": "launch",
+      "type": "dart",
+      "cwd": "${workspaceFolder}/007.跨端APP应用（移动端开发工程师）/flutter-project",
+      "program": "lib/main.dart",
+      // 用设备名而不是 UUID —— VSCode Dart 扩展对 iOS 17+ 新格式
+      // UDID (00008101-...) 解析有 bug 会报 "Device not found",
+      // 但用 name 匹配一般能走通。("iPhone" 是 flutter devices 显示的 name)
+      "deviceId": "iPhone",
+      "args": ["--dart-define=API_BASE_URL=http://192.168.31.46:4001"]
+    },
+    {
+      "name": "iOS Simulator (手动选)",
+      "request": "launch",
+      "type": "dart",
+      "cwd": "${workspaceFolder}/007.跨端APP应用（移动端开发工程师）/flutter-project",
+      "program": "lib/main.dart",
+      // 不写 deviceId:走 VSCode 状态栏当前选中的设备。
+      // 切换方式:
+      //   A. 状态栏(右下角)点设备名 → 选个 iOS 模拟器 → 再 F5
+      //   B. 改下面 deviceId 为具体模拟器 UUID(终端跑 `xcrun simctl list devices available` 查)
+      // 常用 UUID(选 boot 状态的那个填进去):
+      //   iPhone 16 Pro      105C64D0-38A7-45A6-A91A-BB566BF9B806
+      //   iPhone 16 Pro Max  101EA858-9F93-41AF-80C9-2F4ABAAADDF2
+      //   iPhone 16          48537383-9901-4867-88CE-588C5F10C702
+      //   iPhone SE 3rd      5F9EB22B-3C1A-4689-B4F6-7ED6734446C2
+      //   iPad Pro 11 M4     2940012F-C6DB-4AC4-9E41-5C4CDF795D20
+      "args": ["--dart-define=API_BASE_URL=http://192.168.31.46:4001"]
+    },
+
+    // ==================== Web (已有,保留) ====================
+    {
+      "name": "Flutter Web (Chrome) - 轻账",
+      "request": "launch",
+      "type": "dart",
+      "cwd": "${workspaceFolder}/007.跨端APP应用（移动端开发工程师）/flutter-project",
+      "program": "lib/main.dart",
+      "args": ["--web-port=5180"]
+    },
+    {
+      "name": "Flutter Web (Phone LAN) - 轻账",
+      "request": "launch",
+      "type": "dart",
+      "cwd": "${workspaceFolder}/007.跨端APP应用（移动端开发工程师）/flutter-project",
+      "program": "lib/main.dart",
+      "deviceId": "chrome",
+      "args": [
+        "--web-port=5180",
+        "--web-hostname=192.168.31.46"
+      ]
+    },
+
+    // ==================== Attach ====================
+    {
+      "name": "Attach Chrome to :8080",
+      "request": "launch",
+      "type": "chrome",
+      "url": "http://localhost:8080",
+      "webRoot": "${workspaceFolder}"
+    }
+  ],
+
+  // compounds:一组配置一起跑(预留,以后想 web + backend 一起启可以加)
+  "compounds": []
 }

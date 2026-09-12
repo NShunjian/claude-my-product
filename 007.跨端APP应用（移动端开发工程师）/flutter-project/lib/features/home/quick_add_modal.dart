@@ -265,63 +265,79 @@ class _QuickAddModalState extends ConsumerState<QuickAddModal>
     return Material(
       key: const ValueKey('quick-add-shown'),
       color: navy,
-      child: SafeArea(
-          top: false,
-          child: FutureBuilder<_QuickAddData>(
-            future: _future,
-            builder: (context, snap) {
-              // 加载中用上次缓存的 _data,切 tab 时旧 grid 保持可见,
-              // 不会出现「分类加载中...」一闪。新数据到位后这里会换成新数据。
-              final data = snap.data ?? _data;
-              if (data == null) {
-                return Center(
-                  child: Text(
-                    lang.t('recordModal.categoryLoading'),
-                    style: const TextStyle(color: Colors.white),
-                  ),
-                );
-              }
-              // 默认账户(账户列表不随 kind 变,首次填一次即可)
-              if (_account == null && data.accounts.isNotEmpty) {
-                _account = data.accounts.first;
-              }
-              return Column(
-                mainAxisAlignment: MainAxisAlignment.end,
-                children: [
-                  // 成功态全屏覆盖
-                  if (_showSuccess)
-                    _SuccessOverlay(
-                      isExpense: _kind == RecordType.expense,
-                      lang: lang,
-                    )
-                  else
-                    _SheetForm(
-                      data: data,
-                      kind: _kind,
-                      category: _selectedByKind[_kind],
-                      account: _account,
-                      recordDate: _recordDate,
-                      noteCtrl: _noteCtrl,
-                      expression: _expression,
-                      submitting: _submitting,
-                      cursorCtrl: _cursorCtrl,
-                      lang: lang,
-                      onClose: () => _submitting
-                          ? null
-                          : ref
-                              .read(quickAddControllerProvider.notifier)
-                              .close(),
-                      onSetKind: _setKind,
-                      onPickCategory: (c) => setState(() => _selectedByKind[_kind] = c),
-                      onPickAccount: (a) => setState(() => _account = a),
-                      onPickDate: () => _pickDate(),
-                      onKey: _pressKey,
-                    ),
-                ],
-              );
-            },
-          ),
-        ),
+      // ponytail: 2026-09-12 — 去掉 SafeArea(top: false) 包装。之前 SafeArea
+      //   把 child 底部上移 safeArea.bottom(34pt),_SheetForm 在 MainAxisAlignment.end
+      //   钉底时也只到 SafeArea child 底部 → 留 34pt navy 横条在 home indicator
+      //   上方。去掉后 _SheetForm 直接 extend 到 Material 底部 = 屏幕底部。
+      //   iOS home indicator 是透明系统 overlay 白底透出;Android 配合之前
+      //   app.dart 的 systemNavigationBarColor=white,白底跟 nav bar 连成一片。
+      child: FutureBuilder<_QuickAddData>(
+        future: _future,
+        builder: (context, snap) {
+          // 加载中用上次缓存的 _data,切 tab 时旧 grid 保持可见,
+          // 不会出现「分类加载中...」一闪。新数据到位后这里会换成新数据。
+          final data = snap.data ?? _data;
+          if (data == null) {
+            return Center(
+              child: Text(
+                lang.t('recordModal.categoryLoading'),
+                style: const TextStyle(color: Colors.white),
+              ),
+            );
+          }
+          // 默认账户(账户列表不随 kind 变,首次填一次即可)
+          if (_account == null && data.accounts.isNotEmpty) {
+            _account = data.accounts.first;
+          }
+          final mq = MediaQuery.of(context);
+          // ponytail: 2026-09-12 — iOS / Android 分开处理。
+          //   iOS:状态栏透明 + sheet 顶圆角贴屏顶时,"23:40"/信号/电池 会叠到
+          //        sheet 头部 X / tabs。需要让出 top 让 sheet 顶圆角从 status bar
+          //        下方开始,让出区是 navy 连续 header。
+          //   Android:之前实测 sheet 顶部 OK,status bar 不遮挡;不强行让出
+          //        避免多出空白。
+          final isIOS = Theme.of(context).platform == TargetPlatform.iOS;
+          final topInset = isIOS ? mq.padding.top : 0.0;
+          return Column(
+            mainAxisAlignment: MainAxisAlignment.end,
+            children: [
+              // 顶部让出区 — 仅 iOS。让出区保持 navy(外层 Material color),
+              // 不放到 _SheetForm 里是因为 Container 自带顶部圆角,让出区放外面
+              // 才能保证 sheet 上方是纯 navy 而不是 sheet 圆角外露。
+              if (topInset > 0) SizedBox(height: topInset),
+              // 成功态全屏覆盖
+              if (_showSuccess)
+                _SuccessOverlay(
+                  isExpense: _kind == RecordType.expense,
+                  lang: lang,
+                )
+              else
+                _SheetForm(
+                  data: data,
+                  kind: _kind,
+                  category: _selectedByKind[_kind],
+                  account: _account,
+                  recordDate: _recordDate,
+                  noteCtrl: _noteCtrl,
+                  expression: _expression,
+                  submitting: _submitting,
+                  cursorCtrl: _cursorCtrl,
+                  lang: lang,
+                  onClose: () => _submitting
+                      ? null
+                      : ref
+                          .read(quickAddControllerProvider.notifier)
+                          .close(),
+                  onSetKind: _setKind,
+                  onPickCategory: (c) => setState(() => _selectedByKind[_kind] = c),
+                  onPickAccount: (a) => setState(() => _account = a),
+                  onPickDate: () => _pickDate(),
+                  onKey: _pressKey,
+                ),
+            ],
+          );
+        },
+      ),
     );
   }
 
@@ -453,6 +469,11 @@ class _SheetForm extends StatelessWidget {
               ),
             ],
           ),
+          // ponytail: 2026-09-12 — keypad 不再外包 SafeArea。之前 SafeArea(top:false)
+          //   把 keypad 可用 layout 高度缩了 34pt,但内容(4 行固定高)不变 → 溢出 6px。
+          //   改在 _KeypadGrid 内部 padding bottom 加 MediaQuery.padding.bottom:
+          //   layout 高度 = 内容 + 底部 34pt 空白,内容自然上移避开 home indicator,
+          //   且 layout 高度不缩,SheetForm maxHeight 不溢出。
           _KeypadGrid(
             isExpense: kind == RecordType.expense,
             submitting: submitting,
@@ -750,7 +771,10 @@ class _CategoryGrid extends StatelessWidget {
           // 行/列间距都收到最小档 — 截图里图标贴得很紧
           mainAxisSpacing: 2,
           crossAxisSpacing: AppSpacing.sm,
-          childAspectRatio: 1.0,
+          // ponytail: 2026-09-12 — cellAspectRatio 1.0 → 1.15,cell 高度从
+          //   ~84pt 收到 ~73pt,3 行省 ~33pt。配合 _Key 36→32 给 SheetForm 留出
+          //   ~49pt 余量,容纳 iOS keypad bottom 让出 34pt 不溢出 maxHeight。
+          childAspectRatio: 1.15,
         ),
         itemCount: categories.length,
         itemBuilder: (context, i) {
@@ -1060,7 +1084,20 @@ class _KeypadGrid extends StatelessWidget {
     ];
     return Container(
       color: context.appColors.bgCard,
-      padding: const EdgeInsets.all(AppSpacing.sm),
+      // ponytail: 2026-09-12 — bottom 仅 iOS 让出 MediaQuery.padding.bottom
+      //   (home indicator 34pt),keypad 内容自然上移避开 home indicator,
+      //   layout 高度 = 内容 + 底部让出,不缩,不溢出。
+      //   Android 端 padding.bottom = 0(本来 keypad 就 OK),保持 keypad 贴底。
+      //   三端 sheet 白底 extend 屏底(用户之前明确要求"页面底部与屏幕底部对齐")。
+      padding: EdgeInsets.fromLTRB(
+        AppSpacing.sm,
+        AppSpacing.sm,
+        AppSpacing.sm,
+        AppSpacing.sm +
+            (Theme.of(context).platform == TargetPlatform.iOS
+                ? MediaQuery.of(context).padding.bottom
+                : 0.0),
+      ),
       child: Column(
         children: [
           for (final row in rows)
@@ -1139,7 +1176,10 @@ class _Key extends StatelessWidget {
         borderRadius: BorderRadius.circular(AppRadius.md),
         onTap: onTap,
         child: Container(
-          height: 36,
+          // ponytail: 2026-09-12 — 36 → 32。配合 _CategoryGrid cellAspectRatio
+          //   1.0→1.15 给 SheetForm 留 ~49pt 余量,容纳 iOS keypad bottom 让出
+          //   34pt 不溢出。视觉差 4pt 用户几乎察觉不到。
+          height: 32,
           alignment: Alignment.center,
           child: def.kind == _KeyKind.confirm && submitting
               ? const SizedBox(

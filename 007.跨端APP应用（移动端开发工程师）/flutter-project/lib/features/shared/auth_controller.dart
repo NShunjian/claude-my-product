@@ -36,9 +36,23 @@ class AuthController extends Notifier<AuthState> {
     final t = p.token;
     if (t != null && t.isNotEmpty) {
       try {
-        final u = await ref.read(authApiProvider).me();
+        // ponytail: 2026-09-12 — 拿 raw envelope log 一遍,mobile 没拿到
+        //          avatar 但 web 拿到了,差异点要后端 /me 返回的 UserDTO
+        //          是否含 avatar 字段。包 envelope 看 code/message/data
+        //          整体,定位是 data 缺字段、envelope 解包错、还是别处。
+        final env = await api.request<Map<String, dynamic>>(
+          '/api/auth/me',
+          method: 'GET',
+        );
+        // ignore: avoid_print
+        print('[hydrate] /me raw data keys=${env.keys} avatar=${env['avatar']}');
+        final u = User.fromJson(env);
         state = state.copyWith(user: u);
-      } catch (_) { /* 容忍 — 401 已注册 listener 接管 */ }
+      } catch (e) {
+        // ignore: avoid_print
+        print('[hydrate] /me failed: $e');
+        // 容忍 — 401 已注册 listener 接管
+      }
     }
   }
 

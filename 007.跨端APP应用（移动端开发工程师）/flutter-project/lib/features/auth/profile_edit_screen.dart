@@ -248,6 +248,14 @@ class _ProfileEditScreenState extends ConsumerState<ProfileEditScreen> {
     final lang = I18n.of(context);
     final auth = ref.watch(authControllerProvider);
     final c = context.appColors;
+    // ponytail: 2026-09-12 — 头像 fallback 用昵称首字母(跟 settings_screen
+    //          _UserCard 一致),不再用 👤 emoji 占位。iOS Apple Color Emoji
+    //          渲染成人形剪影,120x120 大圆里很弱,看不出"是谁"。mobile 端
+    //          user.avatar 经常是 null(后端没存),必须有兜底。
+    final name = _nameCtrl.text.trim();
+    final initial = name.isNotEmpty
+        ? name.characters.first.toUpperCase()
+        : '?';
     return Scaffold(
       appBar: AppHeader(
         title: lang.t('profileEdit.title'),
@@ -295,17 +303,19 @@ class _ProfileEditScreenState extends ConsumerState<ProfileEditScreen> {
                                 width: 120,
                                 height: 120,
                                 errorBuilder: (_, __, ___) => Text(
-                                  '👤',
+                                  initial,
                                   style: TextStyle(
                                     fontSize: 60,
+                                    fontWeight: FontWeight.w600,
                                     color: c.primary,
                                   ),
                                 ),
                               )
                             : Text(
-                                '👤',
+                                initial,
                                 style: TextStyle(
                                   fontSize: 60,
+                                  fontWeight: FontWeight.w600,
                                   color: c.primary,
                                 ),
                               ),
@@ -625,12 +635,13 @@ class _IconInput extends StatelessWidget {
         border: Border.all(color: c.divider),
       ),
       // ponytail: 2026-09-12 — emoji + TextField 两个 widget 完全独立
-      //          vertical center:
-      //          - emoji 用 SizedBox(22) + Center → emoji glyph visual
-      //          center 自动落在 22 高度的 center,跟 fontSize 解耦。
-      //          - TextField 用 contentPadding.vertical=14 让 14sp 文字
-      //          baseline 居中到 44 容器:文字 glyph 高 ~16,上下各 14。
-      //          两个 widget 各自 Align 到容器垂直中线,不再 baseline 绑。
+      //          vertical center,但用 SizedBox(height:44) 让两个都 anchor
+      //          到容器 44 高的几何中心,然后 Transform.translate 补偿
+      //          iOS Apple Color Emoji glyph 视觉中心下移(~3px @ fontSize 18)。
+      //          - 文字:contentPadding.vertical=14,glyph 中心 y≈22.05。
+      //          - emoji:SizedBox(height:44) > Center 把 emoji Text widget
+      //          几何中心锚到 y=22;Transform -3 补偿 emoji 底部空白让
+      //          glyph visual center 也落在 y=22。两个视觉中心对齐。
       child: Row(
         crossAxisAlignment: CrossAxisAlignment.center,
         children: [
@@ -639,14 +650,18 @@ class _IconInput extends StatelessWidget {
           ),
           SizedBox(
             width: 22,
+            height: 44,
             child: Center(
-              child: Text(
-                emojiIcon,
-                style: TextStyle(
-                  fontSize: 18,
-                  color: c.textVariant,
-                  decoration: TextDecoration.none,
-                  height: 1.0,
+              child: Transform.translate(
+                offset: const Offset(0, -3),
+                child: Text(
+                  emojiIcon,
+                  style: TextStyle(
+                    fontSize: 18,
+                    color: c.textVariant,
+                    decoration: TextDecoration.none,
+                    height: 1.0,
+                  ),
                 ),
               ),
             ),

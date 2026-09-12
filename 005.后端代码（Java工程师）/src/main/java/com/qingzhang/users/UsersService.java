@@ -47,7 +47,10 @@ public class UsersService {
         }
         // 部分更新:null 字段不动(spec §3.3)
         if (req.displayName() != null) u.setDisplayName(req.displayName());
-        if (req.avatar() != null)      u.setAvatar(req.avatar());
+        // ponytail: 2026-09-12 — 入参容忍 plain base64 或 data URI 两种格式,
+        //          统一剥成 plain base64 落库,出参 toDto 时再包回 data URI。
+        //          DB 列永远只存 plain base64,不掺前缀污染 MEDIUMTEXT 内容。
+        if (req.avatar() != null)      u.setAvatar(AvatarUri.stripPrefix(req.avatar()));
         if (req.gender() != null)       u.setGender(req.gender());
         if (req.age() != null)          u.setAge(req.age());
         u.setUpdatedAt(Instant.now());
@@ -76,12 +79,15 @@ public class UsersService {
 
     /** 暴露给 Auth 模块的共享 mapper 引用,避免重复查询。 */
     public UserDTO toDto(User u) {
+        // ponytail: 2026-09-12 — DB 里 avatar 是 plain base64,出参统一包成
+        //          "data:image/jpeg;base64,..." data URI,前端 /me 拿到直接
+        //          给 Image.network / <image src> 用,不用前端各自拼前缀。
         return new UserDTO(
                 u.getId(),
                 u.getUuid(),
                 u.getUsername(),
                 u.getDisplayName(),
-                u.getAvatar(),
+                AvatarUri.toDataUri(u.getAvatar()),
                 u.getGender(),
                 u.getAge(),
                 u.getCreatedAt()

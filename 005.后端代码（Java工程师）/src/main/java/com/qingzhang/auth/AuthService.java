@@ -11,6 +11,7 @@ import com.qingzhang.books.mapper.BookMapper;
 import com.qingzhang.common.BizException;
 import com.qingzhang.users.entity.User;
 import com.qingzhang.users.mapper.UserMapper;
+import com.qingzhang.users.AvatarUri;
 import org.springframework.security.crypto.bcrypt.BCryptPasswordEncoder;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -127,12 +128,15 @@ public class AuthService {
     }
 
     public UserDTO toDto(User u) {
+        // ponytail: 2026-09-12 — avatar 出参统一包成 data URI(详情见
+        //          users.AvatarUri)。登录/注册响应也走这里,uniapp / 未来
+        //          web 端直接拿 data URI 渲染。
         return new UserDTO(
                 u.getId(),
                 u.getUuid(),
                 u.getUsername(),
                 u.getDisplayName(),
-                u.getAvatar(),
+                AvatarUri.toDataUri(u.getAvatar()),
                 u.getGender(),
                 u.getAge(),
                 u.getCreatedAt()

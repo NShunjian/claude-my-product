@@ -16,6 +16,7 @@ import com.qingzhang.common.ErrorCode;
 import com.qingzhang.records.mapper.RecordMapper;
 import com.qingzhang.users.entity.User;
 import com.qingzhang.users.mapper.UserMapper;
+import com.qingzhang.users.AvatarUri;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -227,7 +228,7 @@ public class BooksService {
                     u.getUuid(),
                     u.getUsername(),
                     u.getDisplayName(),
-                    u.getAvatar(),
+                    AvatarUri.toDataUri(u.getAvatar()),
                     m.getRole(),
                     m.getJoinedAt(),
                     m.getInvitedBy() == null ? null : uuidOfUser(m.getInvitedBy())
@@ -273,7 +274,7 @@ public class BooksService {
         memberMapper.insert(m);
 
         return new MemberResponse(
-                target.getUuid(), target.getUsername(), target.getDisplayName(), target.getAvatar(),
+                target.getUuid(), target.getUsername(), target.getDisplayName(), AvatarUri.toDataUri(target.getAvatar()),
                 m.getRole(), m.getJoinedAt(), uuidOfUser(userId)
         );
     }
@@ -305,7 +306,7 @@ public class BooksService {
         memberMapper.updateById(m);
 
         return new MemberResponse(
-                target.getUuid(), target.getUsername(), target.getDisplayName(), target.getAvatar(),
+                target.getUuid(), target.getUsername(), target.getDisplayName(), AvatarUri.toDataUri(target.getAvatar()),
                 m.getRole(), m.getJoinedAt(), uuidOfUser(m.getInvitedBy())
         );
     }

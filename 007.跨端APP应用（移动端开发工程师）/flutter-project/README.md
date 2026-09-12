@@ -27,7 +27,6 @@ flutter run -d <device-id>              # Android/iOS 设备
 > `flutter create` 不会修改 `lib/`、`pubspec.yaml` 或 `assets/`。
 
 ## 二、与 uniapp 版本的对应关系
-z
 | uniapp | Flutter |
 |---|---|
 | pages/login/index.vue | `lib/features/auth/login_screen.dart` |

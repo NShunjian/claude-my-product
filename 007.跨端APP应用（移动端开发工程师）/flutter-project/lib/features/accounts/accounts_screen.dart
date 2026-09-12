@@ -1,3 +1,4 @@
+import 'package:flutter/foundation.dart' show kIsWeb;
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
@@ -10,6 +11,7 @@ import '../../core/theme/tokens.dart';
 import '../../core/utils/account_presentation.dart';
 import '../../core/utils/finance.dart';
 import '../shared/app_header.dart';
+import '../shared/mobile_error_state.dart';
 import '../shared/providers.dart';
 import '../shared/skeleton_shimmer.dart';
 import '../shared/toast_controller.dart';
@@ -236,17 +238,33 @@ class _AccountsScreenState extends ConsumerState<AccountsScreen> {
             // 首次加载还没数据 → 骨架屏(对齐 home/transactions 体验)。
             if (_data == null) {
               if (snap.hasError) {
-                return ListView(
-                  children: [
-                    Padding(
-                      padding: const EdgeInsets.all(AppSpacing.xl),
-                      child: Text(
-                        '${lang.t('accounts.loadErrorPrefix')}${snap.error}',
-                        style: TextStyle(color: c.error),
-                      ),
-                    ),
-                  ],
-                );
+                // ponytail: 2026-09-12 — mobile 端走 MobileErrorState(icon
+                //          + 文案 + 重试按钮),web 端保留原红字裸文本
+                //          (用户跨端策略:web 端不动)。
+                return kIsWeb
+                    ? ListView(
+                        children: [
+                          Padding(
+                            padding: const EdgeInsets.all(AppSpacing.xl),
+                            child: Text(
+                              '${lang.t('accounts.loadErrorPrefix')}${snap.error}',
+                              style: TextStyle(color: c.error),
+                            ),
+                          ),
+                        ],
+                      )
+                    : MobileErrorState(
+                        errorKey: 'accounts.loadErrorPrefix',
+                        retryKey: 'common.retry',
+                        onRetry: () {
+                          // ponytail: 块体闭包,不能写 `() => _future = _load()`
+                          //          —— 箭头函数返回 Future,setState debug
+                          //          assert throw,UI 不刷新。
+                          setState(() {
+                            _future = _load();
+                          });
+                        },
+                      );
               }
               return const _AccountsSkeleton();
             }

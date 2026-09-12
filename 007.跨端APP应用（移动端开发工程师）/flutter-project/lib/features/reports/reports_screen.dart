@@ -1,5 +1,6 @@
 import 'dart:async';
 
+import 'package:flutter/foundation.dart' show kIsWeb;
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
@@ -12,6 +13,7 @@ import '../../core/utils/finance.dart';
 import '../../core/utils/tab_refresh_signal.dart';
 import '../shared/app_header.dart';
 import '../shared/charts/donut_chart.dart';
+import '../shared/mobile_error_state.dart';
 import '../shared/month_picker.dart' show MonthPicker;
 import '../shared/providers.dart';
 import '../shared/skeleton_shimmer.dart';
@@ -346,12 +348,21 @@ class _MonthlyTabState extends ConsumerState<_MonthlyTab> {
         // 避免居中 spinner 空白等(对齐 home/transactions/accounts)。
         if (!snap.hasData) {
           if (snap.hasError) {
-            return Center(
-              child: Text(
-                '${lang.t('reportMonthly.loadErrorPrefix')}${snap.error}',
-                style: TextStyle(color: c.error),
-              ),
-            );
+            // ponytail: 2026-09-12 — mobile 端走 MobileErrorState(icon +
+            //          文案 + 重试),web 端保留原红字裸文本(用户跨端策略:
+            //          web 端不动)。
+            return kIsWeb
+                ? Center(
+                    child: Text(
+                      '${lang.t('reportMonthly.loadErrorPrefix')}${snap.error}',
+                      style: TextStyle(color: c.error),
+                    ),
+                  )
+                : MobileErrorState(
+                    errorKey: 'reportMonthly.loadErrorPrefix',
+                    retryKey: 'common.retry',
+                    onRetry: _reload,
+                  );
           }
           return const _ReportsSkeleton();
         }
@@ -468,12 +479,20 @@ class _YearlyTabState extends ConsumerState<_YearlyTab> {
         // 骨架屏:对齐 home/transactions/accounts,首次无数据不空白。
         if (!snap.hasData) {
           if (snap.hasError) {
-            return Center(
-              child: Text(
-                '${lang.t('reportYearly.loadErrorPrefix')}${snap.error}',
-                style: TextStyle(color: c.error),
-              ),
-            );
+            // ponytail: 2026-09-12 — 同月报:mobile 走 MobileErrorState,
+            //          web 保留红字裸文本。
+            return kIsWeb
+                ? Center(
+                    child: Text(
+                      '${lang.t('reportYearly.loadErrorPrefix')}${snap.error}',
+                      style: TextStyle(color: c.error),
+                    ),
+                  )
+                : MobileErrorState(
+                    errorKey: 'reportYearly.loadErrorPrefix',
+                    retryKey: 'common.retry',
+                    onRetry: _reload,
+                  );
           }
           return const _ReportsSkeleton();
         }

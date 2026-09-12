@@ -1,4 +1,5 @@
 import 'package:flutter/cupertino.dart';
+import 'package:flutter/foundation.dart' show kIsWeb;
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
@@ -12,6 +13,7 @@ import '../../core/utils/finance.dart';
 import '../../core/utils/tab_refresh_signal.dart';
 import '../shared/app_header.dart';
 import '../shared/bottom_sheet_route.dart';
+import '../shared/mobile_error_state.dart';
 import '../shared/month_picker.dart';
 import '../shared/providers.dart';
 import '../shared/quick_add_controller.dart';
@@ -290,12 +292,28 @@ class _TransactionsScreenState extends ConsumerState<TransactionsScreen> {
           // 视觉上等同 "立即渲染",数据回来平滑替换。
           if (_data == null) {
             if (snap.hasError) {
-              return Center(
-                child: Text(
-                  '${lang.t('transactions.loadErrorPrefix')}${snap.error}',
-                  style: TextStyle(color: c.error),
-                ),
-              );
+              // ponytail: 2026-09-12 — mobile 端失败走友好 UI(icon +
+              //          文案 + 重试按钮),不再裸 Dio 文本;web 端保留原
+              //          红字(用户跨端策略:web 端不动)。
+              return kIsWeb
+                  ? Center(
+                      child: Text(
+                        '${lang.t('transactions.loadErrorPrefix')}${snap.error}',
+                        style: TextStyle(color: c.error),
+                      ),
+                    )
+                  : MobileErrorState(
+                      errorKey: 'transactions.loadErrorPrefix',
+                      retryKey: 'common.retry',
+                      onRetry: () {
+                        // ponytail: 块体闭包,不能写 `() => _future = _load()`
+                        //          —— 箭头函数返回 Future,setState debug 模式
+                        //          assert throw,UI 不刷新。
+                        setState(() {
+                          _future = _load();
+                        });
+                      },
+                    );
             }
             return _TransactionsSkeleton();
           }

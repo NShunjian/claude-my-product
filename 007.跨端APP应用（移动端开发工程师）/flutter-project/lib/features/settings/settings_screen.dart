@@ -12,6 +12,7 @@ import '../../core/utils/category_presentation.dart';
 import '../../core/utils/tab_refresh_signal.dart';
 import '../shared/auth_controller.dart';
 import '../shared/app_header.dart';
+import '../shared/avatar_image.dart';
 import '../shared/providers.dart';
 import '../shared/skeleton_shimmer.dart';
 import '../shared/theme_controller.dart';
@@ -45,11 +46,31 @@ const List<String> _kColorChoices = [
 
 /// 对齐 uniapp pages/settings/index.vue — 6 节:用户卡 + 系统偏好 + 自定义分类 + 数据导出 + 关于轻账 + 账号安全。
 /// 卡片内部结构(head + 子内容 + 退出按钮)全部按 uniapp 同款视觉重建。
-class SettingsScreen extends ConsumerWidget {
+class SettingsScreen extends ConsumerStatefulWidget {
   const SettingsScreen({super.key});
 
   @override
-  Widget build(BuildContext context, WidgetRef ref) {
+  ConsumerState<SettingsScreen> createState() => _SettingsScreenState();
+}
+
+class _SettingsScreenState extends ConsumerState<SettingsScreen> {
+  @override
+  void initState() {
+    super.initState();
+    // ponytail: 2026-09-12 — 切回 settings tab(4)时 refetch /me 拉最新 user。
+    //          解决"web 端改了头像/昵称/性别/年龄,mobile 端切到我的页看
+    //          不到新数据"问题。listenManual + next>prev 跟现有 _CategoriesCard
+    //          监听模式一致,初始 0 不触发空拉。refetch 失败静默
+    //          (auth_controller.me() 内部 try/catch 已处理 401)。
+    ref.listenManual<int>(tabRefreshSignalProvider(4), (prev, next) {
+      if (prev != null && next > prev) {
+        ref.read(authControllerProvider.notifier).me();
+      }
+    });
+  }
+
+  @override
+  Widget build(BuildContext context) {
     final lang = I18n.of(context);
     final c = context.appColors;
     final auth = ref.watch(authControllerProvider);
@@ -59,13 +80,23 @@ class SettingsScreen extends ConsumerWidget {
       //          走 light surfaceContainer 不一致,补显式 backgroundColor。
       backgroundColor: c.surface,
       appBar: AppHeader(title: lang.t('pageTitle.settings'), back: false),
-      body: ListView(
-        padding: const EdgeInsets.fromLTRB(
-          AppSpacing.lg,
-          AppSpacing.lg,
-          AppSpacing.lg,
-          AppSpacing.xl,
-        ),
+      // ponytail: 2026-09-12 — 套 RefreshIndicator 让 mobile "我的"页支持下
+      //          拉刷新。切回 tab 时 listenManual 已自动 refetch me(),这里
+      //          给用户一个主动刷新的入口(web 改完 mobile 不用切走再切回)。
+      //          onRefresh 调 me() 拉最新 user + return Future 等 spinner
+      //          转完。失败静默 —— me() 内部 try/catch 已容错 401/网络。
+      body: RefreshIndicator(
+        onRefresh: () => ref.read(authControllerProvider.notifier).me(),
+        child: ListView(
+          // ponytail: physics: AlwaysScrollable,内容不足以滚动时(短屏)
+          //          也能触发下拉手势。
+          physics: const AlwaysScrollableScrollPhysics(),
+          padding: const EdgeInsets.fromLTRB(
+            AppSpacing.lg,
+            AppSpacing.lg,
+            AppSpacing.lg,
+            AppSpacing.xl,
+          ),
         children: [
           // heading(对齐 uniapp .heading:32rpx w700 — Flutter 用 18 w600 折中)
           Text(
@@ -89,6 +120,7 @@ class SettingsScreen extends ConsumerWidget {
           const SizedBox(height: AppSpacing.lg),
           const _SecurityCard(),
         ],
+        ),
       ),
     );
   }
@@ -143,8 +175,8 @@ class _UserCard extends StatelessWidget {
             alignment: Alignment.center,
             child: hasAvatar
                 ? ClipOval(
-                    child: Image.network(
-                      avatarUrl,
+                    child: AvatarImage(
+                      src: avatarUrl,
                       width: 80,
                       height: 80,
                       fit: BoxFit.cover,

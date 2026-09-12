@@ -36,6 +36,13 @@ dependencies:
   # 头像选择(对齐 uni.chooseImage)
   image_picker: ^1.1.2
 
+  # 头像压缩 — mobile 端 PNG image_picker 不压,base64 后超后端
+  # UpdateProfileRequest.avatar @Size(max=2_000_000) 限制,导致
+  # "请求参数不合法" 400。这里 PNG→JPEG 重编码 + max 1024 + quality 80,
+  # 输出 base64 < 500k,稳过 2M 上限。web 端 image_picker imageQuality
+  # 已生效,通过 kIsWeb 跳过此调用保持 web 端行为完全不变(策略 A:跨端共享)。
+  flutter_image_compress: ^2.3.0
+
   # 工具
   intl: ^0.20.3
   collection: ^1.18.0

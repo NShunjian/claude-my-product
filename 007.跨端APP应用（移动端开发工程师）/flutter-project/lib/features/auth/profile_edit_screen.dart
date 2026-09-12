@@ -1,7 +1,9 @@
 import 'dart:convert';
 import 'dart:typed_data';
 
+import 'package:flutter/foundation.dart' show kIsWeb;
 import 'package:flutter/material.dart';
+import 'package:flutter_image_compress/flutter_image_compress.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import 'package:image_picker/image_picker.dart';
@@ -13,6 +15,7 @@ import '../../core/router/app_router.dart';
 import '../../core/theme/tokens.dart';
 import '../shared/app_header.dart';
 import '../shared/auth_controller.dart';
+import '../shared/avatar_image.dart';
 import '../shared/providers.dart';
 
 /// 对齐 uniapp pages/profile/edit.vue — 头像 / 昵称 / 性别 / 年龄 / 修改密码。
@@ -186,10 +189,34 @@ class _ProfileEditScreenState extends ConsumerState<ProfileEditScreen> {
       //          (报 Unsupported operation: _Namespace)。XFile.readAsBytes()
       //          自带 web Blob 读取实现,跨平台通用。
       final bytes = await picked.readAsBytes();
-      final b64 = 'data:image/jpeg;base64,${base64Encode(bytes)}';
+      // ponytail: 2026-09-12 — mobile 端 PNG image_picker 不压(Android 端
+      //          warning "compressing is not supported for type .png",返回原
+      //          quality),原图 base64 后超后端 UpdateProfileRequest.avatar
+      //          @Size(max=2_000_000) 校验 → 400 "请求参数不合法"。这里 mobile
+      //          端把 PNG 重编 JPEG + 缩到 1024 + quality 80,base64 后 < 500k,
+      //          稳过 2M 上限。web 端 kIsWeb 跳过 —— image_picker web imageQuality
+      //          已生效,且 web 端逻辑/行为完全不变(策略 A:跨端共享代码 + web
+      //          跳过调用)。
+      final uploadBytes = kIsWeb
+          ? bytes
+          : await FlutterImageCompress.compressWithList(
+              bytes,
+              minWidth: 1024,
+              minHeight: 1024,
+              quality: 80,
+              format: CompressFormat.jpeg,
+            );
+      // ponytail: 2026-09-12 — 发后端 updateProfile 用纯 base64(不带
+      //          data:image/jpeg;base64, 前缀)。后端 GET /me 返回时自己
+      //          包成 data URI,POST 入参要 plain base64。AvatarImage 解析
+      //          GET 返回的 data URI 路径独立,不受影响。
+      final b64 = base64Encode(uploadBytes);
       if (!mounted) return;
       setState(() {
-        _avatarBytes = bytes;
+        // ponytail: 预览用 uploadBytes(mobile 是压缩后的 JPEG,web 是原
+        //          bytes),120x120 圆里原图 2.7MB 解码纯属浪费,预览与上
+        //          传保持一致避免"看到的 ≠ 传的"歧义。
+        _avatarBytes = uploadBytes;
         _avatarBase64 = b64;
         _avatarMsg = _Msg.ok(lang.t('profileEdit.avatarPreviewReady'));
       });
@@ -297,8 +324,8 @@ class _ProfileEditScreenState extends ConsumerState<ProfileEditScreen> {
                           )
                         : (auth.user?.avatar != null &&
                                 auth.user!.avatar!.isNotEmpty)
-                            ? Image.network(
-                                auth.user!.avatar!,
+                            ? AvatarImage(
+                                src: auth.user!.avatar!,
                                 fit: BoxFit.cover,
                                 width: 120,
                                 height: 120,

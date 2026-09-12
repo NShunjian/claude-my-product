@@ -18,6 +18,16 @@ class ApiClient {
         connectTimeout: const Duration(seconds: 10),
         receiveTimeout: const Duration(seconds: 15),
         contentType: 'application/json',
+        // ponytail: 2026-09-12 — Dio 默认 validateStatus 只接 2xx,后端
+        //          4xx/5xx 会让 Dio 内部直接抛 DioException(message 是 Dio
+        //          默认那段 "This exception was thrown because..."),
+        //          不进 onResponse 拦截器 → ApiException 没被包装 → UI
+        //          catch 到的 e 是 DioException 不是 ApiException,e.message
+        //          是 Dio 长文本而不是后端 envelope.message(后端其实给
+        //          了具体原因)。改 validateStatus 永远 true,所有响应
+        //          都走 onResponse 统一处理(envelope 解包 + ApiException
+        //          包装 + 401 踢登录都在 onResponse 里)。
+        validateStatus: (_) => true,
       ),
     );
     _dio.interceptors.add(

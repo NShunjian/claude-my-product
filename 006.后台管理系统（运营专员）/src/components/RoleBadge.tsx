@@ -8,7 +8,7 @@ import type { CSSProperties } from 'react'
  *   viewer            只读审计员    灰
  *   其它(未知 code)               默认灰
  *
- * 副管理员 (vice_admin) 已在 V7 删除。
+ * 当前保留 super_admin / vice_super_admin / admin / viewer 四种角色;vice_admin 已在 V7 删除。
  */
 
 interface RoleMeta {
@@ -32,17 +32,13 @@ export function roleLabel(code: string | undefined | null): string {
   return ROLE_META[code]?.label ?? code
 }
 
-export function roleMeta(code: string): RoleMeta {
-  return ROLE_META[code] ?? { ...DEFAULT_META, label: code }
-}
-
 interface Props {
   code: string
   size?: 'sm' | 'md'
 }
 
 export default function RoleBadge({ code, size = 'md' }: Props) {
-  const meta = roleMeta(code)
+  const meta = ROLE_META[code] ?? { ...DEFAULT_META, label: code }
   const padding = size === 'sm' ? '1px 6px' : '2px 8px'
   const fontSize = size === 'sm' ? 11 : 12
   const style: CSSProperties = {

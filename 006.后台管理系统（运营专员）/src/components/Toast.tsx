@@ -52,10 +52,3 @@ export function useToast(): ToastApi {
   if (!ctx) throw new Error('useToast must be inside ToastProvider')
   return ctx
 }
-
-// Convenience wrappers —— 调用方可以 import { toast } 然后 toast.success('...')
-export const toast = {
-  success: (msg: string) => useToast().show('success', msg),
-  error: (msg: string) => useToast().show('error', msg),
-  info: (msg: string) => useToast().show('info', msg),
-}

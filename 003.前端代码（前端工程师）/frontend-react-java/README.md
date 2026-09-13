@@ -47,12 +47,12 @@ npm run dev   # http://localhost:5173
 | POST  | `/api/auth/logout`  | 登出(无状态)                  |
 | GET   | `/api/auth/me`      | `Authorization: Bearer …` 拉当前用户 |
 
-> **注意**:`src/lib/api.ts` 当前按 `{user, token}` / `{error:{code,message}}` 解析后端响应 — 见下一节。
+> **注意**:`src/lib/api.ts` 已切到 `ApiResponse<T>` 信封(`{code, message, data}`),通过 `request<T>` 自动解包 `data`;`code !== 0` 抛 `ApiError`。
 
-## 后续要做(下一轮)
+## 当前对接状态
 
-- **响应合同对齐**:Java 后端 `ApiResponse<T>` 是 `{code, message, data}` 包装;现有前端按 Node 的扁平 `{user,token}` 读。要么 Java 端给 auth 返兼容形状,要么前端切到读 `data.user` / `data.token`。
-- 7 组业务接口(auth/users/books/accounts/categories/records/reports)逐一对接到 Java Controller。
+- **响应合同**:Java 后端返 `{code, message, data}` 信封,前端 `src/lib/api.ts` 的 `request<T>` 自动取 `env.data` 给调用方;业务调用方直接读业务字段(例如 `register/login` 返回 `{user, token}`,调用方读 `result.user` / `result.token`)。
+- **业务接口**:auth / users / books / accounts / categories / records / reports 7 组已对接完毕。新增模块按同样模式用 `request<T>` 即可。
 
 ## 目录结构
 

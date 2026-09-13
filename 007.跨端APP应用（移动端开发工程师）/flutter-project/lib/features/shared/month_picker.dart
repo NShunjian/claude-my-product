@@ -42,12 +42,16 @@ class MonthPicker extends ConsumerWidget {
       // 点击。月份文本左对齐(非居中),文字 + ▼ 与其他两个 picker 视觉一致。
       // ponytail: 之前 InkWell + Padding 没有 Container,在浅色背景下看不到边界,
       //          跟 _SelectBox 视觉重量不匹配 — 改成同款 Container 后边框 + 背景一致。
+      // 横向 padding 6:选器边框距 Card 边框 = 6dp(不贴边),文字距屏幕 = 18dp。
+      //               严格 12dp 对齐会让选择器贴 Card 边框,视觉太挤(用户截图反馈);
+      //               原 10dp 又让选择器内文字突出 10dp(差"筛选"标题 10dp 不齐)。
+      //               6dp 是折中,选器视觉重量与内文字间距都 OK,跟 _SelectBox 同步。
       return GestureDetector(
         behavior: HitTestBehavior.opaque,
         onTap: () => _openModal(context, ref),
         child: Container(
           padding: const EdgeInsets.symmetric(
-            horizontal: 10,
+            horizontal: 6,
             vertical: 8,
           ),
           decoration: BoxDecoration(

@@ -838,7 +838,10 @@ class _RecentTransactionsCard extends StatelessWidget {
     final groups = _groupByDate(records, today, lang);
 
     return Container(
-      // uniapp .card: padding 24rpx (12dp), radius 16rpx (8dp), border 1px
+      // ponytail 2026-09-13 — 最近交易卡片整体左边距 12dp(图标贴左感),
+      //   右侧 12dp 跟其他卡片对称;内部 _DayGroupBlock Container 和
+      //   TransactionRow horizontal padding 同步设 0,让日期 label 和图标
+      //   左边缘都对齐 12dp(刚好 = AppSpacing.md)。
       padding: const EdgeInsets.all(12),
       decoration: BoxDecoration(
         color: c.bgCard,
@@ -965,8 +968,9 @@ class _DayGroupBlock extends StatelessWidget {
       crossAxisAlignment: CrossAxisAlignment.stretch,
       children: [
         Container(
-          // uniapp .day-header { padding: 12rpx 16rpx; background: var(--c-surface) } → 6dp 8dp
-          padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 6),
+          // 横向 padding 0:外层 Card 已给 10dp left,这里再加会变 26dp。
+          //   纵向保留 6dp(uniapp 12rpx)。
+          padding: const EdgeInsets.symmetric(horizontal: 0, vertical: 6),
           color: c.surface,
           child: Row(
             mainAxisAlignment: MainAxisAlignment.spaceBetween,
@@ -997,6 +1001,7 @@ class _DayGroupBlock extends StatelessWidget {
             category: _findCat(r.categoryId),
             account: _findAccount(r.accountId),
             onTap: null,
+            horizontalPadding: 0,
           ),
         if (!isLast) const Divider(height: 1),
       ],

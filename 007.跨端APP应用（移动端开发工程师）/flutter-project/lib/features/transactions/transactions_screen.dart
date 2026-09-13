@@ -629,8 +629,12 @@ class _SelectBox extends StatelessWidget {
       behavior: HitTestBehavior.opaque,
       onTap: onTap,
       child: Container(
+        // 横向 padding 6:跟 MonthPicker compact 模式同步 — 选器边框距 Card 边框
+        //              = 6dp(不贴边,用户截图反馈 inner 0 太挤),文字距屏幕 = 18dp。
+        //              原 10dp 让选择器内文字突出 10dp(差"筛选"标题 10dp 不齐);
+        //              0 又让选器边框贴 Card 边框。6dp 折中。
         padding: const EdgeInsets.symmetric(
-          horizontal: 10,
+          horizontal: 6,
           vertical: 8,
         ),
         decoration: BoxDecoration(

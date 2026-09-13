@@ -16,12 +16,14 @@ class TransactionRow extends ConsumerWidget {
     required this.category,
     required this.account,
     this.onTap,
+    this.horizontalPadding = AppSpacing.lg,
   });
 
   final Record record;
   final Category? category;
   final Account? account;
   final VoidCallback? onTap;
+  final double horizontalPadding;
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
@@ -45,8 +47,8 @@ class TransactionRow extends ConsumerWidget {
     return InkWell(
       onTap: onTap,
       child: Padding(
-        padding: const EdgeInsets.symmetric(
-          horizontal: AppSpacing.lg,
+        padding: EdgeInsets.symmetric(
+          horizontal: horizontalPadding,
           vertical: AppSpacing.md,
         ),
         child: Row(

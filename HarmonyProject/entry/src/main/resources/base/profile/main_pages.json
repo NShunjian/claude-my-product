@@ -1,5 +1,17 @@
 {
   "src": [
-    "pages/Index"
+    "pages/Index",
+    "pages/Login",
+    "pages/Home",
+    "pages/Transactions",
+    "pages/RecordExpense",
+    "pages/RecordIncome",
+    "pages/Reports",
+    "pages/Accounts",
+    "pages/AccountNew",
+    "pages/Books",
+    "pages/BookMembers",
+    "pages/Settings",
+    "pages/ProfileEdit"
   ]
 }

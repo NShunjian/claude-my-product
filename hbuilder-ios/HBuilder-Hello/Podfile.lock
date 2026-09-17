@@ -1,0 +1,50 @@
+PODS:
+  - uniapp/Audio (5.25.0)
+  - uniapp/CameraGallery (5.25.0)
+  - uniapp/Canvas (5.25.0)
+  - uniapp/Contacts (5.25.0)
+  - uniapp/Core (5.25.0)
+  - uniapp/File (5.25.0)
+  - uniapp/Fingerprint (5.25.0)
+  - uniapp/Geolocation (5.25.0)
+  - uniapp/Geolocation-Tencent (5.25.0):
+    - uniapp/Core
+    - uniapp/Geolocation
+  - uniapp/IBeacon (5.25.0)
+  - uniapp/Log (5.25.0)
+  - uniapp/Messaging (5.25.0)
+  - uniapp/Orientation (5.25.0)
+  - uniapp/Proximity (5.25.0)
+  - uniapp/Sqlite (5.25.0)
+  - uniapp/XMLHttpRequest (5.25.0)
+  - uniapp/Zip (5.25.0)
+
+DEPENDENCIES:
+  - uniapp/Audio (from `..`)
+  - uniapp/CameraGallery (from `..`)
+  - uniapp/Canvas (from `..`)
+  - uniapp/Contacts (from `..`)
+  - uniapp/Core (from `..`)
+  - uniapp/File (from `..`)
+  - uniapp/Fingerprint (from `..`)
+  - uniapp/Geolocation (from `..`)
+  - uniapp/Geolocation-Tencent (from `..`)
+  - uniapp/IBeacon (from `..`)
+  - uniapp/Log (from `..`)
+  - uniapp/Messaging (from `..`)
+  - uniapp/Orientation (from `..`)
+  - uniapp/Proximity (from `..`)
+  - uniapp/Sqlite (from `..`)
+  - uniapp/XMLHttpRequest (from `..`)
+  - uniapp/Zip (from `..`)
+
+EXTERNAL SOURCES:
+  uniapp:
+    :path: ".."
+
+SPEC CHECKSUMS:
+  uniapp: 7978568d79779961462eac03ce77de5d7a31715d
+
+PODFILE CHECKSUM: b3e37af88d27a8b0bc02fb31807e76404ac300a7
+
+COCOAPODS: 1.17.0

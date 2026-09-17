@@ -97,36 +97,33 @@ qz_ensure_docker_desktop() {
   qz_wait_docker_daemon 120 || return 1
 }
 
-# === MySQL pre-flight:V1.2 起 backend 启动前的硬前置 ===
-# 链路:3307 没监听 → 起 Docker Desktop → docker compose up -d mysql → 等端口。
-# 幂等:任何一步已经在跑就直接通过。
-# 失败提示要够清楚(用户已经踩过这个坑)。
+# === MySQL pre-flight ===
+# 链路:3307 没监听 → 起 Docker Desktop(只调 GUI,不创建/启动任何 MySQL 容器),
+# 然后列出已有 MySQL 容器让用户自己起。
+#
+# 为什么不再 docker compose up -d mysql:用户明确要求不自动创建/启动 MySQL 容器,
+# (已有的 mysql-java 容器由用户手动 docker start)。这避免误覆盖现有数据/密码。
 qz_ensure_mysql() {
   if lsof -nP -iTCP:3307 -sTCP:LISTEN -t >/dev/null 2>&1; then
     echo "  ✓ MySQL 已就绪 :3307"
     return 0
   fi
-  echo "  (MySQL :3307 未监听,准备拉起)"
+  echo "  (MySQL :3307 未监听)"
 
-  qz_ensure_docker_desktop || return 1
+  # 调出 Docker Desktop(只在引擎没跑时)
+  if ! docker info >/dev/null 2>&1; then
+    qz_ensure_docker_desktop || return 1
+  fi
 
-  echo "  → docker compose up -d mysql ..."
-  ( cd "$ROOT" && docker compose up -d mysql ) || {
-    echo "  ✗ docker compose 失败"
-    return 1
-  }
-
-  for i in $(seq 1 120); do
-    if lsof -nP -iTCP:3307 -sTCP:LISTEN -t >/dev/null 2>&1; then
-      echo "  ✓ MySQL 端口就绪 :3307 (等 ${i}s)"
-      # 多等 3s 让 InnoDB buffer pool / performance_schema 完成初始化,
-      # 否则 HikariCP 第一次握手可能拿到半初始化连接。
-      sleep 3
-      return 0
-    fi
-    sleep 1
-  done
-  echo "  ✗ MySQL 端口 120s 内未就绪,看 docker logs qingzhang-mysql"
+  # 列出已有的 MySQL 容器,让用户决定要不要起
+  echo "  → 当前 docker 里的 MySQL 容器(本脚本不会自动 docker start):"
+  docker ps -a --filter "ancestor=mysql" --format "    {{.Names}}\t{{.Status}}\t{{.Ports}}" 2>/dev/null \
+    || echo "    (无 MySQL 容器)"
+  echo ""
+  echo "  ⚠️ 按你的要求,本脚本不会创建/启动任何 MySQL 容器"
+  echo "  手动起 MySQL 后再跑一次 ./start-backend,例如:"
+  echo "      docker start mysql-java"
+  echo "      docker ps --filter 'name=mysql'"
   return 1
 }
 

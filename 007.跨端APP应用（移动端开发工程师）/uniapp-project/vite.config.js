@@ -7,12 +7,16 @@ const __dirname = path.dirname(fileURLToPath(import.meta.url))
 const ROOT_DIR = path.resolve(__dirname, '../..')
 
 // VITE_API_BASE 解析优先级:
-//   1. 本项目 .env.local / .env.[mode]   (覆盖优先,留给特殊场景)
-//   2. 仓库根 .env 的 LAN_IP + :4001     (默认,改 LAN_IP 一处即可)
+//   1. 本项目 .env.local / .env.development   (覆盖优先,本地调试 / staging 用)
+//   2. 仓库根 .env 的 LAN_IP + :4001          (默认,改 LAN_IP 一处即可)
+//
+// 故意忽略 .env.production:HBuilderX 默认 production 编译,但 .env.production 里的
+// VITE_API_BASE 经常是占位符(https://your-prod-host),污染默认值。生产真地址应在
+// CI/CD 里通过环境变量注入,而不是跟仓库一起提交。
 const resolveApiBase = (mode) => {
   const rootEnv = loadEnv(mode, ROOT_DIR, '')
   const projectEnv = loadEnv(mode, __dirname, '')
-  if (projectEnv.VITE_API_BASE) return projectEnv.VITE_API_BASE
+  if (mode !== 'production' && projectEnv.VITE_API_BASE) return projectEnv.VITE_API_BASE
   const lanIp = rootEnv.LAN_IP || 'localhost'
   return `http://${lanIp}:4001`
 }

@@ -25,3 +25,6 @@ __pycache__/
 .env
 .env.local
 006.后台管理系统（运营专员）/.env.local
+
+# DCloud Android 离线 SDK 自带二进制/资源,禁止 git 提交(本地保留)
+hbuilder-android/SDK/

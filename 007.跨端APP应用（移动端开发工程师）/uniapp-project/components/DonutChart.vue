@@ -2,12 +2,15 @@
 import { ref, computed, watch, getCurrentInstance } from 'vue'
 import { useLanguage } from '@/i18n/useLanguage'
 
-// 收入/支出占比环图。H5 走 SVG(浏览器原生支持),MP 走 view + conic-gradient。
+// 收入/支出占比环图。H5 走原生 <svg>,MP/APP-PLUS 走 SVG → data URI → <image>,
+// 与 components/charts/LineChart.vue 的 mp 路线对齐。
 //
 // 为什么不用 canvas:uniapp vue3 + mp 编译器对 <canvas type="2d"> 处理不稳定,
-// 多次实测即使设了 libVersion 2.32.3 仍不渲染。conic-gradient 是 wxss 标准
-// 支持(基础库 2.13.0+),配合 background-color 兜底,即使 conic-gradient 被忽略
-// 也至少显示单色 ring + 中心文字,绝对不空白。
+// 多次实测即使设了 libVersion 2.32.3 仍不渲染。
+//
+// 为什么不用 conic-gradient:实测在 Android/iOS APP-PLUS webview 上不渲染
+//(中心文字在,ring 是白的 — :style 里的 background/conic-gradient 被解析后丢了),
+// 2026-09 改走 SVG data URI 跟 LineChart 一致。
 //
 // 对外接口不变(:segments / :totalValue / :totalLabel / :hideLegend),
 // monthly.vue 不需要改。
@@ -117,15 +120,13 @@ const props = withDefaults(defineProps<{
 const { t } = useLanguage()
 const finalTotalLabel = computed(() => props.totalLabel || t('chart.donutTotal'))
 
-// ========================= H5: SVG 实现(完全保留原逻辑) =========================
-// #ifdef H5
+// ========================= 共享:H5 SVG + MP/APP-PLUS data URI 都用同一组几何 + 占比计算 =========================
+// 把 processedSegments / displayValues / 几何常量挪出 #ifdef,避免 H5 块被 strip 后
+// MP 块引用 undefined.value 静默抛错(原 conic-gradient 不渲染就是这个原因)。
 const radius = 70
 const inner = 40
 const cx = 100, cy = 100
 const W = 200, H = 200
-
-const hoverIdx = ref<number | null>(null)
-let touchTimer: ReturnType<typeof setTimeout> | null = null
 
 const processedSegments = computed(() => deduplicateColors(props.segments))
 
@@ -138,6 +139,11 @@ const displayValues = computed(() => {
   const ratios = computeDisplayRatios(segs.map((s) => s.value / total))
   return ratios.map((r) => r * total)
 })
+
+// ========================= H5: SVG 实现(直接渲染 <svg>) =========================
+// #ifdef H5
+const hoverIdx = ref<number | null>(null)
+let touchTimer: ReturnType<typeof setTimeout> | null = null
 
 const arcs = computed(() => {
   const segs = processedSegments.value
@@ -180,34 +186,47 @@ function clearHover() {
 }
 // #endif
 
-// ========================= MP/APP-PLUS: conic-gradient 环图 =========================
+// ========================= MP/APP-PLUS: SVG → data URI → <image> =========================
 // #ifdef MP-WEIXIN || APP-PLUS
 //
-// 拼接 conic-gradient stop 字符串。mp 基础库 2.13.0+ 完全支持;
-// 设 background-color 兜底,如果 conic-gradient 被忽略,显示单色 ring + 中心文字。
+// 思路:跟 LineChart 一样 — 把跟 H5 完全相同的 SVG 字符串 encodeURIComponent 编码后,
+// 塞到 <image src="data:image/svg+xml;charset=utf-8,...">。
+//
+// 原版用 conic-gradient,实测在 Android APP-PLUS webview 上不渲染(中心文字在但
+// ring 是白的 — :style 里的 background/conic-gradient 被解析后丢了),iOS APP-PLUS
+// 同问题。改成 SVG data URI 跟 LineChart 对齐,mp 基础库 ≥ 2.10.0 / 原生 webview 都吃。
+//
+// 几何参数:viewBox 200x200,ring 外半径 70 内半径 40。<image> 跟 stack 一起
+// 100% 自适应(stack = width:100% + padding-bottom:100% → 正方形;viewBox 1:1 →
+// 不变形),实际显示尺寸 = 容器宽 = 卡片宽。触摸判定内外径按 SVG 几何
+// (radius/W, inner/W) 比例缩放,不写死像素(老版本写死 320rpx 在大屏上视觉
+// 比 H5 小一大圈)。
 
-const conicStops = computed(() => {
-  if (processedSegments.value.length === 0) return ''
-  const total = processedSegments.value.reduce((s, x) => s + x.value, 0) || 1
+const svgDataUri = computed(() => {
+  const segs = processedSegments.value
+  if (segs.length === 0) return ''
+  const total = segs.reduce((s, x) => s + x.value, 0) || 1
   const values = displayValues.value
-  const stops: string[] = []
   let acc = 0
-  for (let i = 0; i < processedSegments.value.length; i++) {
-    const s = processedSegments.value[i]
-    const startDeg = (acc / total) * 360
+  let paths = ''
+  for (let i = 0; i < segs.length; i++) {
+    const s = segs[i]
+    const start = (acc / total) * Math.PI * 2 - Math.PI / 2
     acc += values[i]
-    const endDeg = (acc / total) * 360
-    stops.push(`${s.color} ${startDeg}deg ${endDeg}deg`)
+    let end = (acc / total) * Math.PI * 2 - Math.PI / 2
+    if (segs.length === 1) end = start + Math.PI * 2 - 0.001
+    const large = end - start > Math.PI ? 1 : 0
+    const x1 = cx + radius * Math.cos(start), y1 = cy + radius * Math.sin(start)
+    const x2 = cx + radius * Math.cos(end),   y2 = cy + radius * Math.sin(end)
+    const ix1 = cx + inner * Math.cos(end),   iy1 = cy + inner * Math.sin(end)
+    const ix2 = cx + inner * Math.cos(start), iy2 = cy + inner * Math.sin(start)
+    paths += `<path d="M ${x1} ${y1} A ${radius} ${radius} 0 ${large} 1 ${x2} ${y2} L ${ix1} ${iy1} A ${inner} ${inner} 0 ${large} 0 ${ix2} ${iy2} Z" fill="${s.color}"/>`
   }
-  return stops.join(', ')
+  const svg = `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 ${W} ${H}" preserveAspectRatio="xMidYMid meet">${paths}</svg>`
+  return 'data:image/svg+xml;charset=utf-8,' + encodeURIComponent(svg)
 })
 
-const fallbackBg = computed(() => {
-  // conic-gradient 不支持时,显示首个 segment 颜色(或灰)
-  return processedSegments.value[0]?.color ?? '#E2E8F0'
-})
-
-// MP 点击浮窗:conic-gradient 没有可交互的元素,所以用透明覆盖层捕获触摸位置,
+// MP 点击浮窗:<image> 是静态图,SVG 元素不可交互 → 透明覆盖层捕获触摸位置
 // 用 (dx, dy) → 角度 → segment index 的方式反推命中。
 // 浮窗位置放在命中 segment 的中线 + 外侧(对齐 H5 seg-tip 视觉)。
 const mpTipIdx = ref<number | null>(null)
@@ -220,22 +239,22 @@ const donutIns = getCurrentInstance()
 function queryDonutRect(): Promise<{ left: number; top: number; width: number; height: number } | null> {
   return new Promise((resolve) => {
     const q = uni.createSelectorQuery().in(donutIns)
-    q.select('.mp-donut-ring').boundingClientRect()
+    // 查 .mp-donut-stack 而不是 .mp-donut-image:<image> 在 APP-PLUS 上
+    // boundingClientRect 偶尔拿不到真实尺寸,stack 才是稳定带尺寸的容器
+    q.select('.mp-donut-stack').boundingClientRect()
     q.exec((res: any) => resolve((res && res[0]) || null))
   })
 }
 
-// 几何参数:ring 320rpx 直径,hole 200rpx 直径,所以有效 ring 半径 = (160 - 100) = 60rpx
-// 触摸判定的内外径 = (60, 160),tol = ±15
-const MP_RING_PX = 320
-const MP_HOLE_PX = 200
-
+// 几何(对齐 SVG viewBox,按 size 比例缩放 — 不写死像素,响应式尺寸都能算对):
+// viewBox 200×200,ring 外半径 70、内半径 40。触摸判定的内外径 =
+//(radius/W, inner/W) × size = (0.35, 0.20) × size。
 function findSegmentAt(localX: number, localY: number, size: number): number | null {
   if (processedSegments.value.length === 0) return null
   const cx = size / 2
   const cy = size / 2
-  const rOuter = size / 2
-  const rInner = (MP_HOLE_PX / MP_RING_PX) * size / 2
+  const rOuter = (radius / W) * size
+  const rInner = (inner / W) * size
   const dx = localX - cx
   const dy = localY - cy
   const dist = Math.hypot(dx, dy)
@@ -282,7 +301,7 @@ function onDonutTouch(e: any) {
       mpTipIdx.value = null
       return
     }
-    // 浮窗位置:命中 segment 的中线角,往外挪 12rpx。
+    // 浮窗位置:命中 segment 的中线角,往外挪 12 viewBox 单位(对齐 H5 seg-tip)。
     // 用 displayValues(而非 raw value)算中线角,保证指向可见弧中心。
     const total = processedSegments.value.reduce((s, x) => s + x.value, 0) || 1
     const values = displayValues.value
@@ -292,7 +311,7 @@ function onDonutTouch(e: any) {
     const endDeg = ((acc + values[idx]) / total) * 360
     const midDeg = (startDeg + endDeg) / 2
     const midRad = (midDeg - 90) * Math.PI / 180
-    const tipR = rect.width / 2 + 12  // 12rpx 外侧
+    const tipR = ((radius + 12) / W) * rect.width  // 12 viewBox 单位 = 6% × size past outer
     const tipX = rect.width / 2 + Math.cos(midRad) * tipR
     const tipY = rect.height / 2 + Math.sin(midRad) * tipR
     mpTipLeftPct.value = `${(tipX / rect.width) * 100}%`
@@ -365,19 +384,15 @@ watch(() => props.segments, () => {
     </view>
     <!-- #endif -->
 
-    <!-- MP/APP-PLUS: view + conic-gradient 环图(mp conic 不支持时退化单色 ring + 中心文字;APP-PLUS webview 完全支持) -->
+    <!-- MP/APP-PLUS: SVG data URI → <image>(照 LineChart 模式;原 conic-gradient 在 Android/iOS webview 上不渲染) -->
     <!-- #ifdef MP-WEIXIN || APP-PLUS -->
     <view class="mp-donut-wrap">
       <view class="mp-donut-stack">
-        <view class="mp-donut-ring"
-              :style="{
-                background: conicStops ? `conic-gradient(${conicStops})` : fallbackBg,
-                'background-color': fallbackBg,
-              }">
-          <view class="mp-donut-hole">
-            <text class="mp-donut-label">{{ finalTotalLabel }}</text>
-            <text class="mp-donut-total">{{ totalValue }}</text>
-          </view>
+        <image v-if="svgDataUri" :src="svgDataUri" class="mp-donut-image" />
+        <!-- 中心文字覆盖在 <image> 上,与原 conic 方案视觉对齐 -->
+        <view class="mp-donut-center">
+          <text class="mp-donut-label">{{ finalTotalLabel }}</text>
+          <text class="mp-donut-total">{{ totalValue }}</text>
         </view>
         <!-- 透明覆盖层:捕获触摸位置 → 角度反推 segment -->
         <view class="mp-donut-touch" @touchstart="onDonutTouch" />
@@ -436,38 +451,42 @@ watch(() => props.segments, () => {
 .lg-label { flex: 1; font-size: 26rpx; color: var(--c-text); }
 .lg-pct { font-size: 24rpx; color: var(--c-text-variant); }
 
-/* MP: conic-gradient 环图 */
+/* MP: SVG data URI → <image> 环图(对齐 LineChart + H5 视觉) */
+/* 关键点:stack 用 width:100% + padding-bottom:100% 自适应成卡片宽度的正方形,
+   <image> 跟 stack 一起 100% 撑满;viewBox 1:1 + container 1:1 → 无变形。
+   不要写死 rpx — 之前写 320rpx 在大屏上环图只占卡片中间一小块,跟 H5 不一致。 */
 .mp-donut-wrap {
   width: 100%;
-  display: flex;
-  justify-content: center;
-  align-items: center;
-  padding: 16rpx 0;
+  position: relative;
 }
 .mp-donut-stack {
   position: relative;
-  width: 320rpx;
-  height: 320rpx;
+  width: 100%;
+  height: 0;
+  padding-bottom: 100%;  /* 正方形:高 = 宽,跟 H5 donut-wrap 完全一致的 trick */
+  margin: 0 auto;
 }
-.mp-donut-ring {
-  width: 320rpx;
-  height: 320rpx;
-  border-radius: 50%;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  position: relative;
+.mp-donut-image {
+  position: absolute;
+  left: 0;
+  top: 0;
+  width: 100%;
+  height: 100%;
+  display: block;
 }
-.mp-donut-hole {
-  width: 200rpx;
-  height: 200rpx;
-  border-radius: 50%;
-  background: var(--c-bg-card);
+/* 中心文字覆盖在 <image> 上 — 跟 H5 一样走 SVG 透明内圈,白卡背景自然透出,
+   不要画白色 circle overlay 盖住(比例容易跟 SVG hole 对不齐)。 */
+.mp-donut-center {
+  position: absolute;
+  left: 0;
+  top: 0;
+  width: 100%;
+  height: 100%;
   display: flex;
   flex-direction: column;
   align-items: center;
   justify-content: center;
-  gap: 4rpx;
+  pointer-events: none;
 }
 .mp-donut-label {
   font-size: 22rpx;

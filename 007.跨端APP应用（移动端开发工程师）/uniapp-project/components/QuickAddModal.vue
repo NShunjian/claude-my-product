@@ -516,19 +516,19 @@ const accentBg = computed(() => isExpense.value ? 'var(--c-primary)' : '#10b981'
   </view>
   <!-- #endif -->
 
-  <!-- 分支 2:H5 Chrome / 非 iOS APP-PLUS —— Teleport 把 modal 节点搬到 body 末尾。
-       v-if="!isIOS" 独立判断(不与分支 1 构成 v-else),避免 Vue Fragment 占位节点
-       在 iOS 上 parentNode 为 null 二次崩。mp-weixin 端 #ifdef 把 Teleport 标签
-       strip 掉,只剩 <view v-if="store.show">...</view> 直挂逻辑,行为不变。-->
+  <!-- 分支 2:非 iOS 直接渲染(去掉 Teleport)。原版 <Teleport to="body"> 在 Android
+       APP-PLUS webview 上静默失败:modal 永远不弹,但 watch 里 hideAppTabBar 已经跑了,
+       tabbar 藏掉后用户没有可点元素 → tabbar 消失无法恢复。position:fixed 相对 viewport
+       不依赖父容器,直挂与 Teleport 视觉等效。mp-weixin 端 #ifdef strip 整个 <view>,
+       行为不变(原本那边也不渲染 modal)。-->
   <!-- #ifdef H5 || APP-PLUS -->
-  <Teleport v-if="!isIOS" to="body">
+  <view v-if="!isIOS && store.show" class="qa-overlay" @tap="close">
   <!-- #endif -->
     <!-- 关闭逻辑:overlay 直接 @tap=close,sheet @tap.stop 拦住冒泡。
          原版用 @tap.self="close" 在 mp-weixin 不可靠(self 修饰符在 mp 偶尔
          不生效,点 sheet 内部也会冒到 overlay 触发关闭) → sheet 上手动
          .stop 阻止冒泡最稳。H5 / APP-PLUS / mp-weixin 三端行为一致。-->
-    <view v-if="store.show" class="qa-overlay" @tap="close">
-      <view class="qa-sheet" @tap.stop>
+    <view class="qa-sheet" @tap.stop>
       <!-- 成功态 -->
       <view v-if="showSuccess" class="qa-success">
         <view class="qa-success-circle" :style="{ background: isExpense ? 'var(--c-primary-light)' : 'rgba(16,185,129,0.14)', color: accentBg }">
@@ -651,10 +651,7 @@ const accentBg = computed(() => isExpense.value ? 'var(--c-primary)' : '#10b981'
         </view>
       </template>
       </view>
-    </view>
-  <!-- #ifdef H5 || APP-PLUS -->
-  </Teleport>
-  <!-- #endif -->
+  </view>
 </template>
 
 <style scoped>

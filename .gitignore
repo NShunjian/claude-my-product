@@ -26,5 +26,10 @@ __pycache__/
 .env.local
 006.后台管理系统（运营专员）/.env.local
 
-# DCloud Android 离线 SDK 自带二进制/资源,禁止 git 提交(本地保留)
+# DCloud 离线 SDK 自带二进制/资源,禁止 git 提交(本地保留)
 hbuilder-android/SDK/
+hbuilder-ios/SDK/
+
+# CocoaPods 自动生成的第三方依赖(本地保留;Podfile/Podfile.lock 仍入仓)
+hbuilder-ios/HBuilder-Hello/Pods/
+hbuilder-ios/HBuilder-uniPluginDemo/Pods/

@@ -33,3 +33,39 @@ hbuilder-ios/SDK/
 # CocoaPods 自动生成的第三方依赖(本地保留;Podfile/Podfile.lock 仍入仓)
 hbuilder-ios/HBuilder-Hello/Pods/
 hbuilder-ios/HBuilder-uniPluginDemo/Pods/
+
+# === IDE / 本机配置 / 构建缓存(每台机器自生,不入仓)===
+
+# IntelliJ / DevEco / Android Studio 模块文件
+*.iml
+.idea/
+*.iws
+*.ipr
+
+# Gradle 守护进程、checksum、fileHashes、executionHistory 等(自动生成,跨机器毫无意义)
+.gradle/
+gradle-daemon-jvm.properties
+gradle.properties.local
+
+# Android 本机 SDK 路径(各机不同)
+local.properties
+
+# HarmonyOS Hvigor 构建缓存 + DevEco Preview 缓存
+.hvigor/
+.hvigor/cache/
+.hvigor/outputs/
+.hvigor/dependencyMap/
+.hvigor/report/
+entry/.preview/
+
+# NDK / C++ 编译中间产物
+.cxx/
+
+# Flutter / Dart 缓存
+.dart_tool/
+.flutter-plugins
+.flutter-plugins-dependencies
+.packages
+.pub-cache/
+.pub/
+build/

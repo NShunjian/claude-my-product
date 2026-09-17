@@ -177,7 +177,10 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
                               horizontal: AppSpacing.xl,
                             ),
                             child: Text(
-                              lang.t('home.loadErrorPrefix'),
+                              // ponytail: 之前只显示"加载失败:"前缀,snap.error 被吞,
+                              //          URL 错 / cleartext 拦 / 后端 500 全看不出区别。
+                              //          把真实异常对象 toString 拼上,定位更快。
+                              '${lang.t('home.loadErrorPrefix')}\n${snap.error}',
                               textAlign: TextAlign.center,
                               style: TextStyle(
                                 color: c.error,

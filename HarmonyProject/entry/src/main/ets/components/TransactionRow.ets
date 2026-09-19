@@ -35,6 +35,19 @@ export struct TransactionRow {
     return parts.join(' · ')
   }
 
+  // ponytail: 调淡图标背景。后端 color 是饱和 hex,直接当背景太亮;
+  // ArkUI 不支持 8 位 hex('#RRGGBBAA')的 alpha 解析,改用 rgba() 字符串拼 14% alpha,
+  // 等价于 uniapp catTint(rgba(.., 0.14))。
+  private catTintBg(): string {
+    const hex = this.category?.color || '#727782'
+    const h = hex.replace('#', '')
+    if (h.length !== 6) return hex
+    const r = parseInt(h.slice(0, 2), 16)
+    const g = parseInt(h.slice(2, 4), 16)
+    const b = parseInt(h.slice(4, 6), 16)
+    return `rgba(${r}, ${g}, ${b}, 0.14)`
+  }
+
   build() {
     Row() {
       Row() {
@@ -43,7 +56,8 @@ export struct TransactionRow {
           .fontColor(this.category?.color || '#727782')
       }
       .width(44).height(44).borderRadius(22)
-      .backgroundColor((this.category?.color || '#727782') + '22')
+      // 图标背景:后端 color + 14% alpha(对齐 uniapp catTint,调淡避免抢眼)
+      .backgroundColor(this.catTintBg())
       .justifyContent(FlexAlign.Center)
       .alignItems(VerticalAlign.Center)
 

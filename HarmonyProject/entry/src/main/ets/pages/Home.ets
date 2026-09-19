@@ -331,9 +331,11 @@ export struct Home {
           .width('100%').padding({ left: 10, right: 10 }).margin({ top: 12 })
 
           Row() {
-            // 支出分类 - 内联,直接读 @State expenseByCat,绕开 @Builder 缓存
+            // 支出分类 - 直接读 @State expenseByCat
             Column() {
-              Text(this.lang.t('home.expenseByCategory')).fontSize(15).fontWeight(FontWeight.Bold).margin({ bottom: 8 })
+              Text(this.lang.t('home.expenseByCategory'))
+                .fontSize(15).fontWeight(FontWeight.Bold)
+                .width('100%').padding({ left: 4, right: 4, top: 12, bottom: 8 })
               if (this.expenseByCat.length === 0) {
                 Text(this.lang.t('home.empty')).fontSize(11)
                   .fontColor(resolveTheme(themeStore.effective).colors.textVariant)
@@ -356,14 +358,19 @@ export struct Home {
                 }, (r: CatRow) => r.cat.id)
               }
             }
-            .layoutWeight(1).padding(8).margin({ left: 2, right: 2 })
+            .layoutWeight(1).padding({ left: 8, right: 8, bottom: 8 })
             .backgroundColor(resolveTheme(themeStore.effective).colors.bgCard)
             .borderRadius(8)
             .border({ width: 1, color: resolveTheme(themeStore.effective).colors.divider })
 
+            // 支出/收入两卡片之间的间距(ArkUI Row 没有 gap,占位 10vp)
+            Row().width(10)
+
             // 收入分类 - 同上
             Column() {
-              Text(this.lang.t('home.incomeByCategory')).fontSize(15).fontWeight(FontWeight.Bold).margin({ bottom: 8 })
+              Text(this.lang.t('home.incomeByCategory'))
+                .fontSize(15).fontWeight(FontWeight.Bold)
+                .width('100%').padding({ left: 4, right: 4, top: 12, bottom: 8 })
               if (this.incomeByCat.length === 0) {
                 Text(this.lang.t('home.empty')).fontSize(11)
                   .fontColor(resolveTheme(themeStore.effective).colors.textVariant)
@@ -386,12 +393,13 @@ export struct Home {
                 }, (r: CatRow) => r.cat.id)
               }
             }
-            .layoutWeight(1).padding(8).margin({ left: 2, right: 2 })
+            .layoutWeight(1).padding({ left: 8, right: 8, bottom: 8 })
             .backgroundColor(resolveTheme(themeStore.effective).colors.bgCard)
             .borderRadius(8)
             .border({ width: 1, color: resolveTheme(themeStore.effective).colors.divider })
           }
           .width('100%').padding({ left: 10, right: 10 }).margin({ top: 12 })
+          .alignItems(VerticalAlign.Top)
 
           Row().height(56)
         }

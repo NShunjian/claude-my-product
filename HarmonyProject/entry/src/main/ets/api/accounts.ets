@@ -4,14 +4,19 @@
 import { request } from './http'
 import type { Account, AccountCreatePayload, AccountType } from '../model/Types'
 
+export interface ListAccountsResponse {
+  items: Account[]
+}
+
 export interface ListAccountsParams {
   bookId: string
   includeArchived?: boolean
 }
 
-export function listAccounts(params: ListAccountsParams): Promise<Account[]> {
+export async function listAccounts(params: ListAccountsParams): Promise<Account[]> {
   const q = `?bookId=${encodeURIComponent(params.bookId)}${params.includeArchived ? '&includeArchived=true' : ''}`
-  return request<Account[]>(`/accounts${q}`)
+  const res: ListAccountsResponse = await request<ListAccountsResponse>(`/accounts${q}`)
+  return res.items
 }
 
 export function getAccount(id: string): Promise<Account> { return request<Account>(`/accounts/${id}`) }

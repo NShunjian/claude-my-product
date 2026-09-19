@@ -1,13 +1,22 @@
 /**
  * HTTP 客户端:对齐 uniapp api/http.ts 1:1。
- * ponytail: 用 @kit.NetworkKit.http,内置 1401 拦截 + navGraceUntil。
+ * ponytail: 用 @kit.NetworkKit.http,内置 1401 拦截 + navGraceUntil,全量请求/响应走 logger 打 Net tag。
  */
 import { http } from '@kit.NetworkKit'
 import { ApiError } from '../model/Types'
 import { getAuth } from '../stores/auth'
 import { getToast } from '../stores/toast'
+import { logger, TAGS } from '../utils/logger'
 
-const BASE_URL = 'http://10.0.2.2:8080/api'
+// ponytail: ArkTS 不允许 inline object literal 当 logger detail 传,起一个具名 class 让类型显式
+class HttpLogDetail {
+  body: string = ''
+  hdr: string = ''
+}
+
+// 与 uniapp api/http.ts 口径一致:LAN_IP 来自仓库根 .env(随工作区统一),路径前缀 /api 与 Spring Boot 路由对齐。
+// 真机/模拟器都走 LAN IP;改网时只改仓库根 .env 的 LAN_IP 一处。
+const BASE_URL = 'http://192.168.31.46:4001/api'
 let navGraceUntil = 0
 
 export function setNavGrace(ms: number): void { navGraceUntil = Date.now() + ms }
@@ -69,11 +78,19 @@ export async function request<T>(path: string, opts: RequestOptions = {}): Promi
   }
   if (auth.token) headers['Authorization'] = `Bearer ${auth.token}`
 
+  const method = toMethodStr(opts.method)
+  // GET / HEAD 不带 body,后端对空 body {} 拒 400
+  const extraData: string = (method === 'GET' || method === 'HEAD' || opts.data === undefined)
+    ? ''
+    : (typeof opts.data === 'string' ? opts.data : JSON.stringify(opts.data))
+  const startedAt = Date.now()
+  const reqDetail: HttpLogDetail = new HttpLogDetail()
+  reqDetail.body = extraData
+  reqDetail.hdr = JSON.stringify(headers)
+  logger.debug(TAGS.NET, `→ ${method} ${path}`, reqDetail)
+
   const httpRequest = http.createHttp()
   try {
-    const extraData = typeof opts.data === 'string'
-      ? opts.data
-      : JSON.stringify(opts.data ?? {})
     const response = await httpRequest.request(url, {
       method: toMethod(opts.method),
       header: headers,
@@ -84,6 +101,8 @@ export async function request<T>(path: string, opts: RequestOptions = {}): Promi
     })
     const status = response.responseCode
     const body = response.result as Record<string, Object> | null
+    const elapsed = Date.now() - startedAt
+    logger.info(TAGS.NET, `← ${status} ${method} ${path} (${elapsed}ms)`, body === null ? 'null' : body)
     if (status === 401) {
       if (!opts.silent401) fireAuthInvalid()
       throw new ApiError(1401, pickMessage(body, '未登录'), status)
@@ -100,8 +119,25 @@ export async function request<T>(path: string, opts: RequestOptions = {}): Promi
       return data as T
     }
     return body as T
+  } catch (e) {
+    const elapsed = Date.now() - startedAt
+    const err: Error = e instanceof Error ? e : new Error(String(e))
+    logger.error(TAGS.NET, `✗ ${method} ${path} (${elapsed}ms)`, err.message)
+    throw err
   } finally {
     httpRequest.destroy()
+  }
+}
+
+function toMethodStr(m: string | undefined): string {
+  switch (m) {
+    case 'POST': return 'POST'
+    case 'PUT': return 'PUT'
+    case 'DELETE': return 'DELETE'
+    case 'PATCH': return 'PATCH'
+    case 'HEAD': return 'HEAD'
+    case 'OPTIONS': return 'OPTIONS'
+    default: return 'GET'
   }
 }
 

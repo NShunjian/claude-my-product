@@ -18,30 +18,31 @@ export struct AppHeader {
     Column() {
       Row().height(28).width('100%')
       Row() {
-        if (this.back) {
-          Text('‹')
-            .fontSize(28)
-            .fontWeight(FontWeight.Medium)
-            .fontColor(resolveTheme(themeStore.effective).colors.text)
-            .width(48).height(48)
-            .textAlign(TextAlign.Center)
-            .onClick(() => this.onBack())
-        }
+        Row() {
+          if (this.back) {
+            Text('‹')
+              .fontSize(28)
+              .fontWeight(FontWeight.Medium)
+              .fontColor(resolveTheme(themeStore.effective).colors.text)
+              .width(48).height(48)
+              .textAlign(TextAlign.Center)
+              .onClick(() => this.onBack())
+          }
+        }.width(48)
         Text(this.title)
-          .fontSize(20)
-          .fontWeight(FontWeight.Bold)
+          .fontSize(16)
+          .fontWeight(FontWeight.Medium)
           .fontColor(resolveTheme(themeStore.effective).colors.text)
           .layoutWeight(1)
-          .margin({ left: this.back ? 0 : 16 })
-          .textAlign(this.back ? TextAlign.Start : TextAlign.Start)
-        Row() { this.right() }
+          .textAlign(TextAlign.Center)
+        Row() { this.right() }.width(48)
       }
-      .height(56)
+      .height(48)
       .width('100%')
-      .padding({ left: 8, right: 16 })
       .alignItems(VerticalAlign.Center)
     }
     .width('100%')
     .backgroundColor(resolveTheme(themeStore.effective).colors.bg)
+    .border({ width: { bottom: 1 }, color: resolveTheme(themeStore.effective).colors.divider })
   }
 }

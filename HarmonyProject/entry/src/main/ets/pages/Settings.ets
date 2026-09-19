@@ -143,9 +143,8 @@ export struct Settings {
     finally { this.exporting = false }
   }
 
-  private logout() {
-    authStore.token = ''
-    authStore.user = null
+  private async logout() {
+    await authStore.logout()
     router.replaceUrl({ url: 'pages/Login' })
   }
 

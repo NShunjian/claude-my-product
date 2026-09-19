@@ -45,6 +45,17 @@
           }
         ],
       }
+    ],
+    "requestPermissions": [
+      {
+        "name": "ohos.permission.INTERNET"
+      }
+    ],
+    "metadata": [
+      {
+        "name": "network-security-config",
+        "resource": "$profile:network_security_config"
+      }
     ]
   }
 }

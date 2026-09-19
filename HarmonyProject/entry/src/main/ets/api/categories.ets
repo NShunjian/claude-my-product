@@ -4,8 +4,13 @@
 import { request } from './http'
 import type { Category, CategoryCreatePayload, CategoryUpdatePayload } from '../model/Types'
 
-export function listCategories(type: 'expense' | 'income'): Promise<Category[]> {
-  return request<Category[]>(`/categories?type=${type}`)
+export interface ListCategoriesResponse {
+  items: Category[]
+}
+
+export async function listCategories(type: 'expense' | 'income'): Promise<Category[]> {
+  const res: ListCategoriesResponse = await request<ListCategoriesResponse>(`/categories?type=${type}`)
+  return res.items
 }
 export function createCategory(payload: CategoryCreatePayload): Promise<Category> {
   return request<Category>('/categories', { method: 'POST', data: payload })

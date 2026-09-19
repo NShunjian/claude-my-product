@@ -1,6 +1,7 @@
 /**
  * MonthPicker:对齐 uniapp components/MonthPicker.vue 1:1。
- * ponytail: 用 ‹ › 按钮 + 弹窗 grid。
+ * ponytail: 箭头改 Image chevron PNG — 14×14 px Image fillColor,跟 15vp Text 同 box center。
+ * 视觉中心对齐靠 Row.alignItems(VerticalAlign.Center),glyph 形状差异消除。
  */
 import { themeStore } from '../stores/theme'
 import { getTheme as resolveTheme } from '../theme/tokens'
@@ -46,27 +47,39 @@ export struct MonthPicker {
   build() {
     Stack() {
       Row() {
-        Text('‹').fontSize(22).fontColor(resolveTheme(themeStore.effective).colors.textVariant)
-          .width(32).height(32)
-          .textAlign(TextAlign.Center)
-          .onClick(() => { this.value = addMonths(this.value, -1) })
+        Image($r('app.media.arrow_left'))
+          .width(14).height(14)
+          .fillColor(resolveTheme(themeStore.effective).colors.text)
         Text(formatMonthCN(this.value))
-          .fontSize(this.compact ? 14 : 16)
+          .fontSize(this.compact ? 13 : 15)
+          .fontWeight(FontWeight.Medium)
           .fontColor(resolveTheme(themeStore.effective).colors.text)
           .layoutWeight(1)
           .textAlign(TextAlign.Center)
-          .padding(8)
-          .backgroundColor(resolveTheme(themeStore.effective).colors.surface)
-          .borderRadius(8)
-          .margin({ left: 4, right: 4 })
+        Image($r('app.media.arrow_right'))
+          .width(14).height(14)
+          .fillColor(resolveTheme(themeStore.effective).colors.text)
+      }
+      .width('100%').height(40)
+      .alignItems(VerticalAlign.Center)
+      .padding({ left: 12, right: 12 })
+      .border({ width: 1, color: resolveTheme(themeStore.effective).colors.divider })
+      .borderRadius(16)
+      .hitTestBehavior(HitTestMode.Transparent)
+
+      // 点击分区 overlay:箭头列 / 中间列
+      Row() {
+        Column().width(44).height(40)
+          .backgroundColor(Color.Transparent)
+          .onClick(() => { this.value = addMonths(this.value, -1) })
+        Column().layoutWeight(1).height(40)
+          .backgroundColor(Color.Transparent)
           .onClick(() => { this.showModal = true })
-        Text('›').fontSize(22).fontColor(resolveTheme(themeStore.effective).colors.textVariant)
-          .width(32).height(32)
-          .textAlign(TextAlign.Center)
+        Column().width(44).height(40)
+          .backgroundColor(Color.Transparent)
           .onClick(() => { this.value = addMonths(this.value, 1) })
       }
-      .width('100%')
-      .alignItems(VerticalAlign.Center)
+      .width('100%').height(40)
 
       if (this.showModal) {
         Column().width('100%').height('100%').backgroundColor('#00000066')

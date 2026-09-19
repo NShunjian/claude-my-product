@@ -32,7 +32,7 @@ export function formatMonthCN(month: string): string {
   const parts = splitYearMonth(month)
   const y = parts[0]
   const m = parts[1]
-  return `${y}年${m}月`
+  return `${y} 年 ${m} 月`
 }
 
 export class DayLabels {

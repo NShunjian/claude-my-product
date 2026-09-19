@@ -9,6 +9,7 @@ import type { User, AuthRegisterPayload } from '../model/Types'
 import { login as apiLogin, register as apiRegister, me as apiMe, logout as apiLogout } from '../api/auth'
 import { onAuthInvalid, setNavGrace } from '../api/http'
 import { getToast } from './toast'
+import { logger, TAGS } from '../utils/logger'
 
 const STORE = 'qingzhang-auth'
 let prefs: preferences.Preferences | null = null
@@ -33,6 +34,7 @@ export class AuthStore {
       if (u) this.user = JSON.parse(u) as User
     } catch { /* ignore */ }
     this.ready = true
+    logger.info(TAGS.AUTH, `hydrate token.len=${this.token.length} user=${this.user?.username ?? '-'}`)
   }
 
   async persist(): Promise<void> {
@@ -45,13 +47,16 @@ export class AuthStore {
   }
 
   async login(username: string, password: string): Promise<void> {
+    logger.info(TAGS.AUTH, `login user=${username}`)
     const r = await apiLogin({ username: username, password: password })
     this.token = r.token
     this.user = r.user
     await this.persist()
+    logger.info(TAGS.AUTH, `login ok user=${r.user?.username ?? username}`)
   }
 
   async register(payload: AuthRegisterPayload): Promise<void> {
+    logger.info(TAGS.AUTH, `register user=${payload.username}`)
     await apiRegister(payload)
     await this.login(payload.username, payload.password)
   }
@@ -60,15 +65,17 @@ export class AuthStore {
   async refresh(): Promise<void> { await this.me() }
 
   async logout(): Promise<void> {
+    logger.info(TAGS.AUTH, `logout user=${this.user?.username ?? '-'}`)
     try { await apiLogout() } catch { /* 容忍 */ }
     this.token = ''
     this.user = null
     await this.persist()
   }
 
-  kickToLogin(): void {
+  async kickToLogin(): Promise<void> {
     this.token = ''
     this.user = null
+    await this.persist()
     setNavGrace(3000)
     const toast = getToast()
     if (toast) toast.show('登录已失效,请重新登录')

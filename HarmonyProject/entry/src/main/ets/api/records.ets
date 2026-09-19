@@ -4,19 +4,24 @@
 import { request } from './http'
 import type { Record, RecordCreatePayload, RecordUpdatePayload } from '../model/Types'
 
+export interface ListRecordsResponse {
+  items: Record[]
+}
+
 export interface ListRecordsParams {
   month?: string // YYYY-MM
   bookId: string
   all?: boolean
 }
 
-export function listRecords(params: ListRecordsParams): Promise<Record[]> {
+export async function listRecords(params: ListRecordsParams): Promise<Record[]> {
   const parts: string[] = []
   if (params.bookId) parts.push(`bookId=${encodeURIComponent(params.bookId)}`)
   if (params.month) parts.push(`month=${encodeURIComponent(params.month)}`)
   if (params.all) parts.push('all=true')
   const q = parts.length ? `?${parts.join('&')}` : ''
-  return request<Record[]>(`/records${q}`)
+  const res: ListRecordsResponse = await request<ListRecordsResponse>(`/records${q}`)
+  return res.items
 }
 
 export function getRecord(id: string): Promise<Record> { return request<Record>(`/records/${id}`) }

@@ -10,6 +10,7 @@ import { useLanguage } from '../i18n/useLanguage'
 import { getAuth } from '../stores/auth'
 import { getBook } from '../stores/book'
 import { getToast } from '../stores/toast'
+import { logger, TAGS } from '../utils/logger'
 import { listRecords } from '../api/records'
 import { listAccounts } from '../api/accounts'
 import { listCategories } from '../api/categories'
@@ -40,27 +41,46 @@ export struct Home {
   @State accounts: Account[] = []
   @State cats: Category[] = []
   @State loading: boolean = false
+  // KPI 值用 number @State 兜底:对象数组的 @State 在某些 ArkUI 版本下重 build 不及时,
+  // number 字段是稳的;在 load() 里直接算出,build 里读字段。
+  @State monthExpenseVal: number = 0
+  @State monthIncomeVal: number = 0
+  // catBreakdown 也走 @State:@Builder 的数组参数会被首帧冻结,直接预计算成 @State
+  // 数组给 ForEach 用,避开 builder 缓存。
+  @State expenseByCat: CatRow[] = []
+  @State incomeByCat: CatRow[] = []
 
-  private lang = useLanguage()
   private initialLoadDone: boolean = false
+  private bookUnsub: (() => void) | null = null
+  private auth = getAuth()
+  private book = getBook()
+  private lang = useLanguage()
 
   aboutToAppear() {
     const d = new Date()
     this.month = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}`
     this.initialLoadDone = true
+    // 订阅 bookStore:currentId / books 任一变化都重拉,模拟 uniapp
+    // watch([auth.token, book.current], load, { immediate: true })。
+    this.bookUnsub = this.book.subscribe(() => {
+      if (this.initialLoadDone) this.load()
+    })
     this.load()
+  }
+
+  aboutToDisappear() {
+    if (this.bookUnsub) { this.bookUnsub(); this.bookUnsub = null }
   }
 
   private onMonthChange() { if (this.initialLoadDone) this.load() }
 
   async load() {
-    const auth = getAuth(); const book = getBook()
-    if (!auth.token || !book.current) return
+    if (!this.auth.token || !this.book.current) return
     this.loading = true
     try {
       const res = await Promise.all([
-        listRecords({ month: this.month, bookId: book.current.uuid }),
-        listAccounts({ bookId: book.current.uuid }),
+        listRecords({ month: this.month, bookId: this.book.current.uuid }),
+        listAccounts({ bookId: this.book.current.uuid }),
         listCategories('expense'),
         listCategories('income'),
       ])
@@ -68,9 +88,23 @@ export struct Home {
       this.accounts = res[1]
       const exp = res[2]; const inc = res[3]
       this.cats = exp.concat(inc)
+      // 把 KPI 数值也算好塞进 @State,build 直接读 number 字段
+      let e = 0; let i = 0
+      for (const r of this.records) {
+        if (r.type === 'expense') e += r.amount
+        else if (r.type === 'income') i += r.amount
+      }
+      this.monthExpenseVal = e
+      this.monthIncomeVal = i
+      // 预算分类 rows 也算好塞进 @State,绕开 catBreakdown @Builder 的 rows 参数缓存
+      this.expenseByCat = this.byCat('expense')
+      this.incomeByCat = this.byCat('income')
+      // 调试:打 records/accounts/cats 实际长度 + 月度累计
+      logger.info(TAGS.UI, `load done records=${this.records.length} accounts=${this.accounts.length} cats=${this.cats.length} monthExpense=${this.monthExpenseVal} monthIncome=${this.monthIncomeVal} totalAssets=${this.totalAssets()}`)
     } catch (e) {
       const msg = e instanceof Error ? e.message : ''
       getToast()?.show(this.lang.t('home.loadErrorPrefix') + msg)
+      logger.error(TAGS.UI, 'load fail', msg)
     } finally { this.loading = false }
   }
 
@@ -149,97 +183,215 @@ export struct Home {
         Column() {
           Row() {
             Column() {
-              Text(this.lang.t('home.overview')).fontSize(22).fontWeight(FontWeight.Bold)
+              Text(this.lang.t('home.overview')).fontSize(18).fontWeight(FontWeight.Bold)
                 .fontColor(resolveTheme(themeStore.effective).colors.text)
               Text(formatMonthCN(this.month)).fontSize(13)
                 .fontColor(resolveTheme(themeStore.effective).colors.textVariant)
                 .margin({ top: 2 })
             }.alignItems(HorizontalAlign.Start).layoutWeight(1)
-            MonthPicker({ value: $month }).width(160)
+              .height(40)
+              .justifyContent(FlexAlign.Center)
+            MonthPicker({ value: $month }).width(180)
           }
-          .width('100%').padding({ left: 16, right: 16 }).margin({ top: 12 })
+          .width('100%').padding({ left: 10, right: 10 }).margin({ top: 8 })
 
           Column() {
-            Text('💰').fontSize(64).opacity(0.12).position({ x: '70%', y: 8 })
-            Text(this.lang.t('home.totalAssets')).fontSize(13)
-              .fontColor(resolveTheme(themeStore.effective).colors.textVariant)
-            Row() {
-              Text('¥').fontSize(20).fontColor(resolveTheme(themeStore.effective).colors.primary)
-                .margin({ right: 4 })
-              Text(formatAmount(this.totalAssets())).fontSize(36).fontWeight(FontWeight.Bold)
-                .fontColor(resolveTheme(themeStore.effective).colors.primary)
+            Stack({ alignContent: Alignment.TopStart }) {
+              Text('💰').fontSize(48).opacity(0.12).position({ x: '70%', y: 0 })
+              Column() {
+                Text(this.lang.t('home.totalAssets')).fontSize(13)
+                  .fontColor(resolveTheme(themeStore.effective).colors.textVariant)
+                Row() {
+                  Text('¥').fontSize(16).fontColor(resolveTheme(themeStore.effective).colors.primary)
+                  Text(formatAmount(this.totalAssets())).fontSize(28).fontWeight(FontWeight.Bold)
+                    .fontColor(resolveTheme(themeStore.effective).colors.primary)
+                }
+                .margin({ top: 8 }).alignItems(VerticalAlign.Bottom)
+
+                Text(this.lang.t('home.accountsCount').replace('{n}', String(this.accounts.length)))
+                  .fontSize(12).fontColor(resolveTheme(themeStore.effective).colors.textVariant)
+                  .margin({ top: 8 })
+
+                Button() {
+                  Row() {
+                    Text('+')
+                      .fontSize(14).fontWeight(FontWeight.Normal).fontColor('#FFFFFF')
+                      .margin({ right: 3 })
+                    Text(this.lang.t('home.quickAdd'))
+                      .fontSize(13).fontWeight(FontWeight.Medium).fontColor('#FFFFFF')
+                  }
+                  .width('100%')
+                  .justifyContent(FlexAlign.Center)
+                  .alignItems(VerticalAlign.Center)
+                }
+                .width('100%')
+                .height(44)
+                .backgroundColor(resolveTheme(themeStore.effective).colors.primary)
+                .borderRadius(8)
+                .margin({ top: 12 })
+                .onClick(() => quickAddStore.open('expense'))
+              }
+              .width('100%').alignItems(HorizontalAlign.Start)
             }
-            .margin({ top: 8 }).alignItems(VerticalAlign.Bottom)
-
-            Text(this.lang.t('home.accountsCount').replace('{n}', String(this.accounts.length)))
-              .fontSize(12).fontColor(resolveTheme(themeStore.effective).colors.textVariant)
-              .margin({ top: 8 })
-
-            Text(this.lang.t('home.quickAdd'))
-              .fontSize(14).fontWeight(FontWeight.Bold).fontColor('#FFFFFF')
-              .width('100%').textAlign(TextAlign.Center)
-              .padding(12)
-              .backgroundColor(resolveTheme(themeStore.effective).colors.primary)
-              .borderRadius(8)
-              .margin({ top: 12 })
-              .onClick(() => quickAddStore.open('expense'))
+            .width('100%').padding(12)
+            .backgroundColor(resolveTheme(themeStore.effective).colors.bgCard)
+            .borderRadius(8)
+            .border({ width: 1, color: resolveTheme(themeStore.effective).colors.divider })
           }
-          .width('100%').padding(16).margin({ left: 16, right: 16, top: 12 })
-          .backgroundColor(resolveTheme(themeStore.effective).colors.bgCard)
-          .borderRadius(16)
+          .width('100%').padding({ left: 10, right: 10, top: 12 })
 
+          // 三个 KPI 全部内联 Row,绕开 @Builder 的 value 参数缓存 bug
+          // (this.kpi(label, formatAmount(this.monthExpenseVal), color) 时,
+          //  formatAmount(...) 作为 @Builder 实参被冻结成首帧值)
           Column() {
-            this.kpi(this.lang.t('home.monthExpense'), formatAmount(this.monthExpense()), resolveTheme(themeStore.effective).colors.error)
-            this.kpi(this.lang.t('home.monthIncome'), formatAmount(this.monthIncome()), '#10B981')
+            Row() {
+              Column() {
+                Text(this.lang.t('home.monthExpense')).fontSize(13)
+                  .fontColor(resolveTheme(themeStore.effective).colors.textVariant)
+                Row() {
+                  Text('¥').fontSize(16).fontColor(resolveTheme(themeStore.effective).colors.error)
+                  Text(formatAmount(this.monthExpenseVal)).fontSize(28).fontWeight(FontWeight.Bold)
+                    .fontColor(resolveTheme(themeStore.effective).colors.error)
+                }
+                .margin({ top: 4 }).alignItems(VerticalAlign.Bottom)
+              }.layoutWeight(1).alignItems(HorizontalAlign.Start)
+            }
+            .width('100%').padding(12).margin({ top: 6 })
+            .backgroundColor(resolveTheme(themeStore.effective).colors.bgCard)
+            .borderRadius(8)
+            .border({ width: 1, color: resolveTheme(themeStore.effective).colors.divider })
+
+            Row() {
+              Column() {
+                Text(this.lang.t('home.monthIncome')).fontSize(13)
+                  .fontColor(resolveTheme(themeStore.effective).colors.textVariant)
+                Row() {
+                  Text('¥').fontSize(16).fontColor('#006d40')
+                  Text(formatAmount(this.monthIncomeVal)).fontSize(28).fontWeight(FontWeight.Bold)
+                    .fontColor('#006d40')
+                }
+                .margin({ top: 4 }).alignItems(VerticalAlign.Bottom)
+              }.layoutWeight(1).alignItems(HorizontalAlign.Start)
+            }
+            .width('100%').padding(12).margin({ top: 6 })
+            .backgroundColor(resolveTheme(themeStore.effective).colors.bgCard)
+            .borderRadius(8)
+            .border({ width: 1, color: resolveTheme(themeStore.effective).colors.divider })
+
             this.balanceKpiRow()
           }
-          .width('100%').padding({ left: 16, right: 16 }).margin({ top: 12 })
+          .width('100%').padding({ left: 10, right: 10 }).margin({ top: 12 })
 
-          Column() {
-            Row() {
-              Text(this.lang.t('home.recentTransactions')).fontSize(16).fontWeight(FontWeight.Bold)
-                .layoutWeight(1)
-              Text(`${this.lang.t('home.viewAll')} →`).fontSize(13)
-                .fontColor(resolveTheme(themeStore.effective).colors.primary)
-                .onClick(() => { setPendingMonth(this.month); getToast()?.show('切换到流水页') })
-            }
-            .width('100%').padding(16)
-            if (this.loading) {
-              Text(this.lang.t('home.loading')).fontSize(13)
-                .fontColor(resolveTheme(themeStore.effective).colors.textVariant)
-                .padding(16).width('100%').textAlign(TextAlign.Center)
-            } else if (this.records.length === 0) {
-              Text(this.lang.t('home.empty')).fontSize(13)
-                .fontColor(resolveTheme(themeStore.effective).colors.textVariant)
-                .padding(24).width('100%').textAlign(TextAlign.Center)
-            } else {
-              ForEach(this.grouped(), (g: DayGroup) => {
-                Column() {
-                  Row() {
-                    Text(g.label).fontSize(12).fontWeight(FontWeight.Medium)
-                      .fontColor(resolveTheme(themeStore.effective).colors.textVariant)
-                      .layoutWeight(1)
-                    Text(`¥ ${formatAmount(Math.abs(g.net))}`).fontSize(12).fontWeight(FontWeight.Medium)
-                      .fontColor(resolveTheme(themeStore.effective).colors.textVariant)
+          // 外层 Row 只负责距屏 10;内层 Column 才是卡片(bgCard + border + radius)。
+          // 之前直接给 Column 加 padding+bgCard,ArkUI 里 Column 的 border 画在 padding
+          // 外边缘(贴屏),视觉上卡片没缩进;拆成 Row+Column 后 padding 是 Row 的,
+          // border 在 Column 的 padding 内边缘(即内容边缘),卡片整体缩进 10。
+          Row() {
+            Column() {
+              Row() {
+                Text(this.lang.t('home.recentTransactions')).fontSize(16).fontWeight(FontWeight.Bold)
+                  .layoutWeight(1)
+                Text(`${this.lang.t('home.viewAll')} →`).fontSize(13)
+                  .fontColor(resolveTheme(themeStore.effective).colors.primary)
+                  .onClick(() => { setPendingMonth(this.month); getToast()?.show('切换到流水页') })
+              }
+              .width('100%').padding({ left: 10, right: 16, top: 16, bottom: 8 })
+              if (this.loading) {
+                Text(this.lang.t('home.loading')).fontSize(13)
+                  .fontColor(resolveTheme(themeStore.effective).colors.textVariant)
+                  .padding(16).width('100%').textAlign(TextAlign.Center)
+              } else if (this.records.length === 0) {
+                Text(this.lang.t('home.empty')).fontSize(13)
+                  .fontColor(resolveTheme(themeStore.effective).colors.textVariant)
+                  .padding(24).width('100%').textAlign(TextAlign.Center)
+              } else {
+                ForEach(this.grouped(), (g: DayGroup) => {
+                  Column() {
+                    Row() {
+                      Text(g.label).fontSize(12).fontWeight(FontWeight.Medium)
+                        .fontColor(resolveTheme(themeStore.effective).colors.textVariant)
+                        .layoutWeight(1)
+                      Text(`¥ ${formatAmount(Math.abs(g.net))}`).fontSize(12).fontWeight(FontWeight.Medium)
+                        .fontColor(resolveTheme(themeStore.effective).colors.textVariant)
+                    }
+                    .width('100%').padding({ left: 10, right: 16, top: 8, bottom: 8 })
+                    .backgroundColor(resolveTheme(themeStore.effective).colors.surface)
+                    ForEach(g.recs, (r: Record) => {
+                      TransactionRow({ record: r, category: this.findCat(r.categoryId) ?? null, account: this.findAccount(r.accountId) ?? null })
+                    }, (r: Record) => r.id)
                   }
-                  .width('100%').padding({ left: 16, right: 16, top: 8, bottom: 8 })
-                  .backgroundColor(resolveTheme(themeStore.effective).colors.surface)
-                  ForEach(g.recs, (r: Record) => {
-                    TransactionRow({ record: r, category: this.findCat(r.categoryId) ?? null, account: this.findAccount(r.accountId) ?? null })
-                  }, (r: Record) => r.id)
-                }
-              }, (g: DayGroup) => g.date)
+                }, (g: DayGroup) => g.date)
+              }
             }
+            .layoutWeight(1)
+            .backgroundColor(resolveTheme(themeStore.effective).colors.bgCard)
+            .borderRadius(8)
+            .border({ width: 1, color: resolveTheme(themeStore.effective).colors.divider })
           }
-          .width('100%').margin({ top: 12 })
-          .backgroundColor(resolveTheme(themeStore.effective).colors.bgCard)
-          .borderRadius(16)
+          .width('100%').padding({ left: 10, right: 10 }).margin({ top: 12 })
 
           Row() {
-            this.catBreakdown(this.lang.t('home.expenseByCategory'), this.byCat('expense'), this.monthExpense())
-            this.catBreakdown(this.lang.t('home.incomeByCategory'), this.byCat('income'), this.monthIncome())
+            // 支出分类 - 内联,直接读 @State expenseByCat,绕开 @Builder 缓存
+            Column() {
+              Text(this.lang.t('home.expenseByCategory')).fontSize(15).fontWeight(FontWeight.Bold).margin({ bottom: 8 })
+              if (this.expenseByCat.length === 0) {
+                Text(this.lang.t('home.empty')).fontSize(11)
+                  .fontColor(resolveTheme(themeStore.effective).colors.textVariant)
+                  .padding(8).width('100%').textAlign(TextAlign.Center)
+              } else {
+                ForEach(this.expenseByCat, (r: CatRow) => {
+                  Column() {
+                    Row() {
+                      Text(r.icon).fontSize(18).fontColor(r.color)
+                      Text(r.cat.name).fontSize(12).layoutWeight(1).margin({ left: 4 })
+                        .maxLines(1).textOverflow({ overflow: TextOverflow.Ellipsis })
+                      Text(`¥${formatAmount(r.total)}`).fontSize(11)
+                        .fontColor(resolveTheme(themeStore.effective).colors.textVariant)
+                    }.width('100%')
+                    Row() {
+                      Row().height(4).width(`${this.monthExpenseVal > 0 ? (r.total / this.monthExpenseVal) * 100 : 0}%`)
+                        .backgroundColor(r.color).borderRadius(2)
+                    }.width('100%').height(4).backgroundColor('#E8EEF7').borderRadius(2).margin({ top: 4 })
+                  }.width('100%').margin({ top: 6 })
+                }, (r: CatRow) => r.cat.id)
+              }
+            }
+            .layoutWeight(1).padding(8).margin({ left: 2, right: 2 })
+            .backgroundColor(resolveTheme(themeStore.effective).colors.bgCard)
+            .borderRadius(8)
+            .border({ width: 1, color: resolveTheme(themeStore.effective).colors.divider })
+
+            // 收入分类 - 同上
+            Column() {
+              Text(this.lang.t('home.incomeByCategory')).fontSize(15).fontWeight(FontWeight.Bold).margin({ bottom: 8 })
+              if (this.incomeByCat.length === 0) {
+                Text(this.lang.t('home.empty')).fontSize(11)
+                  .fontColor(resolveTheme(themeStore.effective).colors.textVariant)
+                  .padding(8).width('100%').textAlign(TextAlign.Center)
+              } else {
+                ForEach(this.incomeByCat, (r: CatRow) => {
+                  Column() {
+                    Row() {
+                      Text(r.icon).fontSize(18).fontColor(r.color)
+                      Text(r.cat.name).fontSize(12).layoutWeight(1).margin({ left: 4 })
+                        .maxLines(1).textOverflow({ overflow: TextOverflow.Ellipsis })
+                      Text(`¥${formatAmount(r.total)}`).fontSize(11)
+                        .fontColor(resolveTheme(themeStore.effective).colors.textVariant)
+                    }.width('100%')
+                    Row() {
+                      Row().height(4).width(`${this.monthIncomeVal > 0 ? (r.total / this.monthIncomeVal) * 100 : 0}%`)
+                        .backgroundColor(r.color).borderRadius(2)
+                    }.width('100%').height(4).backgroundColor('#E8EEF7').borderRadius(2).margin({ top: 4 })
+                  }.width('100%').margin({ top: 6 })
+                }, (r: CatRow) => r.cat.id)
+              }
+            }
+            .layoutWeight(1).padding(8).margin({ left: 2, right: 2 })
+            .backgroundColor(resolveTheme(themeStore.effective).colors.bgCard)
+            .borderRadius(8)
+            .border({ width: 1, color: resolveTheme(themeStore.effective).colors.divider })
           }
-          .width('100%').padding({ left: 16, right: 16 }).margin({ top: 12 })
+          .width('100%').padding({ left: 10, right: 10 }).margin({ top: 12 })
 
           Row().height(56)
         }
@@ -256,8 +408,8 @@ export struct Home {
       Column() {
         Text(label).fontSize(13).fontColor(resolveTheme(themeStore.effective).colors.textVariant)
         Row() {
-          Text('¥').fontSize(16).fontColor(color).margin({ right: 4 })
-          Text(value).fontSize(24).fontWeight(FontWeight.Bold).fontColor(color)
+          Text('¥').fontSize(16).fontColor(color)
+          Text(value).fontSize(28).fontWeight(FontWeight.Bold).fontColor(color)
         }
         .margin({ top: 4 }).alignItems(VerticalAlign.Bottom)
         if (sub) {
@@ -265,51 +417,33 @@ export struct Home {
         }
       }.layoutWeight(1).alignItems(HorizontalAlign.Start)
     }
-    .width('100%').padding(16).margin({ top: 8 })
+    .width('100%').padding(12).margin({ top: 6 })
     .backgroundColor(resolveTheme(themeStore.effective).colors.bgCard)
-    .borderRadius(12)
+    .borderRadius(8)
+    .border({ width: 1, color: resolveTheme(themeStore.effective).colors.divider })
   }
 
   @Builder balanceKpiRow() {
-    this.kpi(this.lang.t('home.monthBalance'), formatAmount(Math.abs(this.monthBalance())),
-      this.balanceColor(), this.balanceSubLabel())
-  }
-
-  private monthBalance(): number { return this.monthIncome() - this.monthExpense() }
-  private balanceColor(): string {
-    return this.monthBalance() >= 0 ? '#10B981' : resolveTheme(themeStore.effective).colors.error
-  }
-  private balanceSubLabel(): string {
-    return this.monthBalance() >= 0 ? this.lang.t('home.surplus') : this.lang.t('home.overBudget')
-  }
-
-  @Builder catBreakdown(title: string, rows: CatRow[], total: number) {
-    Column() {
-      Text(title).fontSize(15).fontWeight(FontWeight.Bold).margin({ bottom: 8 })
-      if (rows.length === 0) {
-        Text(this.lang.t('home.empty')).fontSize(11)
+    Row() {
+      Column() {
+        Text(this.lang.t('home.monthBalance')).fontSize(13)
           .fontColor(resolveTheme(themeStore.effective).colors.textVariant)
-          .padding(8).width('100%').textAlign(TextAlign.Center)
-      } else {
-        ForEach(rows, (r: CatRow) => {
-          Column() {
-            Row() {
-              Text(r.icon).fontSize(18).fontColor(r.color)
-              Text(r.cat.name).fontSize(12).layoutWeight(1).margin({ left: 4 })
-                .maxLines(1).textOverflow({ overflow: TextOverflow.Ellipsis })
-              Text(`¥${formatAmount(r.total)}`).fontSize(11)
-                .fontColor(resolveTheme(themeStore.effective).colors.textVariant)
-            }.width('100%')
-            Row() {
-              Row().height(4).width(`${total > 0 ? (r.total / total) * 100 : 0}%`)
-                .backgroundColor(r.color).borderRadius(2)
-            }.width('100%').height(4).backgroundColor('#E8EEF7').borderRadius(2).margin({ top: 4 })
-          }.width('100%').margin({ top: 6 })
-        }, (r: CatRow) => r.cat.id)
-      }
+        Row() {
+          Text('¥').fontSize(16).fontColor(this.monthIncomeVal - this.monthExpenseVal >= 0 ? '#006d40' : resolveTheme(themeStore.effective).colors.error)
+          Text(formatAmount(Math.abs(this.monthIncomeVal - this.monthExpenseVal))).fontSize(28).fontWeight(FontWeight.Bold)
+            .fontColor(this.monthIncomeVal - this.monthExpenseVal >= 0 ? '#006d40' : resolveTheme(themeStore.effective).colors.error)
+        }
+        .margin({ top: 4 }).alignItems(VerticalAlign.Bottom)
+        Text(this.monthIncomeVal - this.monthExpenseVal >= 0 ? this.lang.t('home.surplus') : this.lang.t('home.overBudget'))
+          .fontSize(12)
+          .fontColor(this.monthIncomeVal - this.monthExpenseVal >= 0 ? '#006d40' : resolveTheme(themeStore.effective).colors.error)
+          .margin({ top: 4 })
+      }.layoutWeight(1).alignItems(HorizontalAlign.Start)
     }
-    .layoutWeight(1).padding(12).margin({ left: 4, right: 4 })
+    .width('100%').padding(12).margin({ top: 6 })
     .backgroundColor(resolveTheme(themeStore.effective).colors.bgCard)
-    .borderRadius(12)
+    .borderRadius(8)
+    .border({ width: 1, color: resolveTheme(themeStore.effective).colors.divider })
   }
-}
+
+  }

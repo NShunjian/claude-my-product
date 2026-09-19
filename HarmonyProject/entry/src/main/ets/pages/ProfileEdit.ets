@@ -101,7 +101,8 @@ struct ProfileEdit {
       await changePassword({ oldPassword: this.oldPassword, newPassword: this.newPassword })
       getToast()?.show(this.lang.t('profileEdit.passwordChanged'))
       this.oldPassword = ''; this.newPassword = ''; this.confirmPassword = ''
-      authStore.token = ''
+      // 改密后清 token + persist,跟 uniapp auth.logout 一致
+      await authStore.logout()
       router.replaceUrl({ url: 'pages/Login' })
     } catch (e) {
       const msg = e instanceof Error ? (e.message ?? '') : ''

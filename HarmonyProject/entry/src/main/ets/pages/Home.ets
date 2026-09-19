@@ -18,6 +18,7 @@ import { formatAmount } from '../utils/finance'
 import { formatMonthCN, formatRelativeDayLabel, compareRecordDesc, DayLabels } from '../utils/date'
 import { categoryPresentation, CategoryLike } from '../utils/category-presentation'
 import { quickAddStore } from '../stores/quick-add'
+import { getMonthPicker } from '../stores/month-picker'
 import { setPendingMonth } from '../utils/nav-intent'
 import type { Record, Account, Category } from '../model/Types'
 
@@ -52,8 +53,10 @@ export struct Home {
 
   private initialLoadDone: boolean = false
   private bookUnsub: (() => void) | null = null
+  private monthPickerUnsub: (() => void) | null = null
   private auth = getAuth()
   private book = getBook()
+  private monthPicker = getMonthPicker()
   private lang = useLanguage()
 
   aboutToAppear() {
@@ -65,11 +68,21 @@ export struct Home {
     this.bookUnsub = this.book.subscribe(() => {
       if (this.initialLoadDone) this.load()
     })
+    // 订阅 monthPickerStore:用户在 Index 全栈 modal 里点月份 → pendingValue/tick 变化
+    // → 写回 this.month,触发 onMonthChange 重拉。
+    this.monthPickerUnsub = this.monthPicker.subscribe(() => {
+      const v = this.monthPicker.pendingValue
+      if (v && v !== this.month) {
+        this.month = v
+        this.monthPicker.pendingValue = ''
+      }
+    })
     this.load()
   }
 
   aboutToDisappear() {
     if (this.bookUnsub) { this.bookUnsub(); this.bookUnsub = null }
+    if (this.monthPickerUnsub) { this.monthPickerUnsub(); this.monthPickerUnsub = null }
   }
 
   private onMonthChange() { if (this.initialLoadDone) this.load() }

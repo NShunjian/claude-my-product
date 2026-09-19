@@ -17,6 +17,7 @@ import { Reports } from './Reports'
 import { Accounts } from './Accounts'
 import { Settings } from './Settings'
 import { QuickAddModal } from '../components/QuickAddModal'
+import { MonthPickerModal } from '../components/MonthPickerModal'
 import { useLanguage } from '../i18n/useLanguage'
 
 @Entry
@@ -102,6 +103,8 @@ struct Index {
 
       ToastHost()
       QuickAddModal()
+      // MonthPickerModal:放在最顶层,覆盖整个屏幕包括底部 tabbar。
+      MonthPickerModal()
     }
     .width('100%').height('100%')
     .backgroundColor(resolveTheme(themeStore.effective).colors.bg)
